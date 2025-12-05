@@ -3,44 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <title>AOS UI - Tareas</title>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:#0b1020; color:#e5e7eb; margin:0; padding:20px; }
-    h1 { margin-bottom: 0.5rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; background:#020617; border-radius:8px; overflow:hidden; }
-    th, td { padding: 0.6rem 0.8rem; border-bottom: 1px solid #1f2937; font-size: 0.9rem; }
-    th { text-align: left; background:#020617; color:#9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-size:0.75rem; }
-    tr:hover { background:#111827; }
-    a { color:#38bdf8; text-decoration:none; }
-    a:hover { text-decoration:underline; }
-    .pill { display:inline-block; padding:0.1rem 0.5rem; border-radius:999px; font-size:0.75rem; background:#111827; color:#e5e7eb; }
-    .pill-agent { background:#1d283a; color:#93c5fd; }
-    .pill-kind  { background:#1e293b; color:#67e8f9; }
-    .time { color:#9ca3af; font-size:0.8rem; }
-    .header { display:flex; justify-content:space-between; align-items:center; }
-    .refresh { font-size:0.8rem; color:#9ca3af; }
-  </style>
+    <link rel="stylesheet" href="/static/aos.css">
+
 </head>
 <body>
   <div class="header">
-    <h1>AOS UI — Tareas activas</h1>
-    <div class="refresh">
-      <span>Recarga manual (F5) · versión v2</span>
+    <h1>AOS UI — Active tasks</h1>
+      <a href="/ui/ask">➕ New Task</a>
+
+      <div class="refresh">
+      <span>manual reload(F5) · version v0.1.0</span>
     </div>
   </div>
   <table>
     <thead>
       <tr>
         <th>ID</th>
-        <th>Último evento</th>
-        <th>Agente</th>
-        <th>Tipo</th>
-        <th>Duración</th>
-        <th>Eventos</th>
+        <th>Last event</th>
+        <th>Agent</th>
+        <th>Type</th>
+        <th>Duration</th>
+        <th>Events</th>
       </tr>
     </thead>
     <tbody>
     {{ if not . }}
-      <tr><td colspan="6">Sin tareas todavía</td></tr>
+      <tr><td colspan="6">No tasks available</td></tr>
     {{ end }}
     {{ range . }}
       <tr>

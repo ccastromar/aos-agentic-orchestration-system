@@ -3,7 +3,6 @@ package tools
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"text/template"
 )
@@ -14,24 +13,23 @@ import (
 // -------------------------------------------------------------
 //
 
-// RenderTemplateString procesa un template que es STRING.
-// Sirve para URLs tipo:
-//
-//	"http://localhost:9000/svc?id={{ .id }}"
+// RenderTemplateString
+// Example:
+// "http://localhost:9000/svc?id={{ .id }}"
 func RenderTemplateString(tpl string, params map[string]string) (string, error) {
-    if params == nil {
-        return tpl, nil
-    }
+	if params == nil {
+		return tpl, nil
+	}
 
-    t, err := template.New("tpl").
-        Option("missingkey=zero").
-        Funcs(template.FuncMap{
-            "env": func(name string) string { return os.Getenv(name) },
-        }).
-        Parse(tpl)
-    if err != nil {
-        return "", fmt.Errorf("error parseando template string: %w", err)
-    }
+	t, err := template.New("tpl").
+		Option("missingkey=zero").
+		Funcs(template.FuncMap{
+			"env": func(name string) string { return os.Getenv(name) },
+		}).
+		Parse(tpl)
+	if err != nil {
+		return "", fmt.Errorf("error parseando template string: %w", err)
+	}
 
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, params); err != nil {
@@ -41,32 +39,31 @@ func RenderTemplateString(tpl string, params map[string]string) (string, error) 
 	return buf.String(), nil
 }
 
-// RenderTemplateMap procesa UN MAP de strings.
-// Sirve para el body de las tools, por ejemplo:
-//
+// RenderTemplateMap process a MAP of strings.
+// For the body of the tool
 // body:
 //
 //	customerId: "{{ .customerId }}"
 //	days:       "{{ .days }}"
 //
-// Produce un map[string]string renderizado.
+// Produces a map[string]string
 func RenderTemplateMap(body map[string]string, params map[string]string) (map[string]string, error) {
-    if body == nil {
-        return map[string]string{}, nil
-    }
+	if body == nil {
+		return map[string]string{}, nil
+	}
 
 	out := make(map[string]string)
 
- for k, v := range body {
-        t, err := template.New("body").
-            Option("missingkey=zero").
-            Funcs(template.FuncMap{
-                "env": func(name string) string { return os.Getenv(name) },
-            }).
-            Parse(v)
-        if err != nil {
-            return nil, fmt.Errorf("error parseando template body campo=%s: %w", k, err)
-        }
+	for k, v := range body {
+		t, err := template.New("body").
+			Option("missingkey=zero").
+			Funcs(template.FuncMap{
+				"env": func(name string) string { return os.Getenv(name) },
+			}).
+			Parse(v)
+		if err != nil {
+			return nil, fmt.Errorf("error parseando template body campo=%s: %w", k, err)
+		}
 
 		var buf bytes.Buffer
 		if err := t.Execute(&buf, params); err != nil {
@@ -77,20 +74,4 @@ func RenderTemplateMap(body map[string]string, params map[string]string) (map[st
 	}
 
 	return out, nil
-}
-
-//
-// -------------------------------------------------------------
-// DEBUG HELPERS
-// -------------------------------------------------------------
-//
-
-// DebugRender muestra cómo queda un template string (para logging manual)
-func DebugRender(label, tpl string, params map[string]string) {
-	out, err := RenderTemplateString(tpl, params)
-	if err != nil {
-		log.Printf("[TEMPLATE][%s] ERROR: %v", label, err)
-	} else {
-		log.Printf("[TEMPLATE][%s] %s => %s", label, tpl, out)
-	}
 }

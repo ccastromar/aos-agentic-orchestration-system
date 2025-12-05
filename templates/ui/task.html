@@ -3,21 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <title>AOS UI - Task {{ .ID }}</title>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:#020617; color:#e5e7eb; margin:0; padding:20px; }
-    a { color:#38bdf8; text-decoration:none; }
-    a:hover { text-decoration:underline; }
-    .pill { display:inline-block; padding:0.1rem 0.5rem; border-radius:999px; font-size:0.75rem; background:#111827; color:#e5e7eb; }
-    .pill-agent { background:#1d283a; color:#93c5fd; }
-    .pill-kind  { background:#1e293b; color:#67e8f9; }
-    .time { color:#9ca3af; font-size:0.8rem; }
-    .event { border-left:2px solid #1f2937; padding-left:0.8rem; margin-bottom:0.6rem; }
-    .event-header { display:flex; justify-content:space-between; align-items:center; }
-  </style>
+    <link rel="stylesheet" href="/static/aos.css">
+
 </head>
 <body>
-  <a href="/ui">&larr; Volver</a>
+  <a href="/ui">&larr; Back</a>
   <h1>Task {{ .ID }}</h1>
+  <div id="human-gate-actions" style="margin-top:20px; display:block;">
+      <h3>Human Approval Required</h3>
+      <button id="approveBtn">Approve</button>
+      <button id="rejectBtn" style="margin-left:10px;">Reject</button>
+      <p id="hg-status"></p>
+  </div>
+
+  <script>
+      const params = new URLSearchParams(window.location.search);
+      const taskId = params.get("id");
+
+      async function checkGate() {
+          const res = await fetch("/ui/task?id=" + taskId);
+          console.log(res)
+          const data = await res.json();
+          if (!data || data.status === "pending") return;
+
+          if (data.error && data.error.includes("awaiting human")) {
+              document.getElementById("human-gate-actions").style.display = "block";
+          }
+      }
+
+      document.getElementById("approveBtn").onclick = async () => {
+          const res = await fetch(`/task/approve?id=${taskId}`);
+          document.getElementById("hg-status").textContent = "Approved!";
+          setTimeout(() => location.reload(), 800);
+      }
+
+      document.getElementById("rejectBtn").onclick = async () => {
+          const res = await fetch(`/task/reject?id=${taskId}`);
+          document.getElementById("hg-status").textContent = "Rejected.";
+          setTimeout(() => location.reload(), 800);
+      }
+
+      checkGate();
+  </script>
 
   {{ range .Events }}
     <div class="event">
@@ -36,7 +63,7 @@
   {{ end }}
 
   {{ if not .Events }}
-    <p>Sin eventos para esta tarea.</p>
+    <p>No events for this task.</p>
   {{ end }}
 </body>
 </html>

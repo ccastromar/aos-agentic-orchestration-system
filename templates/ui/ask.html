@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AOS – Ask</title>
+
+    <!-- Go injects API key dynamically -->
+    <meta name="aos-api-key" content="{{ .APIKey }}"/>
+    <link rel="stylesheet" href="/static/aos.css">
+
+    <style>
+
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>New Task (Ask AOS)</h1>
+<a href="/ui">&larr; Back</a>
+
+<form id="askForm">
+    <textarea id="message" placeholder="Write here your request..." required></textarea>
+    <br/><br/>
+    <button type="submit">Send</button>
+</form>
+
+<p id="status"></p>
+
+<script>
+    // API key injected by Go through the <meta> tag.
+    const apiKey = document
+        .querySelector('meta[name="aos-api-key"]')
+        .getAttribute('content');
+
+    document.getElementById("askForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const message = document.getElementById("message").value;
+        const status = document.getElementById("status");
+
+        status.textContent = "Sending…";
+
+        try {
+            const res = await fetch("/ask", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-API-Key": apiKey
+                },
+                body: JSON.stringify({ message })
+            });
+
+            if (!res.ok) {
+                status.textContent = "Error: " + res.status;
+                return;
+            }
+
+            const data = await res.json();
+            status.textContent = "Dispatched: " + data.id;
+
+            window.location.href = "/ui/task?id=" + data.id;
+
+        } catch (err) {
+            status.textContent = "Error: " + err;
+        }
+    });
+</script>
+
+</body>
+</html>

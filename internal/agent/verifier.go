@@ -8,23 +8,27 @@ import (
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/tools"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
 )
 
 type Verifier struct {
-	bus     *bus.Bus
-	cfg     *config.Config
-	inbox   chan bus.Message
-	uiStore *ui.UIStore
+	bus          *bus.Bus
+	cfg          *config.Config
+	inbox        chan bus.Message
+	uiStore      *ui.UIStore
+	stateManager *state.StateManager
 }
 
-func NewVerifier(b *bus.Bus, cfg *config.Config, ui *ui.UIStore) *Verifier {
+func NewVerifier(b *bus.Bus, cfg *config.Config, ui *ui.UIStore, sm *state.StateManager) *Verifier {
 	return &Verifier{
-		bus:     b,
-		cfg:     cfg,
-		inbox:   make(chan bus.Message, 16),
-		uiStore: ui,
+		bus:          b,
+		cfg:          cfg,
+		inbox:        make(chan bus.Message, 16),
+		uiStore:      ui,
+		stateManager: sm,
 	}
 }
 
@@ -33,33 +37,36 @@ func (v *Verifier) Inbox() chan bus.Message {
 }
 
 func (v *Verifier) Start(ctx context.Context) error {
-    defer func() {
-        if r := recover(); r != nil {
-            logx.Error("Verifier", "panic recovered in Start: %v", r)
-        }
-    }()
-    for {
-        select {
-        case msg := <-v.inbox:
-            func() {
-                defer func() {
-                    if r := recover(); r != nil {
-                        logx.Error("Verifier", "panic recovered in dispatch: %v", r)
-                    }
-                }()
-                v.dispatch(msg)
-            }()
+	defer func() {
+		if r := recover(); r != nil {
+			logx.Error("Verifier", "panic recovered in Start: %v", r)
+		}
+	}()
+	for {
+		select {
+		case msg := <-v.inbox:
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						logx.Error("Verifier", "panic recovered in dispatch: %v", r)
+					}
+				}()
+				v.dispatch(msg)
+			}()
 
-        case <-ctx.Done():
-            return nil
-        }
-    }
+		case <-ctx.Done():
+			return nil
+		}
+	}
 }
 
 func (v *Verifier) dispatch(msg bus.Message) {
+	//message from the planner agent
 	switch msg.Type {
 	case "run_pipeline":
 		v.handleRunPipeline(msg)
+	case "human_decision":
+		v.handleHumanDecision(msg)
 	default:
 		logx.Warn("Verifier", "unknown message: %#v", msg)
 	}
@@ -69,8 +76,17 @@ func (v *Verifier) dispatch(msg bus.Message) {
 // HANDLER PRINCIPAL
 // -------------------------------------------------------------
 func (v *Verifier) handleRunPipeline(msg bus.Message) {
-	id := msg.Payload["id"].(string)
-	intentType, _ := msg.Payload["intent"].(string)
+	id, ok := payload.GetString(msg.Payload, "id")
+	if !ok {
+		logx.Error("Planner", "invalid payload: missing id")
+		return
+	}
+	intentType, ok := payload.GetString(msg.Payload, "intent")
+	if !ok {
+		logx.Error("Planner", "invalid payload: missing intent")
+		return
+	}
+
 	pipeAny := msg.Payload["pipeline"]
 	paramsAny := msg.Payload["params"]
 
@@ -78,12 +94,12 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	if !ok {
 		storeResult(id, Result{
 			Status: "error",
-			Err:    "pipeline inválido",
+			Err:    "invalid pipeline",
 		})
 		return
 	}
 
-	// Parámetros extraídos por el Planner
+	// extracted params from the Planner agent
 	baseParams := make(map[string]string)
 	if paramsAny != nil {
 		if mp, ok := paramsAny.(map[string]string); ok {
@@ -103,14 +119,16 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	logx.Info("Verifier", "executing pipeline=%s id=%s intent=%s params=%#v",
 		pipe.Name, id, intentType, baseParams)
 
+	logx.Debug("Verifier", "PIPE STEPS = %#v", pipe.Steps)
+
 	stepResults := make(map[string]any)
 
 	// ---------------------------------------------------------
-	// EJECUTAMOS CADA PASO
+	// execute pipeline steps
 	// ---------------------------------------------------------
-	for _, step := range pipe.Steps {
+	for index, step := range pipe.Steps {
 
-		// Step ANALYST → directo al Analyst
+		// Step ANALYST → forward to the Analyst agent
 		if step.Analyst {
 			logx.Debug("Verifier", "analyst=true id=%s -> calling Analyst", id)
 			v.bus.Send("analyst", bus.Message{
@@ -122,6 +140,36 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 				},
 			})
 			return
+		}
+
+		if step.HumanGate != "" {
+			execState := &state.ExecutionState{
+				ID:          id,
+				Intent:      intentType,
+				Pipeline:    pipe.Name,
+				StepIndex:   index,
+				Params:      baseParams,
+				StepResults: stepResults,
+				Gate:        step.HumanGate,
+			}
+
+			if err := v.stateManager.Save(context.Background(), execState); err != nil {
+				v.storeError(id, "cannot persist execution state")
+				return
+			}
+
+			v.uiStore.AddEvent(id, "Verifier", "await_human", step.HumanGate, "")
+
+			// signal API agent
+			v.bus.Send("api", bus.Message{
+				Type: "await_human",
+				Payload: map[string]any{
+					"id":   id,
+					"gate": step.HumanGate,
+				},
+			})
+
+			return // PAUSA PIPELINE
 		}
 
 		// Step TOOL
@@ -164,6 +212,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		taskCtx, _ := GetTaskContext(id)
 		if taskCtx == nil {
 			taskCtx = context.Background()
+			NewTaskContext(taskCtx, id, 0)
 		}
 
 		out, err := tools.ExecuteToolCtx(taskCtx, t, callParams)
@@ -184,7 +233,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		stepResults[toolName] = out
 	}
 
-	// Si terminó sin paso analyst explícito, lo enviamos ahora
+	// send the result and the intent type to the Analyst agent
 	v.bus.Send("analyst", bus.Message{
 		Type: "summarize",
 		Payload: map[string]any{
@@ -193,4 +242,258 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 			"rawResult": stepResults,
 		},
 	})
+}
+
+func (v *Verifier) resumeFromState(st *state.ExecutionState) {
+	id := st.ID
+	intentType := st.Intent
+	pipe, ok := v.cfg.Pipelines[st.Pipeline]
+	if !ok {
+		v.storeError(id, "pipeline not found on resume")
+		return
+	}
+
+	logx.Info("Verifier", "resuming pipeline=%s id=%s from step=%d", pipe.Name, id, st.StepIndex)
+
+	stepResults := st.StepResults
+	if stepResults == nil {
+		stepResults = make(map[string]any)
+	}
+
+	params := st.Params
+	if params == nil {
+		params = make(map[string]string)
+	}
+
+	// CONTINUAMOS EN EL SIGUIENTE STEP
+	startAt := st.StepIndex + 1
+
+	// Always restore a *fresh* execution context for resumed pipelines
+	taskCtx, _ := GetTaskContext(id)
+	if taskCtx == nil || taskCtx.Err() != nil {
+		// regenerate context to avoid "deadline exceeded"
+		taskCtx = context.Background()
+		// store new context without TTL (0 = no expiration)
+		_ = NewTaskContext(taskCtx, id, 0)
+		logx.Info("Verifier", "[%s] regenerated fresh LLM context (resume)", id)
+	}
+
+	for index := startAt; index < len(pipe.Steps); index++ {
+		step := pipe.Steps[index]
+
+		// 1️⃣ Paso humano → PAUSA OTRA VEZ
+		if step.HumanGate != "" {
+			nextState := &state.ExecutionState{
+				ID:          id,
+				Intent:      intentType,
+				Pipeline:    pipe.Name,
+				StepIndex:   index,
+				Params:      params,
+				StepResults: stepResults,
+				Gate:        step.HumanGate,
+			}
+			if err := v.stateManager.Save(context.Background(), nextState); err != nil {
+				v.storeError(id, "error saving new human gate state")
+				return
+			}
+
+			logx.Info("Verifier", "[%s] awaiting human at gate=%s (resume)", id, step.HumanGate)
+			v.uiStore.AddEvent(id, "Verifier", "await_human", step.HumanGate, "resume")
+
+			v.bus.Send("api", bus.Message{
+				Type: "await_human",
+				Payload: map[string]any{
+					"id":   id,
+					"gate": step.HumanGate,
+				},
+			})
+			return
+		}
+
+		// 2️⃣ Paso analyst → pasa rawResults al Analyst y termina
+		if step.Analyst {
+			logx.Debug("Verifier", "analyst step on resume → calling Analyst")
+			v.bus.Send("analyst", bus.Message{
+				Type: "summarize",
+				Payload: map[string]any{
+					"id":        id,
+					"intent":    intentType,
+					"rawResult": stepResults,
+				},
+			})
+			return
+		}
+
+		// 3️⃣ Paso tool
+		if step.Tool == "" {
+			v.storeError(id, "invalid empty tool in resume")
+			return
+		}
+
+		t, ok := v.cfg.Tools[step.Tool]
+		if !ok {
+			v.storeError(id, "tool not found: "+step.Tool)
+			return
+		}
+
+		logx.Info("Verifier", "resuming tool=%s id=%s", step.Tool, id)
+
+		// merge params (igual que en ejecución normal)
+		callParams := make(map[string]string)
+		for k, v := range params {
+			callParams[k] = v
+		}
+		for k, v := range step.WithParams {
+			if callParams[k] == "" {
+				callParams[k] = v
+			}
+		}
+
+		// ejecutar tool
+		timer := logx.Start(id, "Verifier", "tool_"+t.Name)
+		out, err := tools.ExecuteToolCtx(taskCtx, t, callParams)
+		timer.End()
+
+		if err != nil {
+			v.storeError(id, "tool error: "+err.Error())
+			return
+		}
+
+		stepResults[step.Tool] = out
+		v.uiStore.AddEvent(id, "Verifier", "tool "+step.Tool, "ok (resume)", "")
+
+		// actualizar ExecutionState en RAM por si hay otro pause después
+		params = callParams
+	}
+
+	// 4️⃣ Si no hubo analyst explícito → manda al Analyst para resumen final
+	v.bus.Send("analyst", bus.Message{
+		Type: "summarize",
+		Payload: map[string]any{
+			"id":        id,
+			"intent":    intentType,
+			"rawResult": stepResults,
+		},
+	})
+}
+
+func (v *Verifier) handleContinuePipeline(msg bus.Message) {
+	id := msg.Payload["id"].(string)
+
+	st, err := v.stateManager.Load(context.Background(), id)
+	if err != nil || st == nil {
+		v.storeError(id, "no execution state found")
+		return
+	}
+
+	// limpiamos estado viejo
+	v.stateManager.Delete(context.Background(), id)
+
+	v.resumeFromState(st)
+}
+
+func (v *Verifier) handleHumanDecision(msg bus.Message) {
+	id, ok := payload.GetString(msg.Payload, "id")
+	if !ok {
+		logx.Error("Verifier", "invalid human_decision payload: missing id")
+		return
+	}
+	decision, ok := payload.GetString(msg.Payload, "decision")
+	if !ok {
+		logx.Error("Verifier", "invalid human_decision payload: missing decision")
+		return
+	}
+
+	st, err := v.stateManager.Load(context.Background(), id)
+	if err != nil || st == nil {
+		v.storeError(id, "no execution state found")
+		return
+	}
+
+	if decision != "approved" {
+		_ = v.stateManager.Delete(context.Background(), id)
+		v.storeError(id, "human rejected review at gate: "+st.Gate)
+		return
+	}
+
+	// limpiar estado y reanudar
+	_ = v.stateManager.Delete(context.Background(), id)
+	v.resumeFromState(st)
+}
+
+//func (v *Verifier) resumePipeline(id string, st *state.ExecutionState) {
+//	pipe, ok := v.cfg.Pipelines[st.Pipeline]
+//	if !ok {
+//		v.storeError(id, "pipeline not found during resume")
+//		return
+//	}
+//
+//	// Continuar desde el siguiente step
+//	next := st.StepIndex + 1
+//	stepResults := st.StepResults
+//
+//	for index := next; index < len(pipe.Steps); index++ {
+//		step := pipe.Steps[index]
+//
+//		// HUMAN GATE de nuevo
+//		if step.HumanGate != "" {
+//			state2 := &state.ExecutionState{
+//				ID:          id,
+//				Intent:      st.Intent,
+//				Pipeline:    pipe.Name,
+//				StepIndex:   index,
+//				StepResults: stepResults,
+//				Gate:        step.HumanGate,
+//				CreatedAt:   time.Now(),
+//			}
+//
+//			_ = v.stateStore.Save(context.Background(), state2)
+//
+//			v.uiStore.AddEvent(id, "Verifier", "await_human", step.HumanGate, "")
+//			return
+//		}
+//
+//		// TOOL normal
+//		tname := step.Tool
+//		t, ok := v.cfg.Tools[tname]
+//		if !ok {
+//			v.storeError(id, "tool not found: "+tname)
+//			return
+//		}
+//
+//		out, err := tools.ExecuteToolCtx(context.Background(), t, step.WithParams)
+//		if err != nil {
+//			v.storeError(id, err.Error())
+//			return
+//		}
+//
+//		stepResults[tname] = out
+//	}
+//
+//	// al final → Analyst
+//	v.bus.Send("analyst", bus.Message{
+//		Type: "summarize",
+//		Payload: map[string]any{
+//			"id":        id,
+//			"intent":    st.Intent,
+//			"rawResult": stepResults,
+//		},
+//	})
+//}
+
+func (v *Verifier) storeError(id, errMsg string) {
+	logx.Error("Verifier", "[%s] %s", id, errMsg)
+
+	if v.stateManager != nil {
+		_ = v.stateManager.Delete(context.Background(), id)
+	}
+
+	storeResult(id, Result{
+		Status: "error",
+		Err:    errMsg,
+	})
+
+	if v.uiStore != nil {
+		v.uiStore.AddEvent(id, "Verifier", "error", errMsg, "")
+	}
 }

@@ -16,7 +16,10 @@ func TestExecuteTool_URLRendering(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedURL = r.URL.String()
-		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		err := json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		if err != nil {
+			return
+		}
 	}))
 	defer ts.Close()
 
@@ -30,7 +33,7 @@ func TestExecuteTool_URLRendering(t *testing.T) {
 
 	params := map[string]string{"accountId": "555"}
 
- out, err := tools.ExecuteTool(tool, params)
+	out, err := tools.ExecuteTool(tool, params)
 	require.NoError(t, err)
 	require.Equal(t, true, out["ok"])
 
@@ -57,7 +60,7 @@ func TestExecuteTool_URLRendering_MissingParamRendersEmpty(t *testing.T) {
 	// Note: accountId is intentionally missing to verify it renders as empty string, not "<no value>"
 	params := map[string]string{}
 
- out, err := tools.ExecuteTool(tool, params)
+	out, err := tools.ExecuteTool(tool, params)
 	require.NoError(t, err)
 	require.Equal(t, true, out["ok"])
 
@@ -92,7 +95,7 @@ func TestExecuteTool_BodyRendering_MissingParamsRenderEmpty(t *testing.T) {
 	// Provide only some params; others are missing and should render as empty strings
 	params := map[string]string{"fromPhone": "111", "amount": "5"}
 
- out, err := tools.ExecuteTool(tool, params)
+	out, err := tools.ExecuteTool(tool, params)
 	require.NoError(t, err)
 	require.Equal(t, true, out["ok"])
 
@@ -118,7 +121,7 @@ func TestExecuteTool_HTTPErrorIncludesStatus(t *testing.T) {
 		TimeoutMs: 1000,
 	}
 
- _, err := tools.ExecuteTool(tool, map[string]string{"x": "1"})
+	_, err := tools.ExecuteTool(tool, map[string]string{"x": "1"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "HTTP 500")
 }
@@ -131,7 +134,10 @@ func TestExecuteTool_HeadersWithEnv(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		err := json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		if err != nil {
+			return
+		}
 	}))
 	defer ts.Close()
 
@@ -146,7 +152,7 @@ func TestExecuteTool_HeadersWithEnv(t *testing.T) {
 		},
 	}
 
- _, err := tools.ExecuteTool(tool, map[string]string{})
+	_, err := tools.ExecuteTool(tool, map[string]string{})
 	require.NoError(t, err)
 	require.Equal(t, "Bearer secret123", gotAuth)
 }
@@ -159,7 +165,10 @@ func TestExecuteTool_HeadersWithAPIKeyEnv(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		err := json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		if err != nil {
+			return
+		}
 	}))
 	defer ts.Close()
 
@@ -174,7 +183,7 @@ func TestExecuteTool_HeadersWithAPIKeyEnv(t *testing.T) {
 		},
 	}
 
- _, err := tools.ExecuteTool(tool, map[string]string{})
+	_, err := tools.ExecuteTool(tool, map[string]string{})
 	require.NoError(t, err)
 	require.Equal(t, "Bearer banking-abc-123", gotAuth)
 }

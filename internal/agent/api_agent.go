@@ -13,6 +13,7 @@ import (
 
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
 )
 
@@ -141,8 +142,22 @@ func (a *APIAgent) Start(ctx context.Context) error {
 }
 
 func (a *APIAgent) dispatch(msg bus.Message) {
-	for msg := range a.inbox {
-		log.Printf("[API] mensaje interno ignorado: %#v", msg)
+	switch msg.Type {
+	case "await_human":
+		id, ok := payload.GetString(msg.Payload, "id")
+		if !ok {
+			logx.Error("Api", "invalid payload: missing id")
+			return
+		}
+		gate, ok := payload.GetString(msg.Payload, "gate")
+		if !ok {
+			logx.Error("Api", "invalid payload: missing gate")
+			return
+		}
+		logx.Info("API", "task %s awaiting human review [%s]", id, gate)
+		a.uiStore.AddEvent(id, "API", "await_human", gate, "")
+	default:
+		// ignore silently
 	}
 }
 
@@ -168,6 +183,9 @@ func (a *APIAgent) RegisterHTTP(mux *http.ServeMux) {
 	mux.HandleFunc("/ask", a.handleAsk)             // async NLP-like mode (message)
 	mux.HandleFunc("/ask_structured", a.handleAsk2) // sync: operation + params
 	mux.HandleFunc("/task", a.handleTask)           // fetch task status/result
+	mux.HandleFunc("/task/approve", a.handleHumanApprove)
+	mux.HandleFunc("/task/reject", a.handleHumanReject)
+
 	//mux.HandleFunc("/ask_nlp", a.handleAskNLP) // modo lenguaje natural
 }
 
@@ -221,11 +239,8 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	logx.Info("Api", "new request id=%s message='%s'", id, req.Message)
 	a.uiStore.AddEvent(id, "Api", "request", req.Message, "")
 
-	// Create and register a task context with a default TTL. We deliberately
-	// do NOT tie this context to the request context, because /ask returns
-	// immediately (async) and we want background processing to continue
-	// even after the client disconnects. Use Background as parent.
-	_ = NewTaskContext(context.Background(), id, 60*time.Second)
+	_ = NewTaskContext(context.Background(), id, 0)
+	logx.Warn("Api", "Created NEW TaskContext for %s", id)
 
 	// Enviar al inspector con el message correcto
 	a.bus.Send("inspector", bus.Message{
@@ -252,6 +267,27 @@ func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Auth check (igual que /ask)
+	if !a.checkAuth(r) {
+		w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// Rate limit (igual que /ask)
+	if err := a.acquireRL(getClientKey(r)); err != nil {
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+		return
+	}
+	// Enforce content type
+	ct := r.Header.Get("Content-Type")
+	if ct == "" || !strings.HasPrefix(strings.ToLower(ct), "application/json") {
+		http.Error(w, "unsupported media type", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	// Limit request body size
+	r.Body = http.MaxBytesReader(w, r.Body, maxAskBodyBytes)
 
 	var req askRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -389,4 +425,104 @@ func (a *APIAgent) handleAskNLP(w http.ResponseWriter, r *http.Request) {
 		Result: res.Data,
 		Error:  res.Err,
 	})
+}
+
+func (a *APIAgent) handleTaskApprove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Auth
+	if !a.checkAuth(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "id requerido", http.StatusBadRequest)
+		return
+	}
+
+	// Emit message to Verifier
+	a.bus.Send("verifier", bus.Message{
+		Type: "human_decision",
+		Payload: map[string]any{
+			"id":       id,
+			"decision": "approved",
+		},
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"id":       id,
+		"status":   "accepted",
+		"decision": "approved",
+	})
+}
+
+func (a *APIAgent) handleTaskReject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Auth
+	if !a.checkAuth(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "id requerido", http.StatusBadRequest)
+		return
+	}
+
+	// Emit message to Verifier
+	a.bus.Send("verifier", bus.Message{
+		Type: "human_decision",
+		Payload: map[string]any{
+			"id":       id,
+			"decision": "rejected",
+		},
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"id":       id,
+		"status":   "accepted",
+		"decision": "rejected",
+	})
+}
+
+func (a *APIAgent) handleHumanApprove(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+
+	a.bus.Send("verifier", bus.Message{
+		Type: "human_decision",
+		Payload: map[string]any{
+			"id":       id,
+			"decision": "approved",
+		},
+	})
+
+	w.WriteHeader(200)
+	w.Write([]byte(`{"status":"ok","id":"` + id + `"}`))
+}
+
+func (a *APIAgent) handleHumanReject(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+
+	a.bus.Send("verifier", bus.Message{
+		Type: "human_decision",
+		Payload: map[string]any{
+			"id":       id,
+			"decision": "rejected",
+		},
+	})
+
+	w.WriteHeader(200)
+	w.Write([]byte(`{"status":"rejected","id":"` + id + `"}`))
 }

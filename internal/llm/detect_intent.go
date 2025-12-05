@@ -1,10 +1,12 @@
 package llm
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "strings"
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 )
 
 type DetectedIntent struct {
@@ -20,7 +22,7 @@ type IntentSchema struct {
 }
 
 func DetectIntent(ctx context.Context, c LLMClient, text string, validIntents map[string]any) (*DetectedIntent, error) {
-	// Construimos la lista para el prompt
+	// Build intent list for the prompt
 	keys := make([]string, 0, len(validIntents))
 	for k := range validIntents {
 		keys = append(keys, k)
@@ -47,16 +49,17 @@ User message:
 "%s"
 `, intentsJSON, text)
 
- raw, err := c.Chat(ctx, prompt)
+	raw, err := c.Chat(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
 
 	clean := strings.TrimSpace(raw)
-
-	// Validamos
+	logx.Debug("Planner", "clean is %s", clean)
+	logx.Debug("Planner", "validIntents %w", validIntents)
+	// Validate
 	if _, ok := validIntents[clean]; !ok {
-		return nil, fmt.Errorf("DetectIntent JSON inválido: intent no reconocido; raw=%s", clean)
+		return nil, fmt.Errorf("DetectIntent invalid JSON : unknown intent; raw=%s", clean)
 	}
 
 	return &DetectedIntent{
@@ -94,7 +97,7 @@ User message:
 "%s"
 `, intentsJSON, userMsg)
 
- raw, err := client.Chat(ctx, prompt)
+	raw, err := client.Chat(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}

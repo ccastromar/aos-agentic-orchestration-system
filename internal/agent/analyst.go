@@ -1,12 +1,13 @@
 package agent
 
 import (
-    "context"
+	"context"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
 )
 
 type Analyst struct {
@@ -29,27 +30,27 @@ func (a *Analyst) Inbox() chan bus.Message {
 	return a.inbox
 }
 func (a *Analyst) Start(ctx context.Context) error {
-    defer func() {
-        if r := recover(); r != nil {
-            logx.Error("Analyst", "panic recovered in Start: %v", r)
-        }
-    }()
-    for {
-        select {
-        case msg := <-a.inbox:
-            func() {
-                defer func() {
-                    if r := recover(); r != nil {
-                        logx.Error("Analyst", "panic recovered in dispatch: %v", r)
-                    }
-                }()
-                a.dispatch(msg)
-            }()
+	defer func() {
+		if r := recover(); r != nil {
+			logx.Error("Analyst", "panic recovered in Start: %v", r)
+		}
+	}()
+	for {
+		select {
+		case msg := <-a.inbox:
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						logx.Error("Analyst", "panic recovered in dispatch: %v", r)
+					}
+				}()
+				a.dispatch(msg)
+			}()
 
-        case <-ctx.Done():
-            return nil
-        }
-    }
+		case <-ctx.Done():
+			return nil
+		}
+	}
 }
 
 func (a *Analyst) dispatch(msg bus.Message) {
@@ -64,16 +65,20 @@ func (a *Analyst) dispatch(msg bus.Message) {
 }
 
 func (a *Analyst) handleSummarize(msg bus.Message) {
-    id := msg.Payload["id"].(string)
-    intentType, _ := msg.Payload["intent"].(string)
-    rawAny := msg.Payload["rawResult"]
+	id, ok := payload.GetString(msg.Payload, "id")
+	if !ok {
+		logx.Error("Planner", "invalid payload: missing id")
+		return
+	}
+	intentType, _ := msg.Payload["intent"].(string)
+	rawAny := msg.Payload["rawResult"]
 
 	raw, ok := rawAny.(map[string]any)
 	if !ok {
 		logx.Error("Analyst", "rawResult invalid for id=%s", id)
 		storeResult(id, Result{
 			Status: "error",
-			Err:    "resultado bruto inválido",
+			Err:    "invalid rawResult: expected map[string]any, got",
 		})
 		return
 	}
@@ -81,19 +86,19 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	logx.Info("Analyst", "requesting summary to the LLM...")
 	logx.Debug("Analyst", "rawResult: %#v", raw)
 
- // obtain task context if present
- taskCtx, _ := GetTaskContext(id)
- if taskCtx == nil {
-     taskCtx = context.Background()
- }
+	// obtain task context if present
+	taskCtx, _ := GetTaskContext(id)
+	if taskCtx == nil {
+		taskCtx = context.Background()
+		NewTaskContext(taskCtx, id, 0)
+	}
 
- timer := logx.Start(id, "Analyst", "SummarizeLLM")
- summary, err := llm.SummarizeResult(taskCtx, a.llmClient, intentType, raw)
- timer.End()
+	timer := logx.Start(id, "Analyst", "SummarizeLLM")
+	summary, err := llm.SummarizeResult(taskCtx, a.llmClient, intentType, raw)
+	timer.End()
 
 	if err != nil {
 		logx.Error("Analyst", "error calling to the LLM: %v", err)
-		// Degradamos de forma elegante: devolvemos solo el raw.
 		storeResult(id, Result{
 			Status: "ok",
 			Data: map[string]any{
@@ -103,7 +108,8 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 		return
 	}
 	logx.Info("Analyst", "summary generated: %s", summary)
-	a.uiStore.AddEvent(id, "Analyst", "summary", "summary LLM generado", "")
+	//	a.uiStore.AddEvent(id, "Analyst", "summary", "summary LLM has been generated", "")
+	a.uiStore.AddEvent(id, "Analyst", "summary", summary, "")
 
 	storeResult(id, Result{
 		Status: "ok",

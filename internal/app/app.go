@@ -1,13 +1,17 @@
 package app
 
 import (
-    "context"
-    "net/http"
+	"context"
+	"fmt"
+	"net/http"
+	"time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
-    "golang.org/x/sync/errgroup"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/agent"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
@@ -30,14 +34,16 @@ type App struct {
 func New() (*App, error) {
 	env, err := config.LoadEnv()
 	if err != nil {
-		// Proceed without env to keep backward compatibility in tests
-		return NewWithEnv(nil)
+		return nil, err
 	}
 	return NewWithEnv(env)
 }
 
 // NewWithEnv builds the App wiring using the provided environment variables.
 func NewWithEnv(env *config.EnvVars) (*App, error) {
+	if env == nil {
+		return nil, fmt.Errorf("env cannot be nil")
+	}
 	cfg, err := config.LoadFromDir("definitions")
 	if err != nil {
 		return nil, err
@@ -46,32 +52,45 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	uiStore := ui.NewUIStore()
 	messageBus := bus.New()
 
-	// Select LLM client parameters from env when available (Ollama)
-	ollamaURL := "http://localhost:11434"
-	ollamaModel := "qwen3:0.6b"
-	if env != nil {
-		if env.OllamaBaseURL != "" {
-			ollamaURL = env.OllamaBaseURL
+	var stateStore state.StateStore
+	if env.RedisAddr != "" {
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     env.RedisAddr,
+			Password: env.RedisPassword,
+			DB:       0,
+		})
+		if err := rdb.Ping(context.Background()).Err(); err != nil {
+			return nil, fmt.Errorf("redis connection failed: %w", err)
 		}
-		if env.OllamaModel != "" {
-			ollamaModel = env.OllamaModel
-		}
+		stateStore = state.NewRedisStore(rdb, 24*time.Hour)
+	} else {
+		stateStore = state.NewMemoryStore()
 	}
-	llmClient := llm.NewOllamaClient(ollamaURL, ollamaModel)
 
- // Mark specs as loaded only if we actually loaded non-empty specs
-    specsLoaded := cfg != nil && len(cfg.Tools) > 0 && len(cfg.Pipelines) > 0 && len(cfg.Intents) > 0
+	stateManager := state.NewStateManager(stateStore)
 
-    r := &runtime.Runtime{
-        SpecsLoaded: specsLoaded,
-        LLMClient:   llmClient,
-    }
+	// Select LLM client parameters from env when available (Ollama)
+	var llmClient llm.LLMClient
+
+	if env.LLMEngine == "gemini" {
+		llmClient, err = llm.NewGeminiClient(context.Background(), env.LLMModel)
+	} else if env.LLMEngine == "ollama" {
+		llmClient = llm.NewOllamaClient(env.OllamaBaseURL, env.LLMModel)
+	}
+
+	// Mark specs as loaded only if we actually loaded non-empty specs
+	specsLoaded := cfg != nil && len(cfg.Tools) > 0 && len(cfg.Pipelines) > 0 && len(cfg.Intents) > 0
+
+	r := &runtime.Runtime{
+		SpecsLoaded: specsLoaded,
+		LLMClient:   llmClient,
+	}
 
 	// Crear todos los agentes
 	apiAgent := agent.NewAPIAgent(messageBus, uiStore)
 	inspector := agent.NewInspector(messageBus)
 	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore)
-	verifier := agent.NewVerifier(messageBus, cfg, uiStore)
+	verifier := agent.NewVerifier(messageBus, cfg, uiStore, stateManager)
 	analyst := agent.NewAnalyst(messageBus, llmClient, uiStore)
 
 	// Registrar subscripciones
@@ -116,29 +135,29 @@ func (a *App) Run(ctx context.Context) error {
 		logx.Info("App", "AOS v0.2.0 started")
 	}
 
-    return g.Wait()
+	return g.Wait()
 }
 
 // Handler exposes the HTTP handler for embedding in httptest servers
 // during end-to-end and functional tests, avoiding real port binding.
 func (a *App) Handler() http.Handler {
-    if a == nil || a.http == nil || a.http.srv == nil {
-        return http.NewServeMux()
-    }
-    return a.http.srv.Handler
+	if a == nil || a.http == nil || a.http.srv == nil {
+		return http.NewServeMux()
+	}
+	return a.http.srv.Handler
 }
 
 // StartAgents launches the background agent goroutines without starting
 // the HTTP server. It returns a cancel function to stop them.
 // This is intended for tests that embed the HTTP handler in an httptest server.
 func (a *App) StartAgents(parent context.Context) context.CancelFunc {
-    if parent == nil {
-        parent = context.Background()
-    }
-    ctx, cancel := context.WithCancel(parent)
-    for _, ag := range a.agents {
-        agentAI := ag
-        go func() { _ = agentAI.Start(ctx) }()
-    }
-    return cancel
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	for _, ag := range a.agents {
+		agentAI := ag
+		go func() { _ = agentAI.Start(ctx) }()
+	}
+	return cancel
 }

@@ -2,7 +2,7 @@ tools:
   - name: infra_get_status
     type: http
     method: GET
-    url: "http://localhost:9000/devops/status?service={{serviceName}}"
+    url: "http://localhost:9000/devops/status?service={{ .serviceName }}"
     mode: read
     timeout: 3000
     body: {}

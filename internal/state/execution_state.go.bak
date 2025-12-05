@@ -1,0 +1,38 @@
+package state
+
+import (
+	"sync"
+	"time"
+)
+
+type ExecutionState struct {
+	ID          string
+	Intent      string
+	Pipeline    string
+	StepIndex   int
+	StepResults map[string]any
+	Gate        string
+	CreatedAt   time.Time
+}
+
+var execMu sync.Mutex
+var execStates = map[string]*ExecutionState{}
+
+func SaveExecutionState(state *ExecutionState) {
+	execMu.Lock()
+	defer execMu.Unlock()
+	execStates[state.ID] = state
+}
+
+func LoadExecutionState(id string) (*ExecutionState, bool) {
+	execMu.Lock()
+	defer execMu.Unlock()
+	s, ok := execStates[id]
+	return s, ok
+}
+
+func DeleteExecutionState(id string) {
+	execMu.Lock()
+	defer execMu.Unlock()
+	delete(execStates, id)
+}

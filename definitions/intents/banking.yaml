@@ -50,4 +50,21 @@ intents:
     requires_amount: true       # amount obligatorio
     requires_phone: true        # toPhone obligatorio
     max_amount: 100              # límite configurable
-    shadow_mode: false      
+    shadow_mode: false
+
+  - type: banking.send_bitcoin
+    description: >
+      INTENT: Envio de bitcoin
+      Enviar bitcoin a una address. 
+      Úsalo cuando el usuario quiera "retirar bitcoin", "enviar btc",
+      "mandar x satoshis a alguien", etc.
+    pipeline: pipeline_bitcoin
+    required_params:
+      - amount
+      - toAddress
+      - concept
+    allow_dangerous: true
+    requires_amount: true       # amount obligatorio
+    requires_address: true        # toPhone obligatorio
+    max_amount: 100              # límite configurable
+    shadow_mode: false        

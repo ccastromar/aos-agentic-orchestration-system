@@ -13,41 +13,19 @@ import (
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
 )
 
-// RenderTemplate aplica los parámetros a una plantilla Go.
-// func RenderTemplate(tpl string, params map[string]string) (string, error) {
-// 	if params == nil {
-// 		return tpl, nil
-// 	}
-
-// 	t, err := template.New("tpl").Option("missingkey=default").Parse(tpl)
-// 	if err != nil {
-// 		return "", fmt.Errorf("error parseando template: %w", err)
-// 	}
-
-// 	var buf bytes.Buffer
-// 	if err := t.Execute(&buf, params); err != nil {
-// 		return "", fmt.Errorf("error ejecutando template: %w", err)
-// 	}
-
-// 	return buf.String(), nil
-// }
-
-// ExecuteTool ejecuta una tool HTTP con un contexto por defecto (Background).
-// Es un wrapper conveniente usado por tests y llamadas simples.
 func ExecuteTool(t config.Tool, params map[string]string) (map[string]any, error) {
-    return ExecuteToolCtx(context.Background(), t, params)
+	return ExecuteToolCtx(context.Background(), t, params)
 }
 
-// ExecuteToolCtx ejecuta una tool HTTP, renderizando la URL y el body con parámetros.
 func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
 
-	// 🔥 1. Renderizar la URL
+	// render URL
 	finalURL, err := RenderTemplateString(t.URL, params)
 	if err != nil {
 		return nil, fmt.Errorf("error renderizando URL: %w", err)
 	}
 
-	// 🔥 2. Renderizar el body
+	// render body
 	bodyParams := map[string]string{}
 	for k, v := range t.Body {
 		rendered, err := RenderTemplateString(v, params)
@@ -57,13 +35,13 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 		bodyParams[k] = rendered
 	}
 
-	// 2b. Renderizar headers (opcional)
+	// render headers (optional)
 	renderedHeaders, err := RenderTemplateMap(t.Headers, params)
 	if err != nil {
 		return nil, fmt.Errorf("error renderizando headers: %w", err)
 	}
 
-	// 3. Serializar body
+	// serialize body
 	var payload []byte
 	if len(bodyParams) > 0 {
 		payload, err = json.Marshal(bodyParams)
@@ -76,7 +54,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 
 	log.Printf("[Execute][DEBUG] finalURL=%s", finalURL)
 
-	// 4. Crear request
+	// create request
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -84,8 +62,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	if err != nil {
 		return nil, fmt.Errorf("error creando request: %w", err)
 	}
-	// Establecer cabeceras
-	// Content-Type por defecto si no se definió en headers
+
 	if _, ok := renderedHeaders["Content-Type"]; !ok {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -93,7 +70,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 		req.Header.Set(k, v)
 	}
 
-	// 5. Enviar request
+	// send request
 	// compute effective timeout: min(ctx deadline leftover, tool timeout)
 	effTimeout := time.Duration(t.TimeoutMs) * time.Millisecond
 	if deadline, ok := ctx.Deadline(); ok {
@@ -113,7 +90,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	}
 	defer resp.Body.Close()
 
-	// 6. Leer respuesta
+	// get response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error leyendo respuesta: %w", err)
@@ -123,7 +100,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 		return nil, fmt.Errorf("[HTTP %d] %s", resp.StatusCode, string(respBody))
 	}
 
-	// 7. Parsear JSON
+	// parse JSON
 	out := map[string]any{}
 	if len(respBody) > 0 {
 		if err := json.Unmarshal(respBody, &out); err != nil {

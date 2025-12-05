@@ -24,3 +24,12 @@ pipelines:
       - tool: banking.payments_bizum_send
       - tool: banking.send_notification
       - analyst: true
+
+  - name: pipeline_bitcoin
+    description: "Envía bitcoins"
+    steps:
+      - tool: banking.aml_risk_check
+      - human_approval: manager_review
+      - tool: banking.payments_bitcoin_send
+      - tool: banking.send_notification
+      - analyst: true
