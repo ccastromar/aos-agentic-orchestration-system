@@ -52,6 +52,24 @@ intents:
     max_amount: 100              # límite configurable
     shadow_mode: false
 
+  - type: banking.transfer
+    description: >
+      INTENT: Envio de dinero por transferencia
+      Enviar dinero a una cuenta mediante transferencia bancaria. 
+      Úsalo cuando el usuario quiera "hacer una transferencia", "enviar dinero a otra cuenta",
+    pipeline: pipeline_transferencia
+    required_params:
+      - amount
+      - currency
+      - toAccount
+      - concept
+    allow_dangerous: true
+    requires_amount: true
+    requires_currency: true
+    requires_account: true
+    max_amount: 1000
+    shadow_mode: false
+
   - type: banking.send_bitcoin
     description: >
       INTENT: Envio de bitcoin
@@ -67,4 +85,4 @@ intents:
     requires_amount: true       # amount obligatorio
     requires_address: true        # toPhone obligatorio
     max_amount: 100              # límite configurable
-    shadow_mode: false        
+    shadow_mode: false

@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 )
 
 func ExecuteTool(t config.Tool, params map[string]string) (map[string]any, error) {
@@ -22,7 +22,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	// render URL
 	finalURL, err := RenderTemplateString(t.URL, params)
 	if err != nil {
-		return nil, fmt.Errorf("error renderizando URL: %w", err)
+		return nil, fmt.Errorf("error rendering URL: %w", err)
 	}
 
 	// render body
@@ -30,7 +30,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	for k, v := range t.Body {
 		rendered, err := RenderTemplateString(v, params)
 		if err != nil {
-			return nil, fmt.Errorf("error renderizando body: %w", err)
+			return nil, fmt.Errorf("error rendering body: %w", err)
 		}
 		bodyParams[k] = rendered
 	}
@@ -38,7 +38,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	// render headers (optional)
 	renderedHeaders, err := RenderTemplateMap(t.Headers, params)
 	if err != nil {
-		return nil, fmt.Errorf("error renderizando headers: %w", err)
+		return nil, fmt.Errorf("error rendering headers: %w", err)
 	}
 
 	// serialize body
@@ -46,13 +46,13 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	if len(bodyParams) > 0 {
 		payload, err = json.Marshal(bodyParams)
 		if err != nil {
-			return nil, fmt.Errorf("error serializando body JSON: %w", err)
+			return nil, fmt.Errorf("error serializing body JSON: %w", err)
 		}
 	} else {
 		payload = []byte("{}")
 	}
 
-	log.Printf("[Execute][DEBUG] finalURL=%s", finalURL)
+	logx.Debug("Execute", "Tool's final URL=%s", finalURL)
 
 	// create request
 	if ctx == nil {
@@ -60,7 +60,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	}
 	req, err := http.NewRequestWithContext(ctx, t.Method, finalURL, bytes.NewReader(payload))
 	if err != nil {
-		return nil, fmt.Errorf("error creando request: %w", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	if _, ok := renderedHeaders["Content-Type"]; !ok {
@@ -86,14 +86,14 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error ejecutando HTTP request: %w", err)
+		return nil, fmt.Errorf("error executing HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// get response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error leyendo respuesta: %w", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
 	if resp.StatusCode >= 300 {
@@ -104,7 +104,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	out := map[string]any{}
 	if len(respBody) > 0 {
 		if err := json.Unmarshal(respBody, &out); err != nil {
-			return nil, fmt.Errorf("error parseando JSON respuesta: %w", err)
+			return nil, fmt.Errorf("error parsing JSON response: %w", err)
 		}
 	}
 

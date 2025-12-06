@@ -25,6 +25,14 @@ pipelines:
       - tool: banking.send_notification
       - analyst: true
 
+  - name: pipeline_transferencia
+    description: "Envía una transferencia bancaria (demo)"
+    steps:
+      - tool: banking.aml_risk_check
+      - tool: banking.payments_transfer
+      - tool: banking.send_notification
+      - analyst: true
+
   - name: pipeline_bitcoin
     description: "Envía bitcoins"
     steps:

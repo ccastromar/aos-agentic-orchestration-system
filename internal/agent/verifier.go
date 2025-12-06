@@ -119,7 +119,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	logx.Info("Verifier", "executing pipeline=%s id=%s intent=%s params=%#v",
 		pipe.Name, id, intentType, baseParams)
 
-	logx.Debug("Verifier", "PIPE STEPS = %#v", pipe.Steps)
+	//logx.Debug("Verifier", "PIPE STEPS = %#v", pipe.Steps)
 
 	stepResults := make(map[string]any)
 
@@ -130,7 +130,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 
 		// Step ANALYST → forward to the Analyst agent
 		if step.Analyst {
-			logx.Debug("Verifier", "analyst=true id=%s -> calling Analyst", id)
+			//logx.Debug("Verifier", "analyst=true id=%s -> calling Analyst", id)
 			v.bus.Send("analyst", bus.Message{
 				Type: "summarize",
 				Payload: map[string]any{

@@ -11,6 +11,7 @@ func RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/mock/core/movements", getMovements)
 	mux.HandleFunc("/mock/core/creditcard", getCreditCard)
 	mux.HandleFunc("/mock/payments/bizum", postBizumPayment)
+	mux.HandleFunc("/mock/payments/transfer", postTransfer)
 	mux.HandleFunc("/mock/payments/bitcoin", postBitcoinPayment)
 	mux.HandleFunc("/mock/aml/check", postAmlCheck)
 	mux.HandleFunc("/mock/notifications/send", postSendNotification)
@@ -65,6 +66,16 @@ func getMovements(w http.ResponseWriter, r *http.Request) {
 }
 
 func postBizumPayment(w http.ResponseWriter, r *http.Request) {
+	var body map[string]any
+	json.NewDecoder(r.Body).Decode(&body)
+	resp := map[string]any{
+		"status": "ok",
+		"detail": body,
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func postTransfer(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
 	json.NewDecoder(r.Body).Decode(&body)
 	resp := map[string]any{

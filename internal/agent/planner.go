@@ -98,13 +98,13 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 
 	// obtain task context if present
 	taskCtx, _ := GetTaskContext(id)
-	logx.Warn("Planner", "GetTaskContext(%s) → %v", id, taskCtx)
+	//logx.Warn("Planner", "GetTaskContext(%s) → %v", id, taskCtx)
 
 	if taskCtx == nil {
 		taskCtx = context.Background()
 		NewTaskContext(taskCtx, id, 0)
 	}
-	logx.Warn("Planner", "CTX STATUS for %s → %v", id, taskCtx.Err())
+	//logx.Warn("Planner", "CTX STATUS for %s → %v", id, taskCtx.Err())
 
 	// Fast path: if operation is provided, skip LLM detection
 	var detectedType string

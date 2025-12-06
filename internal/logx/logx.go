@@ -41,7 +41,7 @@ var agentColor = map[string]string{
 
 // detecta color mode
 func useColor() bool {
-	return os.Getenv("ENV") == "local" || os.Getenv("ENV") == "dev"
+	return os.Getenv("APP_ENV") == "local" || os.Getenv("APP_ENV") == "dev"
 }
 
 // --- Public API ---

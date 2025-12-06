@@ -84,7 +84,7 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	}
 
 	logx.Info("Analyst", "requesting summary to the LLM...")
-	logx.Debug("Analyst", "rawResult: %#v", raw)
+	//logx.Debug("Analyst", "rawResult: %#v", raw)
 
 	// obtain task context if present
 	taskCtx, _ := GetTaskContext(id)

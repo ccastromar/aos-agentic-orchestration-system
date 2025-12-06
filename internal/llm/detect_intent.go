@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 )
 
 type DetectedIntent struct {
@@ -55,8 +53,8 @@ User message:
 	}
 
 	clean := strings.TrimSpace(raw)
-	logx.Debug("Planner", "clean is %s", clean)
-	logx.Debug("Planner", "validIntents %w", validIntents)
+	//logx.Debug("Planner", "clean is %s", clean)
+	//logx.Debug("Planner", "validIntents %w", validIntents)
 	// Validate
 	if _, ok := validIntents[clean]; !ok {
 		return nil, fmt.Errorf("DetectIntent invalid JSON : unknown intent; raw=%s", clean)

@@ -52,6 +52,21 @@ tools:
       amount: "{{ .amount }}"
       concept: "{{ .concept }}"
 
+  - name: banking.payments_transfer
+    type: http
+    method: POST
+    url: "http://localhost:9000/mock/payments/transfer"
+    headers:
+      Authorization: "Bearer {{ env \"API_KEY\" }}"
+    mode: dangerous
+    timeout: 5000
+    body:
+      from: "{{ .fromAccount }}"
+      to: "{{ .toAccount }}"
+      amount: "{{ .amount }}"
+      currency: "{{ .currency }}"
+      concept: "{{ .concept }}"
+
   - name: banking.payments_bitcoin_send
     type: http
     method: POST
@@ -64,7 +79,7 @@ tools:
       from: "{{ .fromAddress }}"
       to: "{{ .toAddress }}"
       amount: "{{ .amount }}"
-      
+
   - name: banking.send_notification
     type: http
     method: POST

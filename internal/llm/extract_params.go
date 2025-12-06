@@ -1,11 +1,11 @@
 package llm
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "regexp"
-    "strings"
+	"context"
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strings"
 )
 
 func ExtractParams(ctx context.Context, client LLMClient, userMsg string, required []string) (map[string]string, error) {
@@ -28,22 +28,18 @@ Requirements:
 User message: "%s"
 `, string(paramsJSON), userMsg)
 
- raw, err := client.Chat(ctx, prompt)
+	raw, err := client.Chat(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("error en LLM: %w", err)
 	}
-
-	// Log para debug
-	fmt.Printf("RAW LLM OUTPUT: %s\n", raw)
 
 	clean := sanitizeLLMOutput(raw)
 
 	var tmp map[string]interface{}
 	if err := json.Unmarshal([]byte(clean), &tmp); err != nil {
-		return nil, fmt.Errorf("error parseando JSON de parámetros: %w; clean=%s", err, clean)
+		return nil, fmt.Errorf("error parsing parameters JSON: %w; clean=%s", err, clean)
 	}
 
-	// Convertir todo a string
 	out := map[string]string{}
 	for k, v := range tmp {
 		out[k] = fmt.Sprintf("%v", v)
