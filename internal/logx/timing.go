@@ -26,5 +26,5 @@ func Start(id, comp, op string) *Timer {
 
 func (t *Timer) End() {
 	elapsed := time.Since(t.start)
-	Info("App", "[%s][%s][TIMING] %s = %v", t.comp, t.id, t.op, elapsed)
+	Info("App", "[%s][TIMING] %s %s = %v", t.comp, t.id, t.op, elapsed)
 }

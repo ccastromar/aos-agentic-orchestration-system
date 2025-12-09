@@ -240,7 +240,7 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	a.uiStore.AddEvent(id, "Api", "request", req.Message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
-	logx.Warn("Api", "Created NEW TaskContext for %s", id)
+	logx.Debug("Api", "Created NEW TaskContext for %s", id)
 
 	// Enviar al inspector con el message correcto
 	a.bus.Send("inspector", bus.Message{

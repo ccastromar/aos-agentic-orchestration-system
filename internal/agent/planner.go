@@ -124,7 +124,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			storeResult(id, Result{Status: "error", Err: err.Error()})
 			return
 		}
-		logx.Debug("Planner", "raw intent LLM='%s'", di.Type)
+		logx.Debug("Planner", "raw intent from the LLM='%s'", di.Type)
 		detectedType = di.Type
 	}
 

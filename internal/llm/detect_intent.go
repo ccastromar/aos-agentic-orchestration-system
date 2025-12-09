@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 )
 
 type DetectedIntent struct {
@@ -27,6 +29,7 @@ func DetectIntent(ctx context.Context, c LLMClient, text string, validIntents ma
 	}
 	intentsJSON, _ := json.Marshal(keys)
 
+	//TODO first prompt for just intent detection
 	prompt := fmt.Sprintf(`
 You are an intent classifier for a multi-domain (banking, devops, CRM, Helpdesk) Agent Orchestration System (AOS).
 
@@ -47,11 +50,47 @@ User message:
 "%s"
 `, intentsJSON, text)
 
+	//TODO second prompt for intent detection and params extraction from LLM
+	_ = fmt.Sprintf(`You are the NLU module for the Agent Orchestration System (AOS).
+
+Your task: from the user's message, detect the correct intent and extract all relevant structured parameters.
+
+Valid intents (choose exactly one):
+%s
+
+Output rules:
+1. You MUST output ONLY a JSON object.
+2. No explanations, no markdown, no text outside the JSON.
+3. The JSON MUST match exactly this schema:
+
+{
+  "intent": "string",
+  "confidence": float,
+  "parameters": { ... },
+  "errors": [ "string" ]
+}
+
+Definitions:
+- "intent": one of the valid intent keys above.
+- "confidence": number between 0 and 1.
+- "parameters": dictionary with extracted fields. Omit fields you cannot derive reliably.
+- "errors": list of missing or ambiguous fields that the user may need to clarify. Use [] if none.
+
+Extraction policies:
+- For banking.transfer extract:
+  amount (number), currency (string), toAccount (string), concept (string).
+- Convert currencies to ISO codes when possible (e.g., "euros" -> "EUR").
+- Do NOT guess fields. If unsure, omit and list the field name under "errors".
+
+User message:
+"%s"
+`, intentsJSON, text)
+
 	raw, err := c.Chat(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
-
+	logx.Debug("Planner", "raw response from LLM %s", raw)
 	clean := strings.TrimSpace(raw)
 	//logx.Debug("Planner", "clean is %s", clean)
 	//logx.Debug("Planner", "validIntents %w", validIntents)
