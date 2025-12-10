@@ -67,7 +67,7 @@ intents:
     requires_amount: true
     requires_currency: true
     requires_account: true
-    max_amount: 1000
+    max_amount: 1500
     shadow_mode: false
 
   - type: banking.send_bitcoin

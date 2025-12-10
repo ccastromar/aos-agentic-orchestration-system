@@ -26,6 +26,7 @@ type PipelineStep struct {
 	WithParams map[string]string `yaml:"with_params"`
 	Analyst    bool              `yaml:"analyst"`
 	HumanGate  string            `yaml:"human_approval,omitempty" json:"human_approval,omitempty"`
+	When       string            `yaml:"when,omitempty" json:"when,omitempty"`
 }
 
 type Pipeline struct {

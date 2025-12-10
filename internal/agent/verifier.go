@@ -7,6 +7,7 @@ import (
 
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/engine"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
@@ -72,18 +73,220 @@ func (v *Verifier) dispatch(msg bus.Message) {
 	}
 }
 
-// -------------------------------------------------------------
-// HANDLER PRINCIPAL
-// -------------------------------------------------------------
 func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	id, ok := payload.GetString(msg.Payload, "id")
 	if !ok {
-		logx.Error("Planner", "invalid payload: missing id")
+		logx.Error("Verifier", "invalid payload: missing id")
 		return
 	}
 	intentType, ok := payload.GetString(msg.Payload, "intent")
 	if !ok {
-		logx.Error("Planner", "invalid payload: missing intent")
+		logx.Error("Verifier", "invalid payload: missing intent")
+		return
+	}
+
+	pipeAny := msg.Payload["pipeline"]
+	paramsAny := msg.Payload["params"]
+
+	pipe, ok := pipeAny.(config.Pipeline)
+	if !ok {
+		storeResult(id, Result{
+			Status: "error",
+			Err:    "invalid pipeline",
+		})
+		return
+	}
+
+	// ============================================================
+	// 1) Extract initial params (Planner → Verifier)
+	// ============================================================
+	baseParams := make(map[string]interface{})
+	if paramsAny != nil {
+		switch t := paramsAny.(type) {
+		case map[string]string:
+			for k, v := range t {
+				baseParams[k] = v
+			}
+		case map[string]any:
+			for k, v := range t {
+				baseParams[k] = v
+			}
+		}
+	}
+
+	logx.Info("Verifier", "executing pipeline=%s id=%s intent=%s params=%#v",
+		pipe.Name, id, intentType, baseParams)
+
+	// ============================================================
+	// 2) Create PipelineContext
+	// ============================================================
+	ctx := engine.NewPipelineContext(baseParams)
+	// ctx.Vars now contains all user + planner + intent params
+	// ctx.ToolOutputs will be filled automatically
+
+	stepResults := make(map[string]any)
+
+	// ============================================================
+	// 3) Execute each step
+	// ============================================================
+	for index, step := range pipe.Steps {
+
+		ctx.Vars = engine.AutoCastVars(ctx.Vars)
+
+		logx.Info("Verifier", "[%s] Vars before analyst: %#v", id, ctx.Vars)
+
+		// ---------------------------------------------------------
+		// CONDITIONAL STEP
+		// ---------------------------------------------------------
+		if !engine.StepShouldRun(step, ctx) {
+			logx.Debug("Verifier", "skipping step=%s id=%s due to condition", step.Tool, id)
+			if !engine.StepShouldRun(step, ctx) {
+				logx.Debug("Verifier", "skipping step=%s id=%s due to condition", step.Tool, id)
+
+				stepResults[step.Tool] = map[string]any{
+					"status":   "skipped",
+					"effect":   "not_executed",
+					"executed": false,
+					"reason":   "when=false",
+				}
+
+				continue
+			}
+
+			continue
+		}
+
+		// ---------------------------------------------------------
+		// ANALYST STEP
+		// ---------------------------------------------------------
+		if step.Analyst {
+
+			v.bus.Send("analyst", bus.Message{
+				Type: "summarize",
+				Payload: map[string]any{
+					"id":        id,
+					"intent":    intentType,
+					"rawResult": stepResults,
+				},
+			})
+			return
+		}
+
+		// ---------------------------------------------------------
+		// HUMAN GATE (approval step)
+		// ---------------------------------------------------------
+		if step.HumanGate != "" {
+			execState := &state.ExecutionState{
+				ID:          id,
+				Intent:      intentType,
+				Pipeline:    pipe.Name,
+				StepIndex:   index,
+				Params:      convertVarsToStringMap(ctx.Vars),
+				StepResults: stepResults,
+				Gate:        step.HumanGate,
+			}
+
+			if err := v.stateManager.Save(context.Background(), execState); err != nil {
+				v.storeError(id, "cannot persist execution state")
+				return
+			}
+
+			v.uiStore.AddEvent(id, "Verifier", "await_human", step.HumanGate, "")
+
+			v.bus.Send("api", bus.Message{
+				Type: "await_human",
+				Payload: map[string]any{
+					"id":   id,
+					"gate": step.HumanGate,
+				},
+			})
+			return // pipeline pauses here
+		}
+
+		// ---------------------------------------------------------
+		// TOOL STEP
+		// ---------------------------------------------------------
+		toolName := step.Tool
+		t, ok := v.cfg.Tools[toolName]
+		if !ok {
+			storeResult(id, Result{
+				Status: "error",
+				Err:    fmt.Sprintf("tool %s not found", toolName),
+			})
+			return
+		}
+
+		logx.Info("Verifier", "executing tool=%s id=%s", toolName, id)
+
+		// Build call parameters = ctx.Vars + WithParams (defaults)
+		callParams := buildCallParams(ctx.Vars, step.WithParams)
+
+		// Prepare tool execution context
+		taskCtx, _ := GetTaskContext(id)
+		if taskCtx == nil {
+			taskCtx = context.Background()
+			NewTaskContext(taskCtx, id, 0)
+		}
+
+		timer := logx.Start(id, "Verifier", "tool_"+t.Name)
+		start := time.Now()
+
+		out, err := tools.ExecuteToolCtx(taskCtx, t, convertVarsToStringMap(callParams))
+		timer.End()
+
+		if err != nil {
+			logx.Error("Verifier", "error executing tool=%s: %v", toolName, err)
+			storeResult(id, Result{
+				Status: "error",
+				Err:    err.Error(),
+			})
+			return
+		}
+
+		duration := time.Since(start).String()
+		v.uiStore.AddEvent(id, "Verifier", "tool "+t.Name, "ok", duration)
+
+		// ---------------------------------------------------------
+		// Update pipeline context
+		// ---------------------------------------------------------
+		ctx.RecordToolOutput(toolName, out)
+		//stepResults[toolName] = out
+		stepResults[toolName] = map[string]any{
+			"status":   "executed",
+			"executed": true,
+			"output":   out,
+		}
+
+	}
+
+	// ============================================================
+	// 4) End of pipeline → send results to Analyst
+	// ============================================================
+	v.bus.Send("analyst", bus.Message{
+		Type: "summarize",
+		Payload: map[string]any{
+			"id":        id,
+			"intent":    intentType,
+			"rawResult": stepResults,
+		},
+	})
+	logx.Debug("Verifier", "[%s] Final Vars: %#v", id, ctx.Vars)
+	logx.Debug("Verifier", "[%s] ToolOutputs: %#v", id, ctx.ToolOutputs)
+
+}
+
+// -------------------------------------------------------------
+// OLD HANDLER
+// -------------------------------------------------------------
+func (v *Verifier) oldhandleRunPipeline(msg bus.Message) {
+	id, ok := payload.GetString(msg.Payload, "id")
+	if !ok {
+		logx.Error("Verifier", "invalid payload: missing id")
+		return
+	}
+	intentType, ok := payload.GetString(msg.Payload, "intent")
+	if !ok {
+		logx.Error("Verifier", "invalid payload: missing intent")
 		return
 	}
 
@@ -421,66 +624,6 @@ func (v *Verifier) handleHumanDecision(msg bus.Message) {
 	v.resumeFromState(st)
 }
 
-//func (v *Verifier) resumePipeline(id string, st *state.ExecutionState) {
-//	pipe, ok := v.cfg.Pipelines[st.Pipeline]
-//	if !ok {
-//		v.storeError(id, "pipeline not found during resume")
-//		return
-//	}
-//
-//	// Continuar desde el siguiente step
-//	next := st.StepIndex + 1
-//	stepResults := st.StepResults
-//
-//	for index := next; index < len(pipe.Steps); index++ {
-//		step := pipe.Steps[index]
-//
-//		// HUMAN GATE de nuevo
-//		if step.HumanGate != "" {
-//			state2 := &state.ExecutionState{
-//				ID:          id,
-//				Intent:      st.Intent,
-//				Pipeline:    pipe.Name,
-//				StepIndex:   index,
-//				StepResults: stepResults,
-//				Gate:        step.HumanGate,
-//				CreatedAt:   time.Now(),
-//			}
-//
-//			_ = v.stateStore.Save(context.Background(), state2)
-//
-//			v.uiStore.AddEvent(id, "Verifier", "await_human", step.HumanGate, "")
-//			return
-//		}
-//
-//		// TOOL normal
-//		tname := step.Tool
-//		t, ok := v.cfg.Tools[tname]
-//		if !ok {
-//			v.storeError(id, "tool not found: "+tname)
-//			return
-//		}
-//
-//		out, err := tools.ExecuteToolCtx(context.Background(), t, step.WithParams)
-//		if err != nil {
-//			v.storeError(id, err.Error())
-//			return
-//		}
-//
-//		stepResults[tname] = out
-//	}
-//
-//	// al final → Analyst
-//	v.bus.Send("analyst", bus.Message{
-//		Type: "summarize",
-//		Payload: map[string]any{
-//			"id":        id,
-//			"intent":    st.Intent,
-//			"rawResult": stepResults,
-//		},
-//	})
-//}
-
 func (v *Verifier) storeError(id, errMsg string) {
 	logx.Error("Verifier", "[%s] %s", id, errMsg)
 
@@ -496,4 +639,34 @@ func (v *Verifier) storeError(id, errMsg string) {
 	if v.uiStore != nil {
 		v.uiStore.AddEvent(id, "Verifier", "error", errMsg, "")
 	}
+}
+
+func buildCallParams(vars map[string]interface{}, defaults map[string]string) map[string]interface{} {
+	out := make(map[string]interface{})
+
+	// copy existing context vars first
+	for k, v := range vars {
+		out[k] = v
+	}
+
+	// add defaults only if missing
+	for k, v := range defaults {
+		if _, exists := out[k]; !exists {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func convertVarsToStringMap(vars map[string]interface{}) map[string]string {
+	out := make(map[string]string)
+	for k, v := range vars {
+		switch vv := v.(type) {
+		case string:
+			out[k] = vv
+		default:
+			out[k] = fmt.Sprintf("%v", vv)
+		}
+	}
+	return out
 }
