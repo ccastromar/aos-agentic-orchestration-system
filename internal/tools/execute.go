@@ -70,8 +70,7 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 		req.Header.Set(k, v)
 	}
 
-	// send request
-	// compute effective timeout: min(ctx deadline leftover, tool timeout)
+	// effective timeout
 	effTimeout := time.Duration(t.TimeoutMs) * time.Millisecond
 	if deadline, ok := ctx.Deadline(); ok {
 		rem := time.Until(deadline)
@@ -90,23 +89,33 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	}
 	defer resp.Body.Close()
 
-	// get response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("[HTTP %d] %s", resp.StatusCode, string(respBody))
+	// base output siempre incluye estado técnico
+	out := map[string]any{
+		"ok":         resp.StatusCode >= 200 && resp.StatusCode < 300,
+		"statusCode": resp.StatusCode,
 	}
 
-	// parse JSON
-	out := map[string]any{}
+	// Intentar parsear JSON SIEMPRE que haya cuerpo
 	if len(respBody) > 0 {
-		if err := json.Unmarshal(respBody, &out); err != nil {
-			return nil, fmt.Errorf("error parsing JSON response: %w", err)
+		var body map[string]any
+		if err := json.Unmarshal(respBody, &body); err == nil {
+			for k, v := range body {
+				out[k] = v
+			}
+		} else {
+			// Si no es JSON, lo dejamos en raw
+			out["raw"] = string(respBody)
 		}
 	}
-
+	// if error HTTP, keep going:
+	if resp.StatusCode >= 300 {
+		return out, nil
+	}
+	// success 2xx
 	return out, nil
 }

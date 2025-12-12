@@ -1,74 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>AOS – Ask</title>
-
-    <!-- Go injects API key dynamically -->
-    <meta name="aos-api-key" content="{{ .APIKey }}"/>
-    <link rel="stylesheet" href="/static/aos.css">
+    <meta charset="UTF-8">
+    <title>AOS – New Task</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background: #f5f6f8;
+        }
 
-        #status {
-            margin-top: 15px;
-            font-weight: bold;
+        .container {
+            max-width: 720px;
+            margin: auto;
+            background: white;
+            padding: 1.2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 140px;
+            font-size: 1rem;
+            padding: .75rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 1rem;
+            width: 100%;
+            padding: .9rem;
+            font-size: 1.05rem;
+            background: #1c7ed6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1864ab;
+        }
+
+        .alert {
+            background: #ffe5e5;
+            color: #a30000;
+            padding: .75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 1rem;
+            text-decoration: none;
+            color: #1c7ed6;
         }
     </style>
 </head>
-
 <body>
 
-<h1>New Task (Ask AOS)</h1>
-<a href="/ui">&larr; Back</a>
+<div class="container">
+    <a class="back" href="/ui">&larr; Back</a>
 
-<form id="askForm">
-    <textarea id="message" placeholder="Write here your request..." required></textarea>
-    <br/><br/>
-    <button type="submit">Send</button>
-</form>
+    <h1>New Task</h1>
 
-<p id="status"></p>
+    {{ if .ErrorMessage }}
+    <div class="alert">
+        {{ .ErrorMessage }}
+    </div>
+    {{ end }}
 
-<script>
-    // API key injected by Go through the <meta> tag.
-    const apiKey = document
-        .querySelector('meta[name="aos-api-key"]')
-        .getAttribute('content');
-
-    document.getElementById("askForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const message = document.getElementById("message").value;
-        const status = document.getElementById("status");
-
-        status.textContent = "Sending…";
-
-        try {
-            const res = await fetch("/ask", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-API-Key": apiKey
-                },
-                body: JSON.stringify({ message })
-            });
-
-            if (!res.ok) {
-                status.textContent = "Error: " + res.status;
-                return;
-            }
-
-            const data = await res.json();
-            status.textContent = "Dispatched: " + data.id;
-
-            window.location.href = "/ui/task?id=" + data.id;
-
-        } catch (err) {
-            status.textContent = "Error: " + err;
-        }
-    });
-</script>
+    <form method="POST" action="/ui/ask">
+        <textarea name="message" placeholder="Write your request to AOS..." required></textarea>
+        <button type="submit">Send</button>
+    </form>
+</div>
 
 </body>
 </html>

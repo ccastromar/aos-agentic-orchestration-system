@@ -78,10 +78,20 @@ func postBizumPayment(w http.ResponseWriter, r *http.Request) {
 func postTransfer(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
 	json.NewDecoder(r.Body).Decode(&body)
+
+	// Simulate bad request
+	//w.WriteHeader(http.StatusBadRequest)
+	//w.WriteHeader(http.StatusUnauthorized)
 	resp := map[string]any{
-		"status": "ok",
-		"detail": body,
+		"status":  "ok",
+		"detail":  body,
+		"message": "Done",
 	}
+
+	//resp := map[string]any{
+	//	"status": "ok",
+	//	"detail": body,
+	//}
 	json.NewEncoder(w).Encode(resp)
 }
 

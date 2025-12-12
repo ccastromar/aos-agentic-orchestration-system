@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AOS Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 320px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+        }
+        input {
+            width: 100%;
+            padding: .6rem;
+            margin: .5rem 0;
+        }
+        button {
+            width: 100%;
+            padding: .7rem;
+            margin-top: 1rem;
+            background: #1c7ed6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .error {
+            color: #d32f2f;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>AOS Login</h2>
+    <input id="username" type="text" placeholder="User">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div id="error" class="error"></div>
+</div>
+
+<script>
+    async function login() {
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+
+        document.getElementById("error").innerText = "";
+
+        if (!username || !password) {
+            document.getElementById("error").innerText = "All fields required.";
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            params.append("grant_type", "password");
+            params.append("client_id", "aos-core");
+            params.append("username", username);
+            params.append("password", password);
+
+            const response = await fetch(
+                "http://localhost:9080/realms/aos/protocol/openid-connect/token",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params
+                }
+            );
+
+            if (!response.ok) {
+                document.getElementById("error").innerText = "Invalid credentials.";
+                return;
+            }
+
+            const data = await response.json();
+            sessionStorage.setItem("aos_token", data.access_token);
+            window.location.href = "/ui/index.html";
+
+        } catch (err) {
+            document.getElementById("error").innerText = "Network error.";
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
@@ -22,7 +24,8 @@ type APIAgent struct {
 	inbox   chan bus.Message
 	uiStore *ui.UIStore // <-- nuevo
 	// minimal auth and rate limiting
-	apiKey string
+	apiKey    string
+	authChain *auth.Chain
 	// naive fixed-window rate limiter per client key
 	rl struct {
 		Window  time.Duration
@@ -32,18 +35,54 @@ type APIAgent struct {
 	}
 }
 
-func NewAPIAgent(b *bus.Bus, ui *ui.UIStore) *APIAgent {
+// NewAPIAgent
+func NewAPIAgent(b *bus.Bus, cfg *config.EnvVars, ui *ui.UIStore) *APIAgent {
 	a := &APIAgent{
 		bus:     b,
 		inbox:   make(chan bus.Message, 16),
 		uiStore: ui,
 		apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
 	}
-	// initialize rate limiter defaults
+
+	// Inicializar authChain ANTES DE USARLA
+	a.authChain = &auth.Chain{
+		Authenticators: []auth.Authenticator{},
+	}
+
+	// JWT config
+	jwtCfg := auth.JWTConfig{
+		Issuer:   cfg.JWTIssuer,
+		Audience: cfg.JWTAudience,
+		JWKURL:   cfg.JWKURL,
+	}
+
+	// API Key IAM config
+	apiKeyCfg := auth.APIKeyConfig{
+		ResolveURL: cfg.IAMURL,
+		Timeout:    1 * time.Second,
+	}
+
+	// Añadir autenticadores de forma segura
+	if jwtCfg.Issuer != "" && jwtCfg.JWKURL != "" {
+		a.authChain.Authenticators = append(
+			a.authChain.Authenticators,
+			auth.NewJWTAuthenticator(jwtCfg),
+		)
+	}
+
+	if apiKeyCfg.ResolveURL != "" && apiKeyCfg.ResolveURL != "disabled" {
+		a.authChain.Authenticators = append(
+			a.authChain.Authenticators,
+			auth.NewAPIKeyAuthenticator(apiKeyCfg),
+		)
+	}
+
+	// Rate limiter init...
 	a.rl.Window = 1 * time.Minute
 	a.rl.Limit = 60
 	a.rl.mu = make(chan struct{}, 1)
 	a.rl.buckets = make(map[string]*rateBucket)
+
 	return a
 }
 
@@ -196,11 +235,24 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Auth check (optional)
-	if !a.checkAuth(r) {
-		w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	//if !a.checkAuth(r) {
+	//	w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
+	//	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
+	//chain auth
+	identity, err := a.authChain.Authenticate(r)
+	if err != nil {
+		if ae, ok := err.(*auth.AuthError); ok {
+			http.Error(w, ae.Message, ae.Code)
+		} else {
+			http.Error(w, "auth failed", 401)
+		}
 		return
 	}
+
+	r = r.WithContext(auth.WithIdentity(r.Context(), identity))
+
 	// Rate limit
 	if err := a.acquireRL(getClientKey(r)); err != nil {
 		http.Error(w, "too many requests", http.StatusTooManyRequests)
@@ -525,4 +577,28 @@ func (a *APIAgent) handleHumanReject(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(200)
 	w.Write([]byte(`{"status":"rejected","id":"` + id + `"}`))
+}
+
+func (a *APIAgent) DispatchAskInternal(message string) (string, error) {
+	if message == "" {
+		return "", errors.New("message requerido")
+	}
+
+	id := randomID()
+
+	logx.Info("Api", "internal UI request id=%s message='%s'", id, message)
+	a.uiStore.AddEvent(id, "UI", "request", message, "")
+
+	_ = NewTaskContext(context.Background(), id, 0)
+
+	a.bus.Send("inspector", bus.Message{
+		Type: "new_task",
+		Payload: map[string]any{
+			"id":      id,
+			"mode":    "structured",
+			"message": message,
+		},
+	})
+
+	return id, nil
 }

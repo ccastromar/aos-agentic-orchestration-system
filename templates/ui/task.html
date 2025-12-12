@@ -1,69 +1,61 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>AOS UI - Task {{ .ID }}</title>
-    <link rel="stylesheet" href="/static/aos.css">
+    <meta charset="UTF-8">
+    <title>AOS – Task {{ .ID }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background: #f5f6f8;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .event {
+            background: white;
+            padding: .8rem;
+            border-radius: 6px;
+            margin-bottom: .6rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        }
+
+        .meta {
+            font-size: .8rem;
+            color: #666;
+            margin-bottom: .3rem;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 1rem;
+            text-decoration: none;
+            color: #1c7ed6;
+        }
+    </style>
 </head>
 <body>
-  <a href="/ui">&larr; Back</a>
-  <h1>Task {{ .ID }}</h1>
-  <div id="human-gate-actions" style="margin-top:20px; display:block;">
-      <h3>Human Approval Required</h3>
-      <button id="approveBtn">Approve</button>
-      <button id="rejectBtn" style="margin-left:10px;">Reject</button>
-      <p id="hg-status"></p>
-  </div>
 
-  <script>
-      const params = new URLSearchParams(window.location.search);
-      const taskId = params.get("id");
+<div class="container">
+    <a class="back" href="/ui">&larr; Back</a>
 
-      async function checkGate() {
-          const res = await fetch("/ui/task?id=" + taskId);
-          console.log(res)
-          const data = await res.json();
-          if (!data || data.status === "pending") return;
+    <h1>Task {{ .ID }}</h1>
 
-          if (data.error && data.error.includes("awaiting human")) {
-              document.getElementById("human-gate-actions").style.display = "block";
-          }
-      }
-
-      document.getElementById("approveBtn").onclick = async () => {
-          const res = await fetch(`/task/approve?id=${taskId}`);
-          document.getElementById("hg-status").textContent = "Approved!";
-          setTimeout(() => location.reload(), 800);
-      }
-
-      document.getElementById("rejectBtn").onclick = async () => {
-          const res = await fetch(`/task/reject?id=${taskId}`);
-          document.getElementById("hg-status").textContent = "Rejected.";
-          setTimeout(() => location.reload(), 800);
-      }
-
-      checkGate();
-  </script>
-
-  {{ range .Events }}
+    {{ range .Events }}
     <div class="event">
-      <div class="event-header">
-        <div>
-          <span class="pill pill-agent">{{ .Agent }}</span>
-          <span class="pill pill-kind">{{ .Kind }}</span>
+        <div class="meta">
+            {{ .Time.Format "15:04:05" }} · {{ .Agent }} · {{ .Kind }} · {{ .Duration }}
         </div>
-        <div class="time">
-          {{ .Time.Format "15:04:05" }}
-          {{ if .Duration }} · {{ .Duration }}{{ end }}
-        </div>
-      </div>
-      <div>{{ .Message }}</div>
+        <div>{{ .Message }}</div>
     </div>
-  {{ end }}
+    {{ end }}
+</div>
 
-  {{ if not .Events }}
-    <p>No events for this task.</p>
-  {{ end }}
 </body>
 </html>

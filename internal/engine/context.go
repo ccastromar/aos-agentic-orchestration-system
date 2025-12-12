@@ -1,6 +1,9 @@
 package engine
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type PipelineContext struct {
 	Vars        map[string]interface{}
@@ -35,8 +38,18 @@ func (ctx *PipelineContext) GetVar(k string) interface{} {
 
 func (ctx *PipelineContext) RecordToolOutput(toolName string, output map[string]interface{}) {
 	ctx.ToolOutputs[toolName] = output
-	// flatten and add to general contexto
+	// flatten and add to general context
+	// evitamos colisiones en campos técnicos genéricos
 	for k, v := range output {
-		ctx.Vars[k] = v
+		switch k {
+		case "ok", "statusCode", "status", "raw":
+			// namespacing
+			key := fmt.Sprintf("%s.%s", toolName, k)
+			ctx.Vars[key] = v
+
+		default:
+			// business variables without namespacing
+			ctx.Vars[k] = v
+		}
 	}
 }

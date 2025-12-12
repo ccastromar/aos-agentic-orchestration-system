@@ -31,6 +31,11 @@ type EnvVars struct {
 	RedisPassword string `envconfig:"REDIS_PASSWORD"`
 
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
+	// ---------- AUTH / IDENTITY CONFIG (NEW) ----------
+	JWTIssuer   string `envconfig:"AOS_JWT_ISSUER" default:""`
+	JWTAudience string `envconfig:"AOS_JWT_AUDIENCE" default:""`
+	JWKURL      string `envconfig:"AOS_JWK_URL" default:""`
+	IAMURL      string `envconfig:"AOS_IAM_URL" default:"disabled"`
 }
 
 func LoadEnv() (*EnvVars, error) {

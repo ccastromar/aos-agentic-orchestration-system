@@ -48,7 +48,7 @@ User message: "%s"
 	return out, nil
 }
 
-func sanitizeLLMOutput(s string) string {
+func oldsanitizeLLMOutput(s string) string {
 	s = strings.TrimSpace(s)
 
 	// 1) remover cualquier bloque ```xxx ... ```

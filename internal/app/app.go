@@ -49,7 +49,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		return nil, err
 	}
 
-	uiStore := ui.NewUIStore()
+	uiStore := ui.NewUIStore(nil)
 	messageBus := bus.New()
 
 	var stateStore state.StateStore
@@ -87,11 +87,13 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	}
 
 	// Crear todos los agentes
-	apiAgent := agent.NewAPIAgent(messageBus, uiStore)
+	apiAgent := agent.NewAPIAgent(messageBus, env, uiStore)
 	inspector := agent.NewInspector(messageBus)
 	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore)
 	verifier := agent.NewVerifier(messageBus, cfg, uiStore, stateManager)
 	analyst := agent.NewAnalyst(messageBus, llmClient, uiStore)
+
+	uiStore.SetDispatcher(apiAgent)
 
 	// Registrar subscripciones
 	//messageBus.Subscribe("api", apiAgent.Inbox())

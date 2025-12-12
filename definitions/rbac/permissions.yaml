@@ -1,0 +1,18 @@
+permissions:
+  economic.transfer:
+    - admin
+    - finance
+
+  devops.restart_service:
+    - sre
+
+  crm.update_customer:
+    - sales
+    - admin
+
+  helpdesk.create_ticket:
+    - support
+    - admin
+
+defaults:
+  unknown_intent: "deny"

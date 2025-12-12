@@ -30,8 +30,8 @@ pipelines:
     steps:
       - tool: banking.aml_risk_check
       - tool: banking.payments_transfer
-        when: ${amount < 1000}
-
+      - human_approval: manager_review
+        when: ${amount > 1000}
       - tool: banking.send_notification
       - analyst: true
 

@@ -3,12 +3,15 @@ package ui
 import (
 	"html/template"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
 	"time"
 )
+
+/*
+	Event model
+*/
 
 type Event struct {
 	Time     time.Time
@@ -18,18 +21,65 @@ type Event struct {
 	Duration string
 }
 
+/*
+	UIStore
+	- Read model de tareas
+	- Estado de UI (errores de dominio)
+*/
+
 type UIStore struct {
-	mu    sync.RWMutex
+	mu sync.RWMutex
+
 	tasks map[string][]Event
+
+	// injected domain dispatcher
+	dispatcher AskDispatcher
+
+	// UI state
+	ErrorCode    string
+	ErrorMessage string
 }
 
-func NewUIStore() *UIStore {
+type AskDispatcher interface {
+	DispatchAskInternal(message string) (taskID string, err error)
+}
+
+func NewUIStore(dispatcher AskDispatcher) *UIStore {
 	return &UIStore{
-		tasks: make(map[string][]Event),
+		tasks:      make(map[string][]Event),
+		dispatcher: dispatcher,
 	}
 }
 
-// AddEvent register an event
+/*
+	UI state helpers
+*/
+
+func (s *UIStore) setError(code, msg string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ErrorCode = code
+	s.ErrorMessage = msg
+}
+
+func (s *UIStore) clearError() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ErrorCode = ""
+	s.ErrorMessage = ""
+}
+
+func (s *UIStore) SetDispatcher(d AskDispatcher) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dispatcher = d
+}
+
+/*
+	Event handling
+*/
+
+// AddEvent registers an event
 func (s *UIStore) AddEvent(taskID, agent, kind, msg, duration string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -44,7 +94,7 @@ func (s *UIStore) AddEvent(taskID, agent, kind, msg, duration string) {
 	s.tasks[taskID] = append(s.tasks[taskID], ev)
 }
 
-// snapshot get a copy of the data
+// snapshot returns a safe copy of the data
 func (s *UIStore) snapshot() map[string][]Event {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -58,7 +108,11 @@ func (s *UIStore) snapshot() map[string][]Event {
 	return out
 }
 
-// HandleIndex muestra la lista de tareas y el último evento por cada una.
+/*
+	UI handlers
+*/
+
+// HandleIndex shows task list
 func (s *UIStore) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	data := s.snapshot()
 
@@ -87,13 +141,13 @@ func (s *UIStore) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	tpl := template.Must(template.ParseFiles(
 		filepath.Join("templates", "ui", "index.html"),
 	))
+
 	if err := tpl.Execute(w, rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
 
-// HandleTask muestra el timeline completo de una tarea.
+// HandleTask shows full timeline of a task
 func (s *UIStore) HandleTask(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
@@ -104,7 +158,7 @@ func (s *UIStore) HandleTask(w http.ResponseWriter, r *http.Request) {
 	data := s.snapshot()
 	events, ok := data[id]
 	if !ok {
-		http.Error(w, "task no encontrada", http.StatusNotFound)
+		http.Error(w, "task not found", http.StatusNotFound)
 		return
 	}
 
@@ -115,6 +169,7 @@ func (s *UIStore) HandleTask(w http.ResponseWriter, r *http.Request) {
 	tpl := template.Must(template.ParseFiles(
 		filepath.Join("templates", "ui", "task.html"),
 	))
+
 	if err := tpl.Execute(w, struct {
 		ID     string
 		Events []Event
@@ -123,21 +178,76 @@ func (s *UIStore) HandleTask(w http.ResponseWriter, r *http.Request) {
 		Events: events,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
 
-func (u *UIStore) HandleAsk(w http.ResponseWriter, r *http.Request) {
-	//tmpl, err := template.ParseFiles("ask.html")
-	tmpl := template.Must(template.ParseFiles(
+/*
+	/ui/ask
+	- GET  -> render form
+	- POST -> dispatch ask, handle intent errors
+*/
+
+func (s *UIStore) HandleAsk(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+
+	case http.MethodGet:
+		s.renderAsk(w)
+		return
+
+	case http.MethodPost:
+		s.handleAskPost(w, r)
+		return
+
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *UIStore) renderAsk(w http.ResponseWriter) {
+	s.mu.RLock()
+	data := struct {
+		ErrorMessage string
+	}{
+		ErrorMessage: s.ErrorMessage,
+	}
+	s.mu.RUnlock()
+
+	tpl := template.Must(template.ParseFiles(
 		filepath.Join("templates", "ui", "ask.html"),
 	))
 
-	data := struct {
-		APIKey string
-	}{
-		APIKey: os.Getenv("API_KEY"),
+	if err := tpl.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *UIStore) handleAskPost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		s.setError("invalid_payload", "Invalid form submission")
+		http.Redirect(w, r, "/ui/ask", http.StatusFound)
+		return
 	}
 
-	_ = tmpl.Execute(w, data)
+	message := r.FormValue("message")
+	if message == "" {
+		s.setError("empty_message", "Message cannot be empty")
+		http.Redirect(w, r, "/ui/ask", http.StatusFound)
+		return
+	}
+
+	if s.dispatcher == nil {
+		s.setError("internal_error", "Dispatcher not configured")
+		http.Redirect(w, r, "/ui/ask", http.StatusFound)
+		return
+	}
+
+	taskID, err := s.dispatcher.DispatchAskInternal(message)
+	if err != nil {
+		s.setError("invalid_intent", err.Error())
+		http.Redirect(w, r, "/ui/ask", http.StatusFound)
+		return
+	}
+
+	s.clearError()
+	http.Redirect(w, r, "/ui/task?id="+taskID, http.StatusFound)
 }

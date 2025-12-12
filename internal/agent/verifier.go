@@ -139,18 +139,18 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		// CONDITIONAL STEP
 		// ---------------------------------------------------------
 		if !engine.StepShouldRun(step, ctx) {
-			logx.Debug("Verifier", "skipping step=%s id=%s due to condition", step.Tool, id)
-			if !engine.StepShouldRun(step, ctx) {
-				logx.Debug("Verifier", "skipping step=%s id=%s due to condition", step.Tool, id)
-
-				stepResults[step.Tool] = map[string]any{
-					"status":   "skipped",
-					"effect":   "not_executed",
-					"executed": false,
-					"reason":   "when=false",
-				}
-
+			// HUMAN STEP skipped → NO dejar rastro en stepResults
+			if step.HumanGate != "" {
+				logx.Debug("Verifier", "human gate '%s' skipped by condition", step.HumanGate)
 				continue
+			}
+			logx.Debug("Verifier", "skipping step=%s id=%s due to condition", step.Tool, id)
+
+			stepResults[step.Tool] = map[string]any{
+				"status":   "skipped",
+				"effect":   "not_executed",
+				"executed": false,
+				"reason":   "when=false",
 			}
 
 			continue
@@ -176,6 +176,10 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		// HUMAN GATE (approval step)
 		// ---------------------------------------------------------
 		if step.HumanGate != "" {
+			// Registrar en contexto d
+			ctx.Vars[step.HumanGate+"_executed"] = true
+			ctx.Vars[step.HumanGate+"_decision"] = "pending"
+
 			execState := &state.ExecutionState{
 				ID:          id,
 				Intent:      intentType,
@@ -250,7 +254,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		// Update pipeline context
 		// ---------------------------------------------------------
 		ctx.RecordToolOutput(toolName, out)
-		//stepResults[toolName] = out
+
 		stepResults[toolName] = map[string]any{
 			"status":   "executed",
 			"executed": true,
