@@ -94,7 +94,10 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		return
 	}
 	userMsg, _ := payload.GetString(msg.Payload, "message")
-
+	lang, ok := payload.GetString(msg.Payload, "lang")
+	if !ok {
+		logx.Error("Planner", "invalid payload: missing lang")
+	}
 	logx.Debug("Planner", "detect_intent id=%s msg='%s'", id, userMsg)
 
 	// ---------------------------------------------------------
@@ -235,6 +238,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			"intent":   detectedType,
 			"pipeline": pipe,
 			"params":   params,
+			"language": lang,
 		},
 	})
 	timer2.End()

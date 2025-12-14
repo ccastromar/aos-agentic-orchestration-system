@@ -84,6 +84,11 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		logx.Error("Verifier", "invalid payload: missing intent")
 		return
 	}
+	language, ok := payload.GetString(msg.Payload, "language")
+	if !ok {
+		logx.Error("Verifier", "invalid payload: missing language")
+		return
+	}
 
 	pipeAny := msg.Payload["pipeline"]
 	paramsAny := msg.Payload["params"]
@@ -167,6 +172,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 					"id":        id,
 					"intent":    intentType,
 					"rawResult": stepResults,
+					"language":  language,
 				},
 			})
 			return
@@ -262,6 +268,14 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		}
 
 	}
+	//end of pipeline
+	ctx.Vars["_pipeline"] = map[string]any{
+		"status":   "success", // success | error | need_more_info | rejected
+		"endedAt":  time.Now().UTC().Format(time.RFC3339),
+		"pipeline": pipe.Name,
+		"intent":   intentType,
+		"steps":    len(pipe.Steps),
+	}
 
 	// ============================================================
 	// 4) End of pipeline → send results to Analyst
@@ -272,6 +286,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 			"id":        id,
 			"intent":    intentType,
 			"rawResult": stepResults,
+			"language":  language,
 		},
 	})
 	logx.Debug("Verifier", "[%s] Final Vars: %#v", id, ctx.Vars)

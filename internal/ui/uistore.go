@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"path/filepath"
@@ -41,7 +42,7 @@ type UIStore struct {
 }
 
 type AskDispatcher interface {
-	DispatchAskInternal(message string) (taskID string, err error)
+	DispatchAskInternal(message string, lang string) (taskID string, err error)
 }
 
 func NewUIStore(dispatcher AskDispatcher) *UIStore {
@@ -227,8 +228,19 @@ func (s *UIStore) handleAskPost(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/ui/ask", http.StatusFound)
 		return
 	}
+	lang := r.FormValue("lang")
+	if lang == "" {
+		lang = "en" // default explícito
+	}
 
 	message := r.FormValue("message")
+	allowed := map[string]bool{"en": true, "es": true, "fr": true, "de": true}
+	if !allowed[lang] {
+		s.setError("invalid_lang", "Unsupported language")
+		http.Redirect(w, r, "/ui/ask", http.StatusFound)
+		return
+	}
+
 	if message == "" {
 		s.setError("empty_message", "Message cannot be empty")
 		http.Redirect(w, r, "/ui/ask", http.StatusFound)
@@ -241,7 +253,7 @@ func (s *UIStore) handleAskPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := s.dispatcher.DispatchAskInternal(message)
+	taskID, err := s.dispatcher.DispatchAskInternal(message, lang)
 	if err != nil {
 		s.setError("invalid_intent", err.Error())
 		http.Redirect(w, r, "/ui/ask", http.StatusFound)
@@ -250,4 +262,24 @@ func (s *UIStore) handleAskPost(w http.ResponseWriter, r *http.Request) {
 
 	s.clearError()
 	http.Redirect(w, r, "/ui/task?id="+taskID, http.StatusFound)
+}
+
+func (s *UIStore) HandleTaskEvents(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing task id", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.RLock()
+	events, ok := s.tasks[id]
+	s.mu.RUnlock()
+
+	if !ok {
+		http.Error(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(events)
 }

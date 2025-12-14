@@ -6,17 +6,20 @@ import (
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
 )
 
 type Inspector struct {
-	bus   *bus.Bus
-	inbox chan bus.Message
+	bus     *bus.Bus
+	inbox   chan bus.Message
+	uiStore *ui.UIStore
 }
 
-func NewInspector(b *bus.Bus) *Inspector {
+func NewInspector(b *bus.Bus, ui *ui.UIStore) *Inspector {
 	return &Inspector{
-		bus:   b,
-		inbox: make(chan bus.Message, 16),
+		bus:     b,
+		inbox:   make(chan bus.Message, 16),
+		uiStore: ui,
 	}
 }
 
@@ -52,22 +55,30 @@ func (i *Inspector) dispatch(msg bus.Message) {
 	//message from the api agent
 	switch msg.Type {
 	case "new_task":
+
 		id, ok := payload.GetString(msg.Payload, "id")
 		if !ok {
-			logx.Error("Planner", "invalid payload: missing id")
+			logx.Error("Inspector", "invalid payload: missing id")
 			return
+		}
+		i.uiStore.AddEvent(id, "Inspector", "started", "Pipeline started", "")
+
+		lang, ok := payload.GetString(msg.Payload, "lang")
+		if !ok {
+			logx.Error("Inspector", "invalid payload: missing lang")
 		}
 		mode, ok := payload.GetString(msg.Payload, "mode")
 		if !ok {
-			logx.Error("Planner", "invalid payload: missing mode")
+			logx.Error("Inspector", "invalid payload: missing mode")
 			return
 		}
-		logx.Info("Inspector", "new task id=%s mode=%s", id, mode)
+		logx.Info("Inspector", "new task with lang=%s id=%s mode=%s", lang, id, mode)
 
 		payload := map[string]any{
 			"id":      id,
 			"message": msg.Payload["message"],
 			"mode":    mode,
+			"lang":    lang,
 		}
 		if op, ok := msg.Payload["operation"].(string); ok && op != "" {
 			payload["operation"] = op

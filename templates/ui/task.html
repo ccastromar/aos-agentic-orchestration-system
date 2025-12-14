@@ -32,6 +32,12 @@
             margin-bottom: .3rem;
         }
 
+        .status {
+            font-size: .9rem;
+            color: #555;
+            margin-bottom: 1rem;
+        }
+
         .back {
             display: inline-block;
             margin-bottom: 1rem;
@@ -47,15 +53,88 @@
 
     <h1>Task {{ .ID }}</h1>
 
-    {{ range .Events }}
-    <div class="event">
-        <div class="meta">
-            {{ .Time.Format "15:04:05" }} · {{ .Agent }} · {{ .Kind }} · {{ .Duration }}
-        </div>
-        <div>{{ .Message }}</div>
+    <div id="status" class="status">
+        Running…
     </div>
-    {{ end }}
+
+    <!-- CONTENEDOR CLAVE -->
+    <div id="events">
+        {{ range .Events }}
+        <div class="event">
+            <div class="meta">
+                {{ .Time.Format "15:04:05" }} · {{ .Agent }} · {{ .Kind }} · {{ .Duration }}
+            </div>
+            <div>{{ .Message }}</div>
+        </div>
+        {{ end }}
+    </div>
 </div>
+
+<script>
+    const TASK_ID = "{{ .ID }}";
+    let lastCount = {{ len .Events }};
+    let polling = true;
+
+    async function pollEvents() {
+        if (!polling) return;
+
+        try {
+            const res = await fetch(`/ui/task/events?id=${TASK_ID}`);
+            if (!res.ok) return;
+
+            const events = await res.json();
+
+            if (events.length !== lastCount) {
+                lastCount = events.length;
+                renderEvents(events);
+                updateStatus(events);
+            }
+        } catch (e) {
+            console.error("poll error", e);
+        }
+    }
+
+    function renderEvents(events) {
+        const container = document.getElementById("events");
+        container.innerHTML = "";
+
+        for (const ev of events) {
+            const div = document.createElement("div");
+            div.className = "event";
+
+            const time = new Date(ev.Time).toLocaleTimeString();
+
+            div.innerHTML = `
+                <div class="meta">
+                    ${time} · ${ev.Agent} · ${ev.Kind} · ${ev.Duration || ""}
+                </div>
+                <div>${ev.Message}</div>
+            `;
+
+            container.appendChild(div);
+        }
+    }
+
+    function updateStatus(events) {
+        const statusEl = document.getElementById("status");
+        const last = events[events.length - 1];
+        console.log(last)
+        if (!last) return;
+
+        if (last.Kind === "completed") {
+            statusEl.textContent = "Completed";
+            polling = false;
+        } else if (last.Kind === "failed") {
+            statusEl.textContent = "Failed";
+            polling = false;
+        } else {
+            statusEl.textContent = "Running…";
+        }
+    }
+
+    // Poll cada 1.5s (suficiente y barato)
+    setInterval(pollEvents, 1500);
+</script>
 
 </body>
 </html>

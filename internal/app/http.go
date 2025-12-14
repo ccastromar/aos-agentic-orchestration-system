@@ -41,6 +41,8 @@ func NewHTTPServer(apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Ru
 	mux.HandleFunc("/ui", uiStore.HandleIndex)
 	mux.HandleFunc("/ui/task", uiStore.HandleTask)
 	mux.HandleFunc("/ui/ask", uiStore.HandleAsk)
+	mux.HandleFunc("/ui/task/events", uiStore.HandleTaskEvents)
+
 	mux.HandleFunc("/health/live", health.LiveHandler)
 	mux.HandleFunc("/health/ready", health.ReadyHandler(rt))
 	// Expose Prometheus metrics

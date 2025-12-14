@@ -10,7 +10,10 @@ const intentSchemaJSON = `
       "type": "string",
       "minLength": 1
     },
-    "confidence": {
+	"language":{
+		"type": "string"
+	},    
+	"confidence": {
       "type": "number",
       "minimum": 0,
       "maximum": 1

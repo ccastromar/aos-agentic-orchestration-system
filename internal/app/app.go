@@ -88,7 +88,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 
 	// Crear todos los agentes
 	apiAgent := agent.NewAPIAgent(messageBus, env, uiStore)
-	inspector := agent.NewInspector(messageBus)
+	inspector := agent.NewInspector(messageBus, uiStore)
 	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore)
 	verifier := agent.NewVerifier(messageBus, cfg, uiStore, stateManager)
 	analyst := agent.NewAnalyst(messageBus, llmClient, uiStore)

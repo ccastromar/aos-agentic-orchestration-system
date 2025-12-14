@@ -265,6 +265,7 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type Req struct {
+		Lang    string `json:"lang"`
 		Message string `json:"message"`
 	}
 
@@ -281,14 +282,14 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Message == "" {
-		http.Error(w, "message requerido", http.StatusBadRequest)
+	if req.Message == "" || req.Lang == "" {
+		http.Error(w, "message and lang are required", http.StatusBadRequest)
 		return
 	}
 
 	id := randomID()
 
-	logx.Info("Api", "new request id=%s message='%s'", id, req.Message)
+	logx.Info("Api", "new request lang=%s id=%s message='%s'", req.Lang, id, req.Message)
 	a.uiStore.AddEvent(id, "Api", "request", req.Message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
@@ -300,7 +301,8 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		Payload: map[string]any{
 			"id":      id,
 			"mode":    "structured",
-			"message": req.Message, // ← ¡IMPORTANTE!
+			"message": req.Message,
+			"lang":    req.Lang,
 		},
 	})
 
@@ -579,7 +581,7 @@ func (a *APIAgent) handleHumanReject(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"rejected","id":"` + id + `"}`))
 }
 
-func (a *APIAgent) DispatchAskInternal(message string) (string, error) {
+func (a *APIAgent) DispatchAskInternal(message string, lang string) (string, error) {
 	if message == "" {
 		return "", errors.New("message requerido")
 	}
@@ -597,6 +599,7 @@ func (a *APIAgent) DispatchAskInternal(message string) (string, error) {
 			"id":      id,
 			"mode":    "structured",
 			"message": message,
+			"lang":    lang,
 		},
 	})
 

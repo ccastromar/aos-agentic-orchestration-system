@@ -22,6 +22,7 @@ type DetectedIntentAndParams struct {
 	Type       string
 	Params     map[string]string
 	Confidence float64
+	Language   string
 	Errors     []string
 	Raw        string
 }
@@ -168,72 +169,50 @@ func DetectIntentAndParams(
 	intentsJSON, _ := json.MarshalIndent(intentDefs, "", "  ")
 
 	prompt := fmt.Sprintf(`
-Eres el módulo NLU del sistema AOS.
+You are the NLU module of the AOS system.
 
-Tarea:
-1. Detectar cuál de los INTENTS definidos es el adecuado.
-2. Extraer TODOS los parámetros definidos en required_params.
-3. Si un parámetro no aparece en el mensaje, devolverlo como "".
-4. Usa EXACTAMENTE los nombres de parámetros que aparecen en required_params.
-5. NO inventes nombres, NO uses "param1", "param2", etc.
+Your task:
+1. Detect which of the DEFINED INTENTS best matches the user message.
+2. Extract ALL parameters defined in required_params for that intent.
+3. If a parameter does not appear in the message, return it as an empty string "".
+4. Use EXACTLY the parameter names as defined in required_params.
+5. DO NOT invent parameter names. DO NOT use placeholders like "param1", "param2", etc.
 
-INTENTS DEFINIDOS (NO inventar otros):
+DEFINED INTENTS (DO NOT invent new ones):
 %s
 
-Mensaje del usuario:
+The user message below may be in any language.
+
+LANGUAGE DETECTION:
+- Detect the language of the USER MESSAGE ONLY.
+- Do NOT infer the language from this system prompt.
+- Return the ISO-639-1 code.
+- If uncertain, return "und".
+
+USER MESSAGE:
 "%s"
 
-RESPONDE SOLO UN JSON VÁLIDO, SIN TEXTO FUERA.
+RESPOND WITH A SINGLE VALID JSON OBJECT ONLY. DO NOT include any extra text.
+The fields "intent", "confidence", "language", "parameters", and "errors"
+MUST ALWAYS be present in the output JSON, even if empty.
 
-Ejemplo de formato (NO literal):
+Example format (NOT literal):
 
 {
   "intent": "banking.get_balance",
   "confidence": 0.8,
+  "language": "en",
   "parameters": {
     "accountId": "123456"
   },
   "errors": []
 }
 
-REGLAS:
-- NO uses "..."
-- NO omitas claves con "etc"
-- Si no hay parámetros, usa {}.
-- Si no hay errores, usa [].
-
-`, string(intentsJSON), text)
-
-	_ = fmt.Sprintf(`
-Eres el módulo NLU del sistema AOS (Agent Orchestration System).
-Tu tarea es:
-
-1) Detectar cuál INTENT de la lista encaja mejor con el mensaje del usuario.
-2) Extraer los parámetros requeridos por ese INTENT.
-3) NO inventar datos. Si falta un parámetro requerido, devolverlo como "".
-
-INTENTS DEFINIDOS:
-%s
-
-Extract ONLY the required parameters from the user message.
-
-Requirements:
-- Output MUST be valid JSON.
-- JSON MUST contain EXACTLY these keys:
-  %s
-- NO markdown.
-- NO backticks.
-- NO explanation.
-- NO prefix.
-- NO suffix.
-- If missing, infer value from message.
-
-Mensaje del usuario:
-"%s"
-
-REGLAS DE SALIDA:
-- Responde SOLO un JSON válido.
-- Nada de texto fuera del JSON.
+RULES:
+- DO NOT use "..."
+- DO NOT omit keys or use placeholders like "etc"
+- If there are no parameters, return {}.
+- If there are no errors, return [].
 
 `, string(intentsJSON), text)
 
@@ -259,6 +238,7 @@ REGLAS DE SALIDA:
 	var out struct {
 		Intent     string            `json:"intent"`
 		Confidence float64           `json:"confidence"`
+		Language   string            `json:"language"`
 		Params     map[string]string `json:"parameters"`
 		Errors     []string          `json:"errors"`
 	}
@@ -295,6 +275,7 @@ REGLAS DE SALIDA:
 		Type:       out.Intent,
 		Params:     out.Params,
 		Confidence: out.Confidence,
+		Language:   out.Language,
 		Errors:     out.Errors,
 		Raw:        clean,
 	}, nil
