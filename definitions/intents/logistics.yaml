@@ -1,0 +1,5 @@
+intents:
+  - type: logistics.get_shipment_status
+    description: "Query the shipment status"
+    pipeline: pipeline_logistics_shipment_status
+    required_params: ["shipmentId", "customerId", "date"]

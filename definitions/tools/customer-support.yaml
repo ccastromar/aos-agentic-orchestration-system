@@ -1,0 +1,18 @@
+tools:
+  - name: customer_support.get_purchase
+    type: http
+    method: GET
+    url: "http://localhost:9000/mock/customer-support/purchase?purchaseId={{ .purchaseId }}"
+    headers:
+      Authorization: "Bearer {{ env \"API_KEY\" }}"
+    mode: read
+    timeout: 3000
+
+  - name: customer_support.product_return
+    type: http
+    method: GET
+    url: "http://localhost:9000/mock/customer-support/return?purchaseId={{ .purchaseId }}"
+    headers:
+      Authorization: "Bearer {{ env \"API_KEY\" }}"
+    mode: read
+    timeout: 3000

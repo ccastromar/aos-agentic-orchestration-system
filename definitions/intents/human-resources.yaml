@@ -1,0 +1,5 @@
+intents:
+  - type: human-resources.vacation
+    description: "General questions about the employee vacations"
+    pipeline: pipeline_human_resources_employee_vacation
+    required_params: ["employeeId"]

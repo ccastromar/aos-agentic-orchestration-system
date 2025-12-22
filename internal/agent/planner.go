@@ -143,7 +143,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			p.uiStore.AddEvent(
 				id,
 				"Planner",
-				"invalid_llm_output",
+				"failed",
 				err.Error(),
 				"",
 			)
@@ -160,7 +160,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 				p.uiStore.AddEvent(
 					id,
 					"Planner",
-					"missing_params",
+					"failed",
 					strings.Join(di.Errors, ", "),
 					"",
 				)

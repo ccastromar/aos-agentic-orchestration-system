@@ -1,0 +1,6 @@
+pipelines:
+  - name: pipeline_human_resources_employee_vacation
+    description: "Employee vacation questions (demo)"
+    steps:
+      - tool: human_resources.get_employee_vacation
+      - analyst: true

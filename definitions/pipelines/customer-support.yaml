@@ -1,0 +1,7 @@
+pipelines:
+  - name: pipeline_customer_support_return_product
+    description: "Return a product (demo)"
+    steps:
+      - tool: customer_support.get_purchase
+      - tool: customer_support.product_return
+      - analyst: true

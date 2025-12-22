@@ -6,8 +6,11 @@ import (
 
 	mockBanking "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/banking"
 	mockCRM "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/crm"
+	mockCustomerSupport "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/customer-support"
 	mockDevops "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/devops"
 	mockHelpdesk "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/helpdesk"
+	mockHumanResources "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/human-resources"
+	mockLogistics "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/logistics"
 )
 
 var listenAndServe = http.ListenAndServe
@@ -19,6 +22,9 @@ func buildMux() *http.ServeMux {
 	mockDevops.RegisterHandlers(mux)
 	mockCRM.RegisterHandlers(mux)
 	mockHelpdesk.RegisterHandlers(mux)
+	mockLogistics.RegisterHandlers(mux)
+	mockHumanResources.RegisterHandlers(mux)
+	mockCustomerSupport.RegisterHandlers(mux)
 	return mux
 }
 

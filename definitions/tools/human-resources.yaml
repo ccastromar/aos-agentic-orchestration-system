@@ -1,0 +1,9 @@
+tools:
+  - name: human_resources.get_employee_vacation
+    type: http
+    method: GET
+    url: "http://localhost:9000/mock/human-resources/vacation?employeeId={{ .employeeId }}"
+    headers:
+      Authorization: "Bearer {{ env \"API_KEY\" }}"
+    mode: read
+    timeout: 3000

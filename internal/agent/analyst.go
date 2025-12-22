@@ -67,12 +67,12 @@ func (a *Analyst) dispatch(msg bus.Message) {
 func (a *Analyst) handleSummarize(msg bus.Message) {
 	id, ok := payload.GetString(msg.Payload, "id")
 	if !ok {
-		logx.Error("Planner", "invalid payload: missing id")
+		logx.Error("Analyst", "invalid payload: missing id")
 		return
 	}
 	language, ok := payload.GetString(msg.Payload, "language")
 	if !ok {
-		logx.Error("Planner", "invalid payload: missing language")
+		logx.Error("Analyst", "invalid payload: missing language")
 		return
 	}
 	intentType, _ := msg.Payload["intent"].(string)
@@ -99,6 +99,7 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	}
 
 	timer := logx.Start(id, "Analyst", "SummarizeLLM")
+
 	summary, err := llm.SummarizeResult(taskCtx, a.llmClient, intentType, raw, language)
 	timer.End()
 

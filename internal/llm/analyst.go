@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 )
 
-// ---- PUBLIC API ----
-
+// =======================
+// PUBLIC API
+// =======================
+	
 func SummarizeResult(
 	ctx context.Context,
 	c LLMClient,
@@ -23,7 +23,7 @@ func SummarizeResult(
 		return "", err
 	}
 
-	logx.Debug("Analyst", prompt)
+	//logx.Debug("Analyst", prompt)
 
 	out, err := c.Chat(ctx, prompt)
 	if err != nil {
@@ -33,7 +33,9 @@ func SummarizeResult(
 	return out, nil
 }
 
-// ---- PROMPT COMPOSITION ----
+// =======================
+// PROMPT COMPOSITION
+// =======================
 
 func buildSummarizePrompt(
 	intentType string,
@@ -46,74 +48,86 @@ func buildSummarizePrompt(
 		return "", err
 	}
 
-	basePrompt := summarizeBasePrompt(intentType, string(rawJSON))
-
-	renderingRules, err := renderingPrompt(targetLanguage)
-	if err != nil {
-		return "", err
+	switch targetLanguage {
+	case "es":
+		return summarizePromptES(intentType, string(rawJSON)), nil
+	case "en":
+		return summarizePromptEN(intentType, string(rawJSON)), nil
+	default:
+		return "", fmt.Errorf("unsupported language: %s", targetLanguage)
 	}
-
-	return basePrompt + "\n" + renderingRules, nil
 }
 
-// ---- SEMANTIC CORE (LANGUAGE-AGNOSTIC) ----
+// =======================
+// PROMPTS (LANGUAGE-SPECIFIC)
+// =======================
 
-func summarizeBasePrompt(intentType string, rawJSON string) string {
+func summarizePromptES(intentType string, rawJSON string) string {
+	return fmt.Sprintf(`
+Eres un asistente multi-dominio (banca, devops, CRM, helpdesk, healthcare).
+Has ejecutado un workflow con el siguiente propósito: "%s".
+
+REGLAS IMPORTANTES (ESTRICTAS):
+1. Cada paso incluye un campo "executed" con valor true o false.
+2. Si el paso principal de la operación tiene "executed": false, la operación NO se completó.
+3. En ese caso, DEBES indicar claramente que la operación NO fue realizada y NO debes afirmar éxito.
+4. Los pasos secundarios (notificaciones, logs, validaciones) pueden haberse ejecutado aunque la operación principal no lo hiciera.
+5. Interpreta el JSON estrictamente como se proporciona. NO inventes hechos ni resultados.
+
+Resultados brutos de la ejecución (JSON):
+
+%s
+
+El resumen debe explicar:
+- si la operación principal se completó o no,
+- qué ocurrió durante el pipeline,
+- si hubo pasos omitidos o condiciones que impidieron continuar,
+- cualquier advertencia, riesgo o notificación relevante.
+
+REQUISITOS DE SALIDA:
+- Escribe el resumen únicamente en español.
+- Usa español profesional, natural y gramaticalmente correcto.
+- Usa terminología adecuada al contexto.
+- NO uses palabras en inglés.
+- NO traduzcas literalmente desde el inglés.
+- NO repitas frases innecesariamente.
+
+Devuelve SOLO TEXTO PLANO.
+NO devuelvas JSON.
+NO uses listas.
+`, intentType, rawJSON)
+}
+
+func summarizePromptEN(intentType string, rawJSON string) string {
 	return fmt.Sprintf(`
 You are a multi-domain assistant (banking, devops, CRM, helpdesk, healthcare).
-You have executed a workflow with intent: "%s".
+You have executed a workflow with the following intent: "%s".
 
-Very important:
+IMPORTANT RULES (STRICT):
 1. Each step includes an "executed" field set to true or false.
-2. If "executed": false on the MAIN operation step (for example: transfer, payment, deployment, etc.),
-   then the operation WAS NOT completed.
-3. In that case, you must clearly explain that the operation did NOT occur and MUST NOT state that it was successful.
-4. Secondary steps such as notifications, logs, or validations may have executed even if the main operation did not.
-5. Interpret the JSON strictly as provided. DO NOT invent behavior or outcomes.
+2. If the MAIN operation step has "executed": false, the operation was NOT completed.
+3. In that case, you MUST clearly state that the operation did NOT occur and MUST NOT claim success.
+4. Secondary steps (notifications, logs, validations) may have executed even if the main operation did not.
+5. Interpret the JSON strictly as provided. DO NOT invent facts or outcomes.
 
-Here are the raw execution results (JSON):
+Raw execution results (JSON):
 
 %s
 
 The summary must explain:
 - whether the main operation was completed or not,
 - what happened during the workflow,
-- whether any steps were skipped or conditions prevented continuation,
+- whether any steps were skipped or blocked,
 - any relevant warnings, risks, or notifications.
+
+OUTPUT REQUIREMENTS:
+- Write the summary entirely in English.
+- Use clear, professional, native English.
+- Do NOT use any other language.
+- Do NOT repeat phrases unnecessarily.
 
 Return PLAIN TEXT ONLY.
 Do NOT return JSON.
 Do NOT use lists.
 `, intentType, rawJSON)
-}
-
-// ---- RENDERING (LAST STEP, LANGUAGE-SPECIFIC) ----
-
-func renderingPrompt(lang string) (string, error) {
-	switch lang {
-
-	case "es":
-		return `
-OUTPUT LANGUAGE REQUIREMENT:
-- Write the final summary entirely in Spanish.
-- Write as a native Spanish speaker.
-- Do NOT translate literally from English.
-- Use clear, professional, and natural Spanish.
-- DO NOT use any other language.
-- If you cannot comply, return an empty response.
-`, nil
-
-	case "en":
-		return `
-OUTPUT LANGUAGE REQUIREMENT:
-- Write the final summary entirely in English.
-- Write as a native English speaker.
-- Use clear, professional language.
-- DO NOT use any other language.
-- If you cannot comply, return an empty response.
-`, nil
-
-	default:
-		return "", fmt.Errorf("unsupported language: %s", lang)
-	}
 }
