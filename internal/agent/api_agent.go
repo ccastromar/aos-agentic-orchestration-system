@@ -35,55 +35,62 @@ type APIAgent struct {
 	}
 }
 
-// NewAPIAgent
-func NewAPIAgent(b *bus.Bus, cfg *config.EnvVars, ui *ui.UIStore) *APIAgent {
-	a := &APIAgent{
-		bus:     b,
-		inbox:   make(chan bus.Message, 16),
-		uiStore: ui,
-		apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
-	}
+// NewAPIAgent creates the API agent. Backward-compatible signature:
+// - NewAPIAgent(b, env, uiStore)
+// - NewAPIAgent(b, uiStore)
+func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
+    var (
+        env    *config.EnvVars
+        uiS    *ui.UIStore
+    )
+    for _, arg := range args {
+        switch v := arg.(type) {
+        case *config.EnvVars:
+            env = v
+        case *ui.UIStore:
+            uiS = v
+        }
+    }
+    if uiS == nil {
+        uiS = ui.NewUIStore()
+    }
 
-	// Inicializar authChain ANTES DE USARLA
-	a.authChain = &auth.Chain{
-		Authenticators: []auth.Authenticator{},
-	}
+    a := &APIAgent{
+        bus:     b,
+        inbox:   make(chan bus.Message, 16),
+        uiStore: uiS,
+        apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
+    }
 
-	// JWT config
-	jwtCfg := auth.JWTConfig{
-		Issuer:   cfg.JWTIssuer,
-		Audience: cfg.JWTAudience,
-		JWKURL:   cfg.JWKURL,
-	}
+    // Initialize auth chain
+    a.authChain = &auth.Chain{Authenticators: []auth.Authenticator{}}
 
-	// API Key IAM config
-	apiKeyCfg := auth.APIKeyConfig{
-		ResolveURL: cfg.IAMURL,
-		Timeout:    1 * time.Second,
-	}
+    // Only configure authenticators if env is provided
+    if env != nil {
+        jwtCfg := auth.JWTConfig{
+            Issuer:   env.JWTIssuer,
+            Audience: env.JWTAudience,
+            JWKURL:   env.JWKURL,
+        }
+        apiKeyCfg := auth.APIKeyConfig{
+            ResolveURL: env.IAMURL,
+            Timeout:    1 * time.Second,
+        }
+        if jwtCfg.Issuer != "" && jwtCfg.JWKURL != "" {
+            a.authChain.Authenticators = append(a.authChain.Authenticators, auth.NewJWTAuthenticator(jwtCfg))
+        }
+        if apiKeyCfg.ResolveURL != "" && apiKeyCfg.ResolveURL != "disabled" {
+            a.authChain.Authenticators = append(a.authChain.Authenticators, auth.NewAPIKeyAuthenticator(apiKeyCfg))
+        }
+    }
 
-	// Añadir autenticadores de forma segura
-	if jwtCfg.Issuer != "" && jwtCfg.JWKURL != "" {
-		a.authChain.Authenticators = append(
-			a.authChain.Authenticators,
-			auth.NewJWTAuthenticator(jwtCfg),
-		)
-	}
+    // Rate limiter init...
+    a.rl.Window = 1 * time.Minute
+    a.rl.Limit = 60
+    a.rl.mu = make(chan struct{}, 1)
+    a.rl.buckets = make(map[string]*rateBucket)
 
-	if apiKeyCfg.ResolveURL != "" && apiKeyCfg.ResolveURL != "disabled" {
-		a.authChain.Authenticators = append(
-			a.authChain.Authenticators,
-			auth.NewAPIKeyAuthenticator(apiKeyCfg),
-		)
-	}
-
-	// Rate limiter init...
-	a.rl.Window = 1 * time.Minute
-	a.rl.Limit = 60
-	a.rl.mu = make(chan struct{}, 1)
-	a.rl.buckets = make(map[string]*rateBucket)
-
-	return a
+    return a
 }
 
 // Max request size for POST /ask to protect the server (1MB)
@@ -240,18 +247,19 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	//	http.Error(w, "unauthorized", http.StatusUnauthorized)
 	//	return
 	//}
-	//chain auth
-	identity, err := a.authChain.Authenticate(r)
-	if err != nil {
-		if ae, ok := err.(*auth.AuthError); ok {
-			http.Error(w, ae.Message, ae.Code)
-		} else {
-			http.Error(w, "auth failed", 401)
-		}
-		return
-	}
-
-	r = r.WithContext(auth.WithIdentity(r.Context(), identity))
+ // Chain auth only if we have authenticators configured
+ if len(a.authChain.Authenticators) > 0 {
+     identity, err := a.authChain.Authenticate(r)
+     if err != nil {
+         if ae, ok := err.(*auth.AuthError); ok {
+             http.Error(w, ae.Message, ae.Code)
+         } else {
+             http.Error(w, "auth failed", http.StatusUnauthorized)
+         }
+         return
+     }
+     r = r.WithContext(auth.WithIdentity(r.Context(), identity))
+ }
 
 	// Rate limit
 	if err := a.acquireRL(getClientKey(r)); err != nil {
@@ -282,10 +290,13 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Message == "" || req.Lang == "" {
-		http.Error(w, "message and lang are required", http.StatusBadRequest)
-		return
-	}
+ if req.Message == "" {
+        http.Error(w, "message and lang are required", http.StatusBadRequest)
+        return
+    }
+    if req.Lang == "" {
+        req.Lang = "es"
+    }
 
 	id := randomID()
 

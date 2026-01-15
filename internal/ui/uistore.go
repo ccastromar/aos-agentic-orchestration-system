@@ -45,11 +45,17 @@ type AskDispatcher interface {
 	DispatchAskInternal(message string, lang string) (taskID string, err error)
 }
 
-func NewUIStore(dispatcher AskDispatcher) *UIStore {
-	return &UIStore{
-		tasks:      make(map[string][]Event),
-		dispatcher: dispatcher,
-	}
+// NewUIStore creates a UIStore. The dispatcher parameter is optional.
+// It can be called as NewUIStore() or NewUIStore(dispatcher).
+func NewUIStore(dispatcher ...AskDispatcher) *UIStore {
+    var d AskDispatcher
+    if len(dispatcher) > 0 {
+        d = dispatcher[0]
+    }
+    return &UIStore{
+        tasks:      make(map[string][]Event),
+        dispatcher: d,
+    }
 }
 
 /*

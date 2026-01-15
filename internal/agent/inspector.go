@@ -10,17 +10,23 @@ import (
 )
 
 type Inspector struct {
-	bus     *bus.Bus
-	inbox   chan bus.Message
-	uiStore *ui.UIStore
+    bus     *bus.Bus
+    inbox   chan bus.Message
+    uiStore *ui.UIStore
 }
 
-func NewInspector(b *bus.Bus, ui *ui.UIStore) *Inspector {
-	return &Inspector{
-		bus:     b,
-		inbox:   make(chan bus.Message, 16),
-		uiStore: ui,
-	}
+func NewInspector(b *bus.Bus, uiOpt ...*ui.UIStore) *Inspector {
+    var uiStore *ui.UIStore
+    if len(uiOpt) > 0 && uiOpt[0] != nil {
+        uiStore = uiOpt[0]
+    } else {
+        uiStore = ui.NewUIStore()
+    }
+    return &Inspector{
+        bus:     b,
+        inbox:   make(chan bus.Message, 16),
+        uiStore: uiStore,
+    }
 }
 
 func (i *Inspector) Inbox() chan bus.Message {

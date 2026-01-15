@@ -112,10 +112,10 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 			out["raw"] = string(respBody)
 		}
 	}
-	// if error HTTP, keep going:
-	if resp.StatusCode >= 300 {
-		return out, nil
-	}
+ // if HTTP error status, return an error including the status code
+ if resp.StatusCode >= 400 {
+     return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+ }
 	// success 2xx
 	return out, nil
 }

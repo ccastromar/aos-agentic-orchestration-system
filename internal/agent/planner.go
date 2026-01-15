@@ -138,18 +138,21 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		di, err := llm.DetectIntentAndParams(taskCtx, p.llmClient, userMsg, p.cfg.Intents)
 		timer.End()
 
-		if err != nil {
-			logx.Error("Planner", "[%s] ERROR detecting intent/params: %v", id, err)
-			p.uiStore.AddEvent(
-				id,
-				"Planner",
-				"failed",
-				err.Error(),
-				"",
-			)
-			p.storeError(id, err.Error())
-			return
-		}
+  if err != nil {
+            logx.Error("Planner", "[%s] ERROR detecting intent/params: %v", id, err)
+            // uiStore might be nil in unit tests; guard to avoid panic so we can store the error
+            if p.uiStore != nil {
+                p.uiStore.AddEvent(
+                    id,
+                    "Planner",
+                    "failed",
+                    err.Error(),
+                    "",
+                )
+            }
+            p.storeError(id, err.Error())
+            return
+        }
 
 		// functional errors
 		if len(di.Errors) > 0 {

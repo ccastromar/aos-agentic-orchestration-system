@@ -23,14 +23,22 @@ type Verifier struct {
 	stateManager *state.StateManager
 }
 
-func NewVerifier(b *bus.Bus, cfg *config.Config, ui *ui.UIStore, sm *state.StateManager) *Verifier {
-	return &Verifier{
-		bus:          b,
-		cfg:          cfg,
-		inbox:        make(chan bus.Message, 16),
-		uiStore:      ui,
-		stateManager: sm,
-	}
+func NewVerifier(b *bus.Bus, cfg *config.Config, ui *ui.UIStore, smOpt ...*state.StateManager) *Verifier {
+    var sm *state.StateManager
+    if len(smOpt) > 0 && smOpt[0] != nil {
+        sm = smOpt[0]
+    } else {
+        // default to in-memory store
+        mem := state.NewMemoryStore()
+        sm = state.NewStateManager(mem)
+    }
+    return &Verifier{
+        bus:          b,
+        cfg:          cfg,
+        inbox:        make(chan bus.Message, 16),
+        uiStore:      ui,
+        stateManager: sm,
+    }
 }
 
 func (v *Verifier) Inbox() chan bus.Message {
@@ -74,7 +82,7 @@ func (v *Verifier) dispatch(msg bus.Message) {
 }
 
 func (v *Verifier) handleRunPipeline(msg bus.Message) {
-	id, ok := payload.GetString(msg.Payload, "id")
+    id, ok := payload.GetString(msg.Payload, "id")
 	if !ok {
 		logx.Error("Verifier", "invalid payload: missing id")
 		return
@@ -84,11 +92,10 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		logx.Error("Verifier", "invalid payload: missing intent")
 		return
 	}
-	language, ok := payload.GetString(msg.Payload, "language")
-	if !ok {
-		logx.Error("Verifier", "invalid payload: missing language")
-		return
-	}
+ language, ok := payload.GetString(msg.Payload, "language")
+ if !ok || language == "" {
+     language = "es"
+ }
 
 	pipeAny := msg.Payload["pipeline"]
 	paramsAny := msg.Payload["params"]

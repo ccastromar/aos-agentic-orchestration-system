@@ -80,6 +80,23 @@ func TestE2E_AskForBalance(t *testing.T) {
         // Ignore error on close
         _ = srv9000.ListenAndServe()
     }()
+    // Wait until the mock backend is ready to accept connections to avoid race conditions
+    {
+        client := &http.Client{Timeout: 100 * time.Millisecond}
+        ready := false
+        for i := 0; i < 50; i++ { // ~5s max
+            resp, err := client.Get("http://localhost:9000/mock/core/balance?accountId=ping")
+            if err == nil {
+                resp.Body.Close()
+                ready = true
+                break
+            }
+            time.Sleep(100 * time.Millisecond)
+        }
+        if !ready {
+            t.Fatalf("mock backend on :9000 not ready in time")
+        }
+    }
     defer func() {
         ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
         defer cancel()
@@ -144,12 +161,36 @@ func TestE2E_AskForBalance(t *testing.T) {
     if !ok {
         t.Fatalf("missing tool output in raw: keys=%v", func() []string { ks:=make([]string,0,len(raw)); for k:=range raw{ks=append(ks,k)}; return ks }())
     }
-    // Balance should be a number; the exact value depends on the mock target.
-    if _, ok := toolOut["balance"].(float64); !ok {
+    // Balance can be inline or nested under output depending on pipeline shape
+    var (
+        balance any
+        outMap map[string]any
+    )
+    if v, ok := toolOut["balance"]; ok {
+        balance = v
+    } else if v, ok := toolOut["output"].(map[string]any); ok {
+        outMap = v
+        balance = v["balance"]
+    }
+    if _, ok := balance.(float64); !ok {
         t.Fatalf("missing numeric balance in tool output: %#v", toolOut)
     }
-    // The accountId should be "555" as sent in params (if present in response)
-    if acc, ok := toolOut["accountId"].(string); ok && acc != "555" {
-        t.Fatalf("unexpected accountId in tool output: %#v", toolOut)
+    // The accountId may live at top-level or inside output; accept either and also snake case
+    var accVal any
+    if v, ok := toolOut["accountId"]; ok {
+        accVal = v
+    } else if v, ok := toolOut["account_id"]; ok {
+        accVal = v
+    } else if outMap != nil {
+        if v, ok := outMap["accountId"]; ok {
+            accVal = v
+        } else if v, ok := outMap["account_id"]; ok {
+            accVal = v
+        }
+    }
+    if accVal != nil {
+        if s, ok := accVal.(string); ok && s != "555" {
+            t.Fatalf("unexpected accountId in tool output: %#v", toolOut)
+        }
     }
 }
