@@ -6,9 +6,6 @@ import (
 	"time"
 )
 
-// En la práctica usarías una librería JWT (golang-jwt/jwt, etc.) + JWK client.
-// Aquí te dejo la interfaz y un stub para que veas dónde encajaría.
-
 type JWTConfig struct {
 	Issuer   string
 	Audience string
@@ -33,7 +30,7 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	tokenString = strings.TrimSpace(tokenString)
 
-	// TODO: implementar verifyAndParseJWT con lib real.
+	// TODO: implement verifyAndParseJWT
 	claims, err := verifyAndParseJWT(tokenString, a.cfg)
 	if err != nil {
 		return nil, &AuthError{Code: http.StatusUnauthorized, Message: "invalid jwt"}
@@ -68,9 +65,9 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 
 // Stub conceptual: cambia por implementación real.
 func verifyAndParseJWT(token string, cfg JWTConfig) (map[string]interface{}, error) {
-	// Solo para compilar en el MVP. Aquí iría:
-	// - parse & validate signature
-	// - validate iss, aud, exp, nbf...
+
+	// TODO - parse & validate signature
+	// TODO - validate iss, aud, exp, nbf...
 	return map[string]interface{}{
 		"sub":   "demo-user",
 		"email": "demo@example.com",

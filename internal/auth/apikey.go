@@ -40,9 +40,6 @@ func (a *APIKeyAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	q.Set("api_key", apiKey)
 	req.URL.RawQuery = q.Encode()
 
-	// Opcional: auth de servicio hacia IAM
-	// req.Header.Set("Authorization", "Bearer "+os.Getenv("AOS_IAM_TOKEN"))
-
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, &AuthError{Code: http.StatusServiceUnavailable, Message: "iam unreachable"}

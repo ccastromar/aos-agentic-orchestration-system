@@ -39,7 +39,6 @@ func (ctx *PipelineContext) GetVar(k string) interface{} {
 func (ctx *PipelineContext) RecordToolOutput(toolName string, output map[string]interface{}) {
 	ctx.ToolOutputs[toolName] = output
 	// flatten and add to general context
-	// evitamos colisiones en campos técnicos genéricos
 	for k, v := range output {
 		switch k {
 		case "ok", "statusCode", "status", "raw":

@@ -58,7 +58,7 @@ func getMovements(w http.ResponseWriter, r *http.Request) {
 			{
 				"date":   "2025-01-05",
 				"amount": 1500.00,
-				"desc":   "Nómina",
+				"desc":   "Deposit",
 			},
 		},
 	}

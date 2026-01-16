@@ -1,22 +1,22 @@
 package app
 
 import (
-    "context"
-    "fmt"
-    "net/http"
-    "time"
+	"context"
+	"fmt"
+	"net/http"
+	"time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/state"
-    "github.com/redis/go-redis/v9"
-    "golang.org/x/sync/errgroup"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/agent"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/agent"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
 )
 
 type App struct {
@@ -41,13 +41,13 @@ func New() (*App, error) {
 
 // NewWithEnv builds the App wiring using the provided environment variables.
 func NewWithEnv(env *config.EnvVars) (*App, error) {
-    if env == nil {
-        return nil, fmt.Errorf("env cannot be nil")
-    }
-    cfg, err := config.LoadFromDir("definitions")
-    if err != nil {
-        return nil, err
-    }
+	if env == nil {
+		return nil, fmt.Errorf("env cannot be nil")
+	}
+	cfg, err := config.LoadFromDir("definitions")
+	if err != nil {
+		return nil, err
+	}
 
 	uiStore := ui.NewUIStore(nil)
 	messageBus := bus.New()
@@ -69,21 +69,21 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 
 	stateManager := state.NewStateManager(stateStore)
 
- // Select LLM client based on env. Ensure we always return a non-nil client for tests.
- var llmClient llm.LLMClient
+	// Select an LLM client based on env. Ensure we always return a non-nil client for tests.
+	var llmClient llm.LLMClient
 
- if env.LLMEngine == "gemini" {
-     llmClient, err = llm.NewGeminiClient(context.Background(), env.LLMModel)
-     if err != nil {
-         return nil, err
-     }
- } else if env.LLMEngine == "ollama" {
-     llmClient = llm.NewOllamaClient(env.OllamaBaseURL, env.LLMModel)
- } else {
-     // Default to OpenAI client to keep a.llm non-nil in tests even if API key is missing.
-     // The tests don't call the LLM, so an empty key is acceptable.
-     llmClient = llm.NewOpenAIClient(env.LLMBaseURL, "", env.LLMModel)
- }
+	if env.LLMEngine == "gemini" {
+		llmClient, err = llm.NewGeminiClient(context.Background(), env.LLMModel)
+		if err != nil {
+			return nil, err
+		}
+	} else if env.LLMEngine == "ollama" {
+		llmClient = llm.NewOllamaClient(env.OllamaBaseURL, env.LLMModel)
+	} else {
+		// Default to OpenAI client to keep a.llm non-nil in tests even if API key is missing.
+		// The tests don't call the LLM, so an empty key is acceptable.
+		llmClient = llm.NewOpenAIClient(env.LLMBaseURL, "", env.LLMModel)
+	}
 
 	// Mark specs as loaded only if we actually loaded non-empty specs
 	specsLoaded := cfg != nil && len(cfg.Tools) > 0 && len(cfg.Pipelines) > 0 && len(cfg.Intents) > 0
@@ -93,7 +93,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		LLMClient:   llmClient,
 	}
 
-	// Crear todos los agentes
+	// Creates all agents
 	apiAgent := agent.NewAPIAgent(messageBus, env, uiStore)
 	inspector := agent.NewInspector(messageBus, uiStore)
 	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore)
@@ -102,8 +102,6 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 
 	uiStore.SetDispatcher(apiAgent)
 
-	// Registrar subscripciones
-	//messageBus.Subscribe("api", apiAgent.Inbox())
 	messageBus.Subscribe("inspector", inspector.Inbox())
 	messageBus.Subscribe("planner", planner.Inbox())
 	messageBus.Subscribe("verifier", verifier.Inbox())
@@ -125,7 +123,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 func (a *App) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	// Lanzar agentes
+	// start agents
 	for _, ag := range a.agents {
 		agentAI := ag
 		g.Go(func() error {
@@ -133,7 +131,7 @@ func (a *App) Run(ctx context.Context) error {
 		})
 	}
 
-	// Lanzar HTTP server
+	// Launch HTTP server
 	g.Go(func() error {
 		return a.http.Start(gctx)
 	})

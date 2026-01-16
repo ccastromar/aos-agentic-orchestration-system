@@ -12,18 +12,12 @@ import (
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/metrics"
 )
 
-// Defino la interfaz mas abajo
-// type Client interface {
-// 	Chat(prompt string) (string, error)
-// }
-
 type OllamaClient struct {
 	BaseURL    string
 	Model      string
 	HTTPClient *http.Client
 }
 
-// Asegura que implementa la interfaz
 var _ LLMClient = (*OllamaClient)(nil)
 
 func NewOllamaClient(baseURL, model string) *OllamaClient {

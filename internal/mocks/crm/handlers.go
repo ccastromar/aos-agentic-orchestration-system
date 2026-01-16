@@ -36,7 +36,7 @@ func handleCustomerProfile(w http.ResponseWriter, r *http.Request) {
 func handleCustomerInteractions(w http.ResponseWriter, r *http.Request) {
 	customerId := r.URL.Query().Get("customerId")
 	if customerId == "" {
-		http.Error(w, "customerId requerido", http.StatusBadRequest)
+		http.Error(w, "customerId required", http.StatusBadRequest)
 		return
 	}
 
@@ -53,19 +53,19 @@ func handleCustomerInteractions(w http.ResponseWriter, r *http.Request) {
 				"date":    "2025-11-15",
 				"type":    "email",
 				"agent":   "Sofia",
-				"summary": "Consulta sobre el estado de su último pedido.",
+				"summary": "Request for latest order status.",
 			},
 			{
 				"date":    "2025-11-08",
 				"type":    "call",
 				"agent":   "Miguel",
-				"summary": "Duda sobre la próxima factura y métodos de pago.",
+				"summary": "Question about the next invoice and available payment methods.",
 			},
 			{
 				"date":    "2025-10-30",
 				"type":    "ticket",
-				"agent":   "Equipo Soporte",
-				"summary": "Incidencia con una devolución, resuelta satisfactoriamente.",
+				"agent":   "A Team",
+				"summary": "Issue with a return, resolved satisfactorily.",
 			},
 		},
 	}
@@ -76,13 +76,13 @@ func handleCustomerInteractions(w http.ResponseWriter, r *http.Request) {
 
 func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "solo POST permitido", http.StatusMethodNotAllowed)
+		http.Error(w, "only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var payload map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "body inválido", http.StatusBadRequest)
+		http.Error(w, "body is not valid", http.StatusBadRequest)
 		return
 	}
 
@@ -101,13 +101,13 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 
 func handleUpdateLeadStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "solo POST permitido", http.StatusMethodNotAllowed)
+		http.Error(w, "only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var payload map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "body inválido", http.StatusBadRequest)
+		http.Error(w, "body is not valid", http.StatusBadRequest)
 		return
 	}
 

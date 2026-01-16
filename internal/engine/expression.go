@@ -22,7 +22,6 @@ func EvalBoolExpression(raw string, ctx *PipelineContext) (bool, error) {
 		return false, fmt.Errorf("parse error in expression %q: %w", expr, err)
 	}
 
-	// params: solo las Vars del contexto (no exponemos nada raro)
 	params := map[string]interface{}{}
 	for k, v := range ctx.Vars {
 		params[k] = v

@@ -1,19 +1,19 @@
 tools:
-  - name: crm_get_profile
+  - name: crm.get_profile
     type: http
     method: GET
     url: "http://localhost:9000/mock/crm/customer?customerId={{ .customerId }}"
     mode: read
     timeout: 3000
 
-  - name: crm_get_interactions
+  - name: crm.get_interactions
     type: http
     method: GET
     url: "http://localhost:9000/mock/crm/interactions?customerId={{ .customerId }}&days={{ .days }}"
     mode: read
     timeout: 4000
 
-  - name: crm_create_ticket
+  - name: crm.create_ticket
     type: http
     method: POST
     url: "http://localhost:9000/mock/crm/ticket"
@@ -25,7 +25,7 @@ tools:
       priority: "{{ .priority }}"
       channel: "{{ .channel }}"
 
-  - name: crm_update_lead_status
+  - name: crm.update_lead_status
     type: http
     method: POST
     url: "http://localhost:9000/mock/crm/lead/status"

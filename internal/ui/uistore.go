@@ -22,12 +22,6 @@ type Event struct {
 	Duration string
 }
 
-/*
-	UIStore
-	- Read model de tareas
-	- Estado de UI (errores de dominio)
-*/
-
 type UIStore struct {
 	mu sync.RWMutex
 
@@ -48,14 +42,14 @@ type AskDispatcher interface {
 // NewUIStore creates a UIStore. The dispatcher parameter is optional.
 // It can be called as NewUIStore() or NewUIStore(dispatcher).
 func NewUIStore(dispatcher ...AskDispatcher) *UIStore {
-    var d AskDispatcher
-    if len(dispatcher) > 0 {
-        d = dispatcher[0]
-    }
-    return &UIStore{
-        tasks:      make(map[string][]Event),
-        dispatcher: d,
-    }
+	var d AskDispatcher
+	if len(dispatcher) > 0 {
+		d = dispatcher[0]
+	}
+	return &UIStore{
+		tasks:      make(map[string][]Event),
+		dispatcher: d,
+	}
 }
 
 /*
@@ -119,7 +113,7 @@ func (s *UIStore) snapshot() map[string][]Event {
 	UI handlers
 */
 
-// HandleIndex shows task list
+// HandleIndex shows the task list
 func (s *UIStore) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	data := s.snapshot()
 
@@ -190,7 +184,7 @@ func (s *UIStore) HandleTask(w http.ResponseWriter, r *http.Request) {
 
 /*
 	/ui/ask
-	- GET  -> render form
+	- GET -> render form
 	- POST -> dispatch ask, handle intent errors
 */
 
@@ -236,7 +230,7 @@ func (s *UIStore) handleAskPost(w http.ResponseWriter, r *http.Request) {
 	}
 	lang := r.FormValue("lang")
 	if lang == "" {
-		lang = "en" // default explícito
+		lang = "en" // default
 	}
 
 	message := r.FormValue("message")

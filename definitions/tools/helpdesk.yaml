@@ -1,8 +1,8 @@
 tools:
-  - name: support_create_ticket
+  - name: helpdesk.support_create_ticket
     type: http
     method: POST
-    url: "http://localhost:9000/support/ticket"
+    url: "http://localhost:9000/mock/support/ticket"
     mode: write
     timeout: 5000
     body:
@@ -10,27 +10,27 @@ tools:
       description: "{{ .description }}"
       priority: "{{ .priority }}"
 
-  - name: support_get_ticket
+  - name: helpdesk.support_get_ticket
     type: http
     method: GET
-    url: "http://localhost:9000/support/ticket?ticketId={{ .ticketId }}"
+    url: "http://localhost:9000/mock/support/ticket?ticketId={{ .ticketId }}"
     mode: read
     timeout: 3000
 
-  - name: support_add_note
+  - name: helpdesk.support_add_note
     type: http
     method: POST
-    url: "http://localhost:9000/support/ticket/note"
+    url: "http://localhost:9000/mock/support/ticket/note"
     mode: write
     timeout: 4000
     body:
       ticketId: "{{ .ticketId }}"
       note: "{{ .note }}"
 
-  - name: support_close_ticket
+  - name: helpdesk.support_close_ticket
     type: http
     method: POST
-    url: "http://localhost:9000/support/ticket/close"
+    url: "http://localhost:9000/mock/support/ticket/close"
     mode: write
     timeout: 4000
     body:

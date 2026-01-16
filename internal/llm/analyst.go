@@ -6,10 +6,6 @@ import (
 	"fmt"
 )
 
-// =======================
-// PUBLIC API
-// =======================
-	
 func SummarizeResult(
 	ctx context.Context,
 	c LLMClient,

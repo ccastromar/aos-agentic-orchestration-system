@@ -1,32 +1,32 @@
 pipelines:
-  - name: pipeline_balance
-    description: "Consulta de saldo"
+  - name: pipeline_get_balance
+    description: "Account balance query"
     steps:
       - tool: banking.core_get_balance
       - analyst: true
 
-  - name: pipeline_movements
-    description: "Consulta de movimientos"
+  - name: pipeline_get_movements
+    description: "Transaction list"
     steps:
       - tool: banking.core_get_movements
       - analyst: true
 
-  - name: pipeline_credit_card
-    description: "Consulta el credito restante de una tarjeta"
+  - name: pipeline_check_credit_card
+    description: "Check available credit on the card"
     steps:
       - tool: banking.core_get_credit_card_balance
       - analyst: true
 
-  - name: pipeline_bizum
-    description: "Envía un Bizum (demo)"
+  - name: pipeline_send_bizum
+    description: "Send a Bizum (demo)"
     steps:
       - tool: banking.aml_risk_check
       - tool: banking.payments_bizum_send
       - tool: banking.send_notification
       - analyst: true
 
-  - name: pipeline_transferencia
-    description: "Envía una transferencia bancaria (demo)"
+  - name: pipeline_cash_transfer
+    description: "Send a cash transfer (demo)"
     steps:
       - tool: banking.aml_risk_check
       - tool: banking.payments_transfer
@@ -35,8 +35,8 @@ pipelines:
       - tool: banking.send_notification
       - analyst: true
 
-  - name: pipeline_bitcoin
-    description: "Envía bitcoins"
+  - name: pipeline_send_bitcoin
+    description: "Send bitcoins"
     steps:
       - tool: banking.aml_risk_check
       - human_approval: manager_review

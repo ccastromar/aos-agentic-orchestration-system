@@ -1,20 +1,20 @@
 intents:
   - type: support.create_ticket
-    description: "Crear un ticket de soporte"
+    description: "Create a ticket"
     pipeline: pipeline_support_create
     required_params: ["subject", "description", "priority"]
 
   - type: support.check_ticket_status
-    description: "Consultar estado de un ticket"
+    description: "Query ticket status"
     pipeline: pipeline_support_status
     required_params: ["ticketId"]
 
   - type: support.append_ticket_note
-    description: "Añadir nota a un ticket de soporte"
+    description: "Add a note to a ticket"
     pipeline: pipeline_support_add_note
     required_params: ["ticketId", "note"]
 
   - type: support.close_ticket
-    description: "Cerrar un ticket existente"
+    description: "Close a ticket"
     pipeline: pipeline_support_close
     required_params: ["ticketId", "reason"]

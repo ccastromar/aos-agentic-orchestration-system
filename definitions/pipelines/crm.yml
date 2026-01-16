@@ -1,25 +1,19 @@
 pipelines:
   - name: pipeline_crm_profile
-    description: "Obtiene el perfil del cliente y genera un resumen"
+    description: "Get client profile"
     steps:
       - tool: get_customer_profile
       - analyst: true
 
   - name: pipeline_crm_interactions
-    description: "Obtiene las últimas interacciones del cliente y las resume"
+    description: "Get client's last interactions"
     steps:
       - tool: get_customer_profile
       - tool: get_customer_interactions
       - analyst: true
 
-  - name: pipeline_crm_create_ticket
-    description: "Crea un ticket de soporte en el CRM"
-    steps:
-      - tool: create_ticket
-      - analyst: true
-
   - name: pipeline_crm_update_lead_status
-    description: "Actualiza el estado de un lead en el CRM"
+    description: "Update lead status"
     steps:
       - tool: update_lead_status
       - analyst: true

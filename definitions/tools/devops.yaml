@@ -1,35 +1,35 @@
 tools:
-  - name: infra_get_status
+  - name: devops.infra_get_status
     type: http
     method: GET
-    url: "http://localhost:9000/devops/status?service={{ .serviceName }}"
+    url: "http://localhost:9000/mock/devops/status?service={{ .serviceName }}"
     mode: read
     timeout: 3000
     body: {}
 
-  - name: infra_restart_service
+  - name: devops.infra_restart_service
     type: http
     method: POST
-    url: http://localhost:9000/devops/restart
+    url: "http://localhost:9000/mock/devops/restart"
     mode: dangerous
     timeout: 5000
     body:
       service: "{{ .serviceName }}"
 
-  - name: infra_deploy_service
+  - name: devops.infra_deploy_service
     type: http
     method: POST
-    url: http://localhost:9000/devops/deploy
+    url: "http://localhost:9000/mock/devops/deploy"
     mode: dangerous
     timeout: 8000
     body:
       service: "{{ .serviceName }}"
       version: "{{ .version }}"
 
-  - name: infra_tail_logs
+  - name: devops.infra_tail_logs
     type: http
     method: GET
-    url: http://localhost:9000/devops/logs
+    url: "http://localhost:9000/mock/devops/logs"
     mode: read
     timeout: 5000
     body:

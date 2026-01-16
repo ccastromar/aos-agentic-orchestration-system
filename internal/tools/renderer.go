@@ -28,12 +28,12 @@ func RenderTemplateString(tpl string, params map[string]string) (string, error) 
 		}).
 		Parse(tpl)
 	if err != nil {
-		return "", fmt.Errorf("error parseando template string: %w", err)
+		return "", fmt.Errorf("error parsing template string: %w", err)
 	}
 
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, params); err != nil {
-		return "", fmt.Errorf("error ejecutando template string: %w", err)
+		return "", fmt.Errorf("error executing template string: %w", err)
 	}
 
 	return buf.String(), nil
@@ -62,12 +62,12 @@ func RenderTemplateMap(body map[string]string, params map[string]string) (map[st
 			}).
 			Parse(v)
 		if err != nil {
-			return nil, fmt.Errorf("error parseando template body campo=%s: %w", k, err)
+			return nil, fmt.Errorf("error parsing template body field=%s: %w", k, err)
 		}
 
 		var buf bytes.Buffer
 		if err := t.Execute(&buf, params); err != nil {
-			return nil, fmt.Errorf("error ejecutando template body campo=%s: %w", k, err)
+			return nil, fmt.Errorf("error executing template body field=%s: %w", k, err)
 		}
 
 		out[k] = buf.String()

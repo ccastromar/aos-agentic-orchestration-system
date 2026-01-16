@@ -1,8 +1,8 @@
 intents:
   - type: banking.get_balance
     description: >
-      INTENT: "Consultar el saldo de una cuenta"
-    pipeline: pipeline_balance
+      INTENT: "Get account balance"
+    pipeline: pipeline_get_balance
     required_params:
       - accountId
     allow_dangerous: false
@@ -13,20 +13,16 @@ intents:
 
   - type: banking.get_credit_card_balance
     description: >
-      "Consultar el credito disponible de la tarjeta"
-    pipeline: pipeline_credit_card
+      "Check available credit on the card"
+    pipeline: pipeline_check_credit_card
     required_params:
         - cardId
     allow_dangerous: false
 
   - type: banking.get_movements
     description: >
-      INTENT: Consulta de movimientos
-      Obtener la lista de movimientos bancarios de una cuenta. 
-      Incluye ingresos, gastos, transferencias y fechas. 
-      Úsalo cuando el usuario pregunte por "movimientos", "qué ha pasado en mi cuenta",
-      "últimos cargos", "qué se ha pagado", etc.
-    pipeline: pipeline_movements
+      INTENT: Transaction list
+    pipeline: pipeline_get_movements
     required_params:
       - accountId
     allow_dangerous: false
@@ -37,27 +33,22 @@ intents:
 
   - type: banking.send_bizum
     description: >
-      INTENT: Envio de dinero por Bizum
-      Enviar dinero a un contacto mediante Bizum. 
-      Úsalo cuando el usuario quiera "hacer un Bizum", "enviar dinero",
-      "mandar X euros a alguien", etc.
-    pipeline: pipeline_bizum
+      INTENT: Send a Bizum to someone
+    pipeline: pipeline_send_bizum
     required_params:
       - amount
       - toPhone
       - concept
     allow_dangerous: true
-    requires_amount: true       # amount obligatorio
-    requires_phone: true        # toPhone obligatorio
-    max_amount: 100              # límite configurable
+    requires_amount: true       # amount
+    requires_phone: true        # toPhone
+    max_amount: 100              # limit
     shadow_mode: false
 
   - type: banking.transfer
     description: >
-      INTENT: Envio de dinero por transferencia
-      Enviar dinero a una cuenta mediante transferencia bancaria. 
-      Úsalo cuando el usuario quiera "hacer una transferencia", "enviar dinero a otra cuenta",
-    pipeline: pipeline_transferencia
+      INTENT: Send a cash transfer
+    pipeline: pipeline_cash_transfer
     required_params:
       - amount
       - currency
@@ -72,17 +63,14 @@ intents:
 
   - type: banking.send_bitcoin
     description: >
-      INTENT: Envio de bitcoin
-      Enviar bitcoin a una address. 
-      Úsalo cuando el usuario quiera "retirar bitcoin", "enviar btc",
-      "mandar x satoshis a alguien", etc.
-    pipeline: pipeline_bitcoin
+      INTENT: Send bitcoin to an address
+    pipeline: pipeline_send_bitcoin
     required_params:
       - amount
       - toAddress
       - concept
     allow_dangerous: true
-    requires_amount: true       # amount obligatorio
-    requires_address: true        # toPhone obligatorio
-    max_amount: 100              # límite configurable
+    requires_amount: true       # amount
+    requires_address: true        # toPhone
+    max_amount: 100              # limit
     shadow_mode: false

@@ -14,8 +14,7 @@ import (
 type DetectedIntent struct {
 	Type string `json:"intent"`
 	//RequiredParams []string          `json:"required_params"`
-	Params map[string]string // parámetros extraídos (puede empezar vacío)
-
+	Params map[string]string
 }
 
 type DetectedIntentAndParams struct {
@@ -223,13 +222,13 @@ RULES:
 
 	clean := sanitizeLLMOutput(raw)
 	logx.Debug("Planner", "sanitized raw LLM JSON response: %s", clean)
-	// Unmarshal genérico
+	// Unmarshal generic
 	var tmp any
 	if err := json.Unmarshal([]byte(clean), &tmp); err != nil {
 		return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
 	}
 
-	// Schema validation (AQUÍ ESTÁ LA CLAVE)
+	// Schema validation
 	if err := intentSchema.Validate(tmp); err != nil {
 		return nil, fmt.Errorf("schema validation failed: %w", err)
 	}

@@ -11,7 +11,7 @@ import (
 
 type Tool struct {
 	Name      string            `yaml:"name"`
-	Type      string            `yaml:"type"` // http, cli, etc (solo http en v2)
+	Type      string            `yaml:"type"` // http, cli (todo)
 	Method    string            `yaml:"method"`
 	URL       string            `yaml:"url"`
 	Mode      string            `yaml:"mode"` // read, write, dangerous
@@ -41,12 +41,11 @@ type Intent struct {
 	Pipeline       string   `yaml:"pipeline"`
 	RequiredParams []string `yaml:"required_params"`
 	// ----- Guard-Rails -----
-	AllowDangerous bool    `yaml:"allow_dangerous"` // puede ejecutar tools peligrosas
-	RequiresAmount bool    `yaml:"requires_amount"` // debe venir "amount"
-	RequiresPhone  bool    `yaml:"requires_phone"`  // debe venir "toPhone"
-	MaxAmount      float64 `yaml:"max_amount"`      // límite permitido por operación
-	ShadowMode     bool    `yaml:"shadow_mode"`     // ejecutar en modo simulación
-
+	AllowDangerous bool    `yaml:"allow_dangerous"`
+	RequiresAmount bool    `yaml:"requires_amount"`
+	RequiresPhone  bool    `yaml:"requires_phone"`
+	MaxAmount      float64 `yaml:"max_amount"`
+	ShadowMode     bool    `yaml:"shadow_mode"`
 }
 
 type Config struct {

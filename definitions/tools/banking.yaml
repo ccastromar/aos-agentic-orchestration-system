@@ -90,4 +90,4 @@ tools:
     timeout: 3000
     body:
       user: "{{ .fromPhone }}"
-      message: "Se ha enviado un Bizum de {{ .amount }} a {{ .toPhone }}"
+      message: "Bizum sent {{ .amount }} to {{ .toPhone }}"

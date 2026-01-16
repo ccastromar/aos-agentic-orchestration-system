@@ -1,39 +1,38 @@
 package agent
 
 import (
-    "context"
-    "testing"
+	"context"
+	"testing"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-    "github.com/stretchr/testify/require"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
+	"github.com/stretchr/testify/require"
 )
 
 type dummyLLM struct {
-    output string
+	output string
 }
 
 // Ping implements llm.LLMClient.
 func (d dummyLLM) Ping(ctx context.Context) error { return nil }
 
 func (d dummyLLM) Chat(ctx context.Context, prompt string) (string, error) {
-    return d.output, nil
+	return d.output, nil
 }
 
 func TestDetectIntent(t *testing.T) {
-    mock := dummyLLM{
-        // DetectIntent expects the LLM to return ONLY the intent key
-        output: "banking.get_balance",
-    }
+	mock := dummyLLM{
+		// DetectIntent expects the LLM to return ONLY the intent key
+		output: "banking.get_balance",
+	}
 
-	// 🟢 IMPORTANTE: solo las KEYS importan para la validación actual
 	schemas := map[string]any{
 		"banking.get_balance": struct{}{},
 	}
 
-    di, err := llm.DetectIntent(context.Background(), mock, "saldo de mi cuenta", schemas)
-    require.NoError(t, err)
-    require.Equal(t, "banking.get_balance", di.Type)
-    // current DetectIntent initializes empty params map
-    require.NotNil(t, di.Params)
-    require.Equal(t, 0, len(di.Params))
+	di, err := llm.DetectIntent(context.Background(), mock, "saldo de mi cuenta", schemas)
+	require.NoError(t, err)
+	require.Equal(t, "banking.get_balance", di.Type)
+	// current DetectIntent initializes empty params map
+	require.NotNil(t, di.Params)
+	require.Equal(t, 0, len(di.Params))
 }

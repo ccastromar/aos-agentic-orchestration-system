@@ -94,13 +94,11 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
-	// base output siempre incluye estado técnico
 	out := map[string]any{
 		"ok":         resp.StatusCode >= 200 && resp.StatusCode < 300,
 		"statusCode": resp.StatusCode,
 	}
 
-	// Intentar parsear JSON SIEMPRE que haya cuerpo
 	if len(respBody) > 0 {
 		var body map[string]any
 		if err := json.Unmarshal(respBody, &body); err == nil {
@@ -108,14 +106,13 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 				out[k] = v
 			}
 		} else {
-			// Si no es JSON, lo dejamos en raw
 			out["raw"] = string(respBody)
 		}
 	}
- // if HTTP error status, return an error including the status code
- if resp.StatusCode >= 400 {
-     return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
- }
+	// if HTTP error status, return an error including the status code
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
 	// success 2xx
 	return out, nil
 }

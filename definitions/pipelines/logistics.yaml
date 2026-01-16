@@ -1,6 +1,6 @@
 pipelines:
   - name: pipeline_logistics_shipment_status
-    description: "Tracks a shipment status(demo)"
+    description: "Track a shipment status(demo)"
     steps:
       - tool: logistics.get_customer
       - tool: logistics.get_shipment

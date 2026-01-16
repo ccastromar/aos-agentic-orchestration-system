@@ -6,9 +6,9 @@ import (
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
-	mux.HandleFunc("/support/ticket", manageTicker)
-	mux.HandleFunc("/support/ticket/note", ticketNote)
-	mux.HandleFunc("/support/ticket/close", ticketClose)
+	mux.HandleFunc("/mock/support/ticket", manageTicker)
+	mux.HandleFunc("/mock/support/ticket/note", ticketNote)
+	mux.HandleFunc("/mock/support/ticket/close", ticketClose)
 }
 
 // Crear ticket

@@ -1,54 +1,54 @@
-# ✅ **AOS — Feature List (versión simple)**
+# ✅ **AOS — Feature List (Simple Version)**
 
 ### **1. Memory**
 
-* Short-term memory por tarea
-* Long-term memory por agente
+* Short-term memory per task
+* Long-term memory per agent
 
-### **2. Guardrails** Done
+### **2. Guardrails** *(Done)*
 
-* Validación de parámetros
-* Políticas por intent
-* Límite de acciones peligrosas
-* Filtros de seguridad
+* Parameter validation
+* Intent-level policies
+* Dangerous action limits
+* Security filters
 
-### **3. Multi-Agente**
+### **3. Multi-Agent**
 
-* Agente de riesgo
-* Agente de cumplimiento
-* Agente ReAct (razonamiento paso a paso)
+* Risk agent
+* Compliance agent
+* ReAct agent (step-by-step reasoning)
 
 ### **4. Clarification Layer**
 
-* Preguntas al usuario cuando falta info
-* Intent confidence score
-* “Necesito más datos” automatizado
+* User clarification questions when information is missing
+* Intent confidence scoring
+* Automated “need more data” handling
 
-### **5. Pipelines Avanzados**
+### **5. Advanced Pipelines**
 
-* Condiciones (if/else)
+* Conditions (if / else)
 * Branching
-* Reintentos
-* Timeouts por step
-* Paralelización (DAG)
+* Retries
+* Per-step timeouts
+* Parallel execution (DAG)
 
-### **6. Observabilidad** Done
+### **6. Observability** *(Done)*
 
 * Tracing
-* Logs estructurados enriquecidos
-* Métricas Prometheus
+* Enriched structured logs
+* Prometheus metrics
 
 ### **7. Plugins / Tool Discovery**
 
-* Registro de tools externas
-* Plugins de dominio
-* Tools remotas dinámicas
+* External tool registry
+* Domain-specific plugins
+* Dynamic remote tools
 
-### **8. Contexto Inmutable**
+### **8. Immutable Context**
 
-* Task context versionado
-* Pipeline versionado
-* Ejecución reproducible
+* Versioned task context
+* Versioned pipelines
+* Reproducible execution
 
 ### **9. Domain SDKs**
 
@@ -57,14 +57,13 @@
 * AOS AI Ops
 * AOS DevOps
 
-### **10. Supervisor LLM**
+### **10. LLM Supervisor**
 
-* Verificación de coherencia
-* Monitorización de agentes
-* Meta-razonamiento
-* Auto-diagnóstico
+* Coherence verification
+* Agent monitoring
+* Meta-reasoning
+* Self-diagnostics
 
-### UI
+### **UI**
 
-* Dashboard
-
+* Complete Dashboard

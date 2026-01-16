@@ -58,7 +58,6 @@ func handleCustomer(w http.ResponseWriter, r *http.Request) {
 		service = "unknown-service"
 	}
 
-	// Simulamos tiempo de reinicio
 	time.Sleep(time.Duration(500+rand.Intn(300)) * time.Millisecond)
 
 	resp := CustomerResponse{

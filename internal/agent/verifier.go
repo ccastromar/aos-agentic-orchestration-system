@@ -24,21 +24,21 @@ type Verifier struct {
 }
 
 func NewVerifier(b *bus.Bus, cfg *config.Config, ui *ui.UIStore, smOpt ...*state.StateManager) *Verifier {
-    var sm *state.StateManager
-    if len(smOpt) > 0 && smOpt[0] != nil {
-        sm = smOpt[0]
-    } else {
-        // default to in-memory store
-        mem := state.NewMemoryStore()
-        sm = state.NewStateManager(mem)
-    }
-    return &Verifier{
-        bus:          b,
-        cfg:          cfg,
-        inbox:        make(chan bus.Message, 16),
-        uiStore:      ui,
-        stateManager: sm,
-    }
+	var sm *state.StateManager
+	if len(smOpt) > 0 && smOpt[0] != nil {
+		sm = smOpt[0]
+	} else {
+		// default to in-memory store
+		mem := state.NewMemoryStore()
+		sm = state.NewStateManager(mem)
+	}
+	return &Verifier{
+		bus:          b,
+		cfg:          cfg,
+		inbox:        make(chan bus.Message, 16),
+		uiStore:      ui,
+		stateManager: sm,
+	}
 }
 
 func (v *Verifier) Inbox() chan bus.Message {
@@ -82,7 +82,7 @@ func (v *Verifier) dispatch(msg bus.Message) {
 }
 
 func (v *Verifier) handleRunPipeline(msg bus.Message) {
-    id, ok := payload.GetString(msg.Payload, "id")
+	id, ok := payload.GetString(msg.Payload, "id")
 	if !ok {
 		logx.Error("Verifier", "invalid payload: missing id")
 		return
@@ -92,10 +92,10 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		logx.Error("Verifier", "invalid payload: missing intent")
 		return
 	}
- language, ok := payload.GetString(msg.Payload, "language")
- if !ok || language == "" {
-     language = "es"
- }
+	language, ok := payload.GetString(msg.Payload, "language")
+	if !ok || language == "" {
+		language = "es"
+	}
 
 	pipeAny := msg.Payload["pipeline"]
 	paramsAny := msg.Payload["params"]
@@ -407,30 +407,26 @@ func (v *Verifier) oldhandleRunPipeline(msg bus.Message) {
 		if !ok {
 			storeResult(id, Result{
 				Status: "error",
-				Err:    fmt.Sprintf("tool %s no encontrada", toolName),
+				Err:    fmt.Sprintf("tool %s not found", toolName),
 			})
 			return
 		}
 
 		logx.Info("Verifier", "executing tool=%s id=%s", toolName, id)
-		// Combinar parámetros → baseParams + WithParams (sin pisar los del Planner)
 		callParams := make(map[string]string)
 
-		// 1. Copiar params del Planner
 		for k, v := range baseParams {
 			callParams[k] = v
 		}
 
-		// 2. Rellenar defaults del pipeline SIN sobreescribir valores existentes
 		for k, v := range step.WithParams {
 			if _, exists := callParams[k]; !exists || callParams[k] == "" {
-				if v != "" { // evitamos meter valores vacíos
+				if v != "" {
 					callParams[k] = v
 				}
 			}
 		}
 
-		// Ejecutar tool con cuerpo renderizado
 		timer := logx.Start(id, "Verifier", "tool_"+toolName)
 		start := time.Now()
 
@@ -494,7 +490,6 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 		params = make(map[string]string)
 	}
 
-	// CONTINUAMOS EN EL SIGUIENTE STEP
 	startAt := st.StepIndex + 1
 
 	// Always restore a *fresh* execution context for resumed pipelines
@@ -510,7 +505,6 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 	for index := startAt; index < len(pipe.Steps); index++ {
 		step := pipe.Steps[index]
 
-		// 1️⃣ Paso humano → PAUSA OTRA VEZ
 		if step.HumanGate != "" {
 			nextState := &state.ExecutionState{
 				ID:          id,
@@ -539,7 +533,6 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 			return
 		}
 
-		// 2️⃣ Paso analyst → pasa rawResults al Analyst y termina
 		if step.Analyst {
 			logx.Debug("Verifier", "analyst step on resume → calling Analyst")
 			v.bus.Send("analyst", bus.Message{
@@ -553,7 +546,6 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 			return
 		}
 
-		// 3️⃣ Paso tool
 		if step.Tool == "" {
 			v.storeError(id, "invalid empty tool in resume")
 			return
@@ -578,7 +570,6 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 			}
 		}
 
-		// ejecutar tool
 		timer := logx.Start(id, "Verifier", "tool_"+t.Name)
 		out, err := tools.ExecuteToolCtx(taskCtx, t, callParams)
 		timer.End()
@@ -591,11 +582,9 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 		stepResults[step.Tool] = out
 		v.uiStore.AddEvent(id, "Verifier", "tool "+step.Tool, "ok (resume)", "")
 
-		// actualizar ExecutionState en RAM por si hay otro pause después
 		params = callParams
 	}
 
-	// 4️⃣ Si no hubo analyst explícito → manda al Analyst para resumen final
 	v.bus.Send("analyst", bus.Message{
 		Type: "summarize",
 		Payload: map[string]any{
@@ -615,7 +604,6 @@ func (v *Verifier) handleContinuePipeline(msg bus.Message) {
 		return
 	}
 
-	// limpiamos estado viejo
 	v.stateManager.Delete(context.Background(), id)
 
 	v.resumeFromState(st)
@@ -645,7 +633,6 @@ func (v *Verifier) handleHumanDecision(msg bus.Message) {
 		return
 	}
 
-	// limpiar estado y reanudar
 	_ = v.stateManager.Delete(context.Background(), id)
 	v.resumeFromState(st)
 }

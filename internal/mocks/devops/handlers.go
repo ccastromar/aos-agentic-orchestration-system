@@ -10,10 +10,10 @@ import (
 
 func RegisterHandlers(mux *http.ServeMux) {
 
-	mux.HandleFunc("/devops/status", handleStatus)
-	mux.HandleFunc("/devops/restart", handleRestart)
-	mux.HandleFunc("/devops/deploy", handleDeploy)
-	mux.HandleFunc("/devops/logs", handleLogs)
+	mux.HandleFunc("/mock/devops/status", handleStatus)
+	mux.HandleFunc("/mock/devops/restart", handleRestart)
+	mux.HandleFunc("/mock/devops/deploy", handleDeploy)
+	mux.HandleFunc("/mock/devops/logs", handleLogs)
 
 }
 

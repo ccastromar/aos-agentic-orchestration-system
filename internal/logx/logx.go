@@ -18,7 +18,7 @@ const (
 	Cyan    = "\033[36m"
 )
 
-// colores por nivel
+// colors
 var levelColor = map[string]string{
 	"DEBUG": Cyan,
 	"INFO":  Blue,
@@ -26,7 +26,7 @@ var levelColor = map[string]string{
 	"ERROR": Red,
 }
 
-// colores por agente (opcional, ajusta como quieras)
+// colors by agent
 var agentColor = map[string]string{
 	"Api":       Cyan,
 	"Planner":   Blue,
@@ -39,7 +39,7 @@ var agentColor = map[string]string{
 	"App":       Green,
 }
 
-// detecta color mode
+// detect color mode
 func useColor() bool {
 	return os.Getenv("LOG_COLOR") == "1"
 }
@@ -90,7 +90,6 @@ func L(id, agent, msg string, args ...any) {
 	log.Printf(prefix+msg, args...)
 }
 
-// Versión sin ID (para logs globales de arranque)
 func G(agent, msg string, args ...any) {
 	prefix := fmt.Sprintf("[%s][%s] ",
 		time.Now().Format(time.RFC3339),

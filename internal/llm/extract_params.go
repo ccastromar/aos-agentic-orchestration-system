@@ -30,7 +30,7 @@ User message: "%s"
 
 	raw, err := client.Chat(ctx, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("error en LLM: %w", err)
+		return nil, fmt.Errorf("error LLM: %w", err)
 	}
 
 	clean := sanitizeLLMOutput(raw)

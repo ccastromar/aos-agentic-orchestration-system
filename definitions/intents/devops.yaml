@@ -1,19 +1,19 @@
 intents:
   - type: devops.get_service_status
-    description: "Consulta el estado de un servicio concreto"
+    description: "Get service status"
     pipeline: pipeline_service_status
     required_params:
       - serviceName
 
   - type: devops.restart_service
-    description: "Reinicia un servicio concreto"
+    description: "Restart a service"
     pipeline: pipeline_restart_service
     required_params:
       - serviceName
     allow_dangerous: true
 
   - type: devops.deploy_service
-    description: "Despliega una nueva versión de un servicio"
+    description: "Deploy a service"
     pipeline: pipeline_deploy_service
     required_params:
       - serviceName
@@ -21,7 +21,7 @@ intents:
     allow_dangerous: true
 
   - type: devops.tail_logs
-    description: "Consulta las últimas líneas de logs de un servicio"
+    description: "Query last logs of a service"
     pipeline: pipeline_tail_logs
     required_params:
       - serviceName

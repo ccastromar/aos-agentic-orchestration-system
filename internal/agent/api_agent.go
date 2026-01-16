@@ -39,58 +39,58 @@ type APIAgent struct {
 // - NewAPIAgent(b, env, uiStore)
 // - NewAPIAgent(b, uiStore)
 func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
-    var (
-        env    *config.EnvVars
-        uiS    *ui.UIStore
-    )
-    for _, arg := range args {
-        switch v := arg.(type) {
-        case *config.EnvVars:
-            env = v
-        case *ui.UIStore:
-            uiS = v
-        }
-    }
-    if uiS == nil {
-        uiS = ui.NewUIStore()
-    }
+	var (
+		env *config.EnvVars
+		uiS *ui.UIStore
+	)
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case *config.EnvVars:
+			env = v
+		case *ui.UIStore:
+			uiS = v
+		}
+	}
+	if uiS == nil {
+		uiS = ui.NewUIStore()
+	}
 
-    a := &APIAgent{
-        bus:     b,
-        inbox:   make(chan bus.Message, 16),
-        uiStore: uiS,
-        apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
-    }
+	a := &APIAgent{
+		bus:     b,
+		inbox:   make(chan bus.Message, 16),
+		uiStore: uiS,
+		apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
+	}
 
-    // Initialize auth chain
-    a.authChain = &auth.Chain{Authenticators: []auth.Authenticator{}}
+	// Initialize auth chain
+	a.authChain = &auth.Chain{Authenticators: []auth.Authenticator{}}
 
-    // Only configure authenticators if env is provided
-    if env != nil {
-        jwtCfg := auth.JWTConfig{
-            Issuer:   env.JWTIssuer,
-            Audience: env.JWTAudience,
-            JWKURL:   env.JWKURL,
-        }
-        apiKeyCfg := auth.APIKeyConfig{
-            ResolveURL: env.IAMURL,
-            Timeout:    1 * time.Second,
-        }
-        if jwtCfg.Issuer != "" && jwtCfg.JWKURL != "" {
-            a.authChain.Authenticators = append(a.authChain.Authenticators, auth.NewJWTAuthenticator(jwtCfg))
-        }
-        if apiKeyCfg.ResolveURL != "" && apiKeyCfg.ResolveURL != "disabled" {
-            a.authChain.Authenticators = append(a.authChain.Authenticators, auth.NewAPIKeyAuthenticator(apiKeyCfg))
-        }
-    }
+	// Only configure authenticators if env is provided
+	if env != nil {
+		jwtCfg := auth.JWTConfig{
+			Issuer:   env.JWTIssuer,
+			Audience: env.JWTAudience,
+			JWKURL:   env.JWKURL,
+		}
+		apiKeyCfg := auth.APIKeyConfig{
+			ResolveURL: env.IAMURL,
+			Timeout:    1 * time.Second,
+		}
+		if jwtCfg.Issuer != "" && jwtCfg.JWKURL != "" {
+			a.authChain.Authenticators = append(a.authChain.Authenticators, auth.NewJWTAuthenticator(jwtCfg))
+		}
+		if apiKeyCfg.ResolveURL != "" && apiKeyCfg.ResolveURL != "disabled" {
+			a.authChain.Authenticators = append(a.authChain.Authenticators, auth.NewAPIKeyAuthenticator(apiKeyCfg))
+		}
+	}
 
-    // Rate limiter init...
-    a.rl.Window = 1 * time.Minute
-    a.rl.Limit = 60
-    a.rl.mu = make(chan struct{}, 1)
-    a.rl.buckets = make(map[string]*rateBucket)
+	// Rate limiter init...
+	a.rl.Window = 1 * time.Minute
+	a.rl.Limit = 60
+	a.rl.mu = make(chan struct{}, 1)
+	a.rl.buckets = make(map[string]*rateBucket)
 
-    return a
+	return a
 }
 
 // Max request size for POST /ask to protect the server (1MB)
@@ -247,19 +247,19 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	//	http.Error(w, "unauthorized", http.StatusUnauthorized)
 	//	return
 	//}
- // Chain auth only if we have authenticators configured
- if len(a.authChain.Authenticators) > 0 {
-     identity, err := a.authChain.Authenticate(r)
-     if err != nil {
-         if ae, ok := err.(*auth.AuthError); ok {
-             http.Error(w, ae.Message, ae.Code)
-         } else {
-             http.Error(w, "auth failed", http.StatusUnauthorized)
-         }
-         return
-     }
-     r = r.WithContext(auth.WithIdentity(r.Context(), identity))
- }
+	// Chain auth only if we have authenticators configured
+	if len(a.authChain.Authenticators) > 0 {
+		identity, err := a.authChain.Authenticate(r)
+		if err != nil {
+			if ae, ok := err.(*auth.AuthError); ok {
+				http.Error(w, ae.Message, ae.Code)
+			} else {
+				http.Error(w, "auth failed", http.StatusUnauthorized)
+			}
+			return
+		}
+		r = r.WithContext(auth.WithIdentity(r.Context(), identity))
+	}
 
 	// Rate limit
 	if err := a.acquireRL(getClientKey(r)); err != nil {
@@ -290,13 +290,13 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
- if req.Message == "" {
-        http.Error(w, "message and lang are required", http.StatusBadRequest)
-        return
-    }
-    if req.Lang == "" {
-        req.Lang = "es"
-    }
+	if req.Message == "" {
+		http.Error(w, "message and lang are required", http.StatusBadRequest)
+		return
+	}
+	if req.Lang == "" {
+		req.Lang = "es"
+	}
 
 	id := randomID()
 
@@ -317,7 +317,6 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 
-	// Respuesta asíncrona inmediata
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]any{
@@ -326,20 +325,20 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// /ask → operation + params (como v1)
+// /ask → operation + params
 func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Auth check (igual que /ask)
+	// Auth check
 	if !a.checkAuth(r) {
 		w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	// Rate limit (igual que /ask)
+	// Rate limit
 	if err := a.acquireRL(getClientKey(r)); err != nil {
 		http.Error(w, "too many requests", http.StatusTooManyRequests)
 		return
@@ -356,14 +355,14 @@ func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 
 	var req askRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("[API] error parseando request:", err)
+		log.Println("[API] error parsing request:", err)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"json inválido"}`))
+		w.Write([]byte(`{"error":"json is not valid"}`))
 		return
 	}
 
 	if req.Operation == "" && req.Message == "" {
-		http.Error(w, "operation o message requerido", 400)
+		http.Error(w, "operation required", 400)
 		return
 	}
 
@@ -394,7 +393,6 @@ func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleTask devuelve el estado/resultados de una tarea.
 // GET /task?id=...
 func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -414,20 +412,17 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		http.Error(w, "id requerido", http.StatusBadRequest)
+		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 	if !idRe.MatchString(id) {
-		http.Error(w, "id inválido", http.StatusBadRequest)
+		http.Error(w, "id is not valid", http.StatusBadRequest)
 		return
 	}
 
-	// Consultar si ya hay resultado
 	if res, ok := getResult(id); ok {
-		// Limpiar almacenamiento para evitar fugas
 		deleteResult(id)
 		w.Header().Set("Content-Type", "application/json")
-		// Mapear al formato de respuesta anterior
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id":     id,
 			"status": res.Status,
@@ -437,7 +432,6 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Aún pendiente
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id":     id,
@@ -445,7 +439,7 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// /ask_nlp → message (texto libre)
+// /ask_nlp → message
 func (a *APIAgent) handleAskNLP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -454,15 +448,15 @@ func (a *APIAgent) handleAskNLP(w http.ResponseWriter, r *http.Request) {
 
 	var req askNLPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("[API] error parseando request NLP:", err)
+		log.Println("[API] error parsing request NLP:", err)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"json inválido"}`))
+		w.Write([]byte(`{"error":"json is not valid"}`))
 		return
 	}
 
 	if req.Message == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"message requerido"}`))
+		w.Write([]byte(`{"error":"message required"}`))
 		return
 	}
 
@@ -506,7 +500,7 @@ func (a *APIAgent) handleTaskApprove(w http.ResponseWriter, r *http.Request) {
 
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		http.Error(w, "id requerido", http.StatusBadRequest)
+		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 
@@ -541,7 +535,7 @@ func (a *APIAgent) handleTaskReject(w http.ResponseWriter, r *http.Request) {
 
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		http.Error(w, "id requerido", http.StatusBadRequest)
+		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 
@@ -594,7 +588,7 @@ func (a *APIAgent) handleHumanReject(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIAgent) DispatchAskInternal(message string, lang string) (string, error) {
 	if message == "" {
-		return "", errors.New("message requerido")
+		return "", errors.New("message required")
 	}
 
 	id := randomID()
