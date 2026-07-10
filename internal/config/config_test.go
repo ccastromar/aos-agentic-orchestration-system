@@ -40,12 +40,12 @@ func TestLoadFromDir_Success(t *testing.T) {
     }
 
     // Known pipeline
-    pb, ok := cfg.Pipelines["pipeline_bizum"]
+    pb, ok := cfg.Pipelines["pipeline_send_bizum"]
     if !ok {
-        t.Fatalf("expected pipeline_bizum to be loaded")
+        t.Fatalf("expected pipeline_send_bizum to be loaded")
     }
     if len(pb.Steps) < 2 {
-        t.Fatalf("pipeline_bizum should have multiple steps: %+v", pb)
+        t.Fatalf("pipeline_send_bizum should have multiple steps: %+v", pb)
     }
     // Ensure it contains the dangerous payment tool as defined
     found := false
@@ -56,7 +56,7 @@ func TestLoadFromDir_Success(t *testing.T) {
         }
     }
     if !found {
-        t.Fatalf("pipeline_bizum missing expected tool banking.payments_bizum_send")
+        t.Fatalf("pipeline_send_bizum missing expected tool banking.payments_bizum_send")
     }
 
     // Known intent

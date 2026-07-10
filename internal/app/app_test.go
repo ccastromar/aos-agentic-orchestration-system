@@ -7,6 +7,7 @@ import (
     "os"
     "path/filepath"
     "runtime"
+    "sync/atomic"
     "testing"
     "time"
 
@@ -16,12 +17,12 @@ import (
 
 // fakeAgent implements agent.Agent for testing App.Run lifecycle.
 type fakeAgent struct{
-    started bool
+    started atomic.Bool
     ch chan bus.Message
 }
 
 func (f *fakeAgent) Start(ctx context.Context) error {
-    f.started = true
+    f.started.Store(true)
     <-ctx.Done()
     return nil
 }
@@ -97,8 +98,8 @@ func TestAppRun_StartsAgentsAndHTTP_AndStopsOnContextCancel(t *testing.T) {
 
     // Give some time for goroutines to start.
     time.Sleep(50 * time.Millisecond)
-    if !f1.started || !f2.started {
-        t.Fatalf("expected both fake agents to have started, got f1=%v f2=%v", f1.started, f2.started)
+    if !f1.started.Load() || !f2.started.Load() {
+        t.Fatalf("expected both fake agents to have started, got f1=%v f2=%v", f1.started.Load(), f2.started.Load())
     }
 
     // Cancel the context and expect Run to return cleanly.

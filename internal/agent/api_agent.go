@@ -213,10 +213,6 @@ type askRequest struct {
 	Message   string         `json:"message"`
 }
 
-type askNLPRequest struct {
-	Message string `json:"message"`
-}
-
 type askResponse struct {
 	ID     string      `json:"id"`
 	Status string      `json:"status"`
@@ -232,7 +228,6 @@ func (a *APIAgent) RegisterHTTP(mux *http.ServeMux) {
 	mux.HandleFunc("/task/approve", a.handleHumanApprove)
 	mux.HandleFunc("/task/reject", a.handleHumanReject)
 
-	//mux.HandleFunc("/ask_nlp", a.handleAskNLP) // modo lenguaje natural
 }
 
 func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
@@ -436,123 +431,6 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id":     id,
 		"status": "pending",
-	})
-}
-
-// /ask_nlp → message
-func (a *APIAgent) handleAskNLP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req askNLPRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println("[API] error parsing request NLP:", err)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"json is not valid"}`))
-		return
-	}
-
-	if req.Message == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"message required"}`))
-		return
-	}
-
-	id := randomID()
-
-	a.bus.Send("inspector", bus.Message{
-		Type: "new_task",
-		Payload: map[string]any{
-			"id":      id,
-			"mode":    "nlp",
-			"message": req.Message,
-		},
-	})
-
-	res := waitForResult(id, 30*time.Second)
-
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	if res.Err != "" {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	enc.Encode(askResponse{
-		ID:     id,
-		Status: res.Status,
-		Result: res.Data,
-		Error:  res.Err,
-	})
-}
-
-func (a *APIAgent) handleTaskApprove(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Auth
-	if !a.checkAuth(r) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
-		return
-	}
-
-	// Emit message to Verifier
-	a.bus.Send("verifier", bus.Message{
-		Type: "human_decision",
-		Payload: map[string]any{
-			"id":       id,
-			"decision": "approved",
-		},
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"id":       id,
-		"status":   "accepted",
-		"decision": "approved",
-	})
-}
-
-func (a *APIAgent) handleTaskReject(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Auth
-	if !a.checkAuth(r) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
-		return
-	}
-
-	// Emit message to Verifier
-	a.bus.Send("verifier", bus.Message{
-		Type: "human_decision",
-		Payload: map[string]any{
-			"id":       id,
-			"decision": "rejected",
-		},
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"id":       id,
-		"status":   "accepted",
-		"decision": "rejected",
 	})
 }
 

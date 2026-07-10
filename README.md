@@ -1,5 +1,18 @@
 # AOS — Agent Orchestration System
 
+> **Project status: learning proof-of-concept.**
+> AOS is a personal PoC built to explore how to orchestrate LLM-assisted, deterministic
+> workflows in Go. The core runtime (bus, agents, YAML-driven pipelines, tool execution,
+> human gates) works and is covered by tests (`go test ./...` passes, including `-race`).
+> It is **not** production-ready and is not actively maintained as a product.
+>
+> **Not implemented / demo-only — do not rely on for security:**
+> - **JWT authentication** (`internal/auth/jwt.go`) is a stub: it does **not** verify token
+>   signatures or claims and accepts any bearer token as an `admin` user. Enable the auth
+>   chain only in trusted/local environments.
+> - **RBAC** (`internal/rbac`) and the **audit log** (`internal/audit`) are implemented as
+>   packages but are **not wired into the request path**; roles are not enforced.
+
 ## Introduction
 
 This project is a **runtime orchestration framework for intent-driven pipelines**, where orchestration is defined as code and execution is strictly constrained by declarative specifications.
@@ -59,7 +72,7 @@ See also:
 
 ## Prerequisites
 
-- Go 1.22+
+- Go 1.24+ (see go.mod)
 - Optional: Redis (for persistent state). Otherwise, in-memory state is used.
 - One LLM backend:
   - Ollama running locally (recommended for local dev), or
