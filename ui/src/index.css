@@ -1,38 +1,66 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Deep Space Dark Mode */
-  --bg-base: #050505;
-  --bg-surface: rgba(18, 18, 20, 0.65);
-  --bg-surface-hover: rgba(28, 28, 30, 0.85);
+  /* High-end Professional Dark Mode (Linear/Vercel inspired) */
+  --bg-base: #000000;
+  --bg-surface: #0A0A0A;
+  --bg-surface-hover: #111111;
+  --bg-glass: rgba(10, 10, 10, 0.7);
   
-  /* Vibrant Accents */
-  --primary: #4F46E5; /* Indigo 600 */
-  --primary-hover: #6366F1; /* Indigo 500 */
-  --primary-glow: rgba(79, 70, 229, 0.6);
+  /* Primary Accent: Sleek Electric Blue */
+  --primary: #0070F3;
+  --primary-hover: #3291FF;
+  --primary-glow: rgba(0, 112, 243, 0.4);
 
-  --accent: #E11D48; /* Rose 600 */
-  --accent-glow: rgba(225, 29, 72, 0.4);
+  /* Secondary/Accents: Subtle Neutral/Amber */
+  --accent: #F5A623;
+  --accent-glow: rgba(245, 166, 35, 0.3);
   
-  --secondary: #0D9488; /* Teal 600 */
-  --secondary-glow: rgba(13, 148, 136, 0.5);
+  --secondary: #7928CA;
+  --secondary-glow: rgba(121, 40, 202, 0.3);
 
-  --text-primary: #FFFFFF;
-  --text-secondary: #E2E8F0;
-  --text-muted: #94A3B8;
+  --text-primary: #EDEDED;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
 
-  /* Glass Borders */
-  --border-light: rgba(255, 255, 255, 0.12);
-  --border-highlight: rgba(255, 255, 255, 0.25);
-  --border-dark: rgba(0, 0, 0, 0.3);
+  /* Refined Glass Borders */
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(255, 255, 255, 0.15);
+  --border-dark: rgba(0, 0, 0, 0.5);
 
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
   --radius-full: 9999px;
 
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.3s ease-out;
+}
+
+.theme-light {
+  /* High-end Professional Light Mode */
+  --bg-base: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F4F4F5;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  
+  --primary: #0070F3;
+  --primary-hover: #0051B3;
+  --primary-glow: rgba(0, 112, 243, 0.2);
+
+  --accent: #F5A623;
+  --accent-glow: rgba(245, 166, 35, 0.2);
+  
+  --secondary: #7928CA;
+  --secondary-glow: rgba(121, 40, 202, 0.2);
+
+  --text-primary: #171717;
+  --text-secondary: #52525B;
+  --text-muted: #A1A1AA;
+
+  --border-light: rgba(0, 0, 0, 0.08);
+  --border-highlight: rgba(0, 0, 0, 0.15);
+  --border-dark: rgba(255, 255, 255, 0.8);
 }
 
 * {

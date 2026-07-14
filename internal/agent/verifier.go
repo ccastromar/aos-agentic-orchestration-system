@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
@@ -19,9 +20,22 @@ type Verifier struct {
 	bus          *bus.Bus
 	cfg          *config.Config
 	llmClient    llm.LLMClient
+	llmMutex     sync.RWMutex
 	inbox        chan bus.Message
 	uiStore      *ui.UIStore
 	stateManager *state.StateManager
+}
+
+func (v *Verifier) SetLLMClient(c llm.LLMClient) {
+	v.llmMutex.Lock()
+	defer v.llmMutex.Unlock()
+	v.llmClient = c
+}
+
+func (v *Verifier) getLLMClient() llm.LLMClient {
+	v.llmMutex.RLock()
+	defer v.llmMutex.RUnlock()
+	return v.llmClient
 }
 
 func NewVerifier(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, ui *ui.UIStore, smOpt ...*state.StateManager) *Verifier {

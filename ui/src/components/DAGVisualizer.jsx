@@ -3,13 +3,13 @@ import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const nodeWidth = 172;
 const nodeHeight = 36;
 
 const getLayoutedElements = (nodes, edges, direction = 'TB') => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  
   const isHorizontal = direction === 'LR';
   dagreGraph.setGraph({ rankdir: direction });
 
@@ -41,13 +41,13 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 const nodeTypes = {};
 const edgeTypes = {};
 
-export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [] }) {
+export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mode = 'dag' }) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const nodes = [];
     const edges = [];
     
     // Parse the steps (from dag_structure event JSON)
-    pipelineSteps.forEach((step) => {
+    pipelineSteps.forEach((step, index) => {
       const id = step.id || step.tool || 'analyst';
       const label = step.tool || step.human_approval || (step.analyst ? 'LLM Analyst' : 'Unknown Step');
       
@@ -93,15 +93,27 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [] }) {
         }
       });
       
-      if (step.depends_on) {
-        step.depends_on.forEach((dep) => {
+      // Link nodes sequentially if linear pipeline
+      const isLinear = mode !== 'dag';
+      if (isLinear && index > 0) {
+        const prevStep = pipelineSteps[index - 1];
+        const prevId = prevStep.id || prevStep.tool || 'analyst';
           edges.push({
-            id: `${dep}-${id}`,
-            source: dep,
+            id: `${prevId}-${id}`,
+            source: prevId,
             target: id,
             animated: status === 'pending',
-            style: { stroke: 'rgba(255,255,255,0.2)' }
+            style: { stroke: 'var(--primary)', strokeWidth: 2 }
           });
+        } else if (step.depends_on && Array.isArray(step.depends_on)) {
+          step.depends_on.forEach((dep) => {
+            edges.push({
+              id: `${dep}-${id}`,
+              source: dep,
+              target: id,
+              animated: status === 'pending',
+              style: { stroke: 'var(--primary)', strokeWidth: 2 }
+            });
         });
       }
     });
@@ -110,7 +122,7 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [] }) {
   }, [pipelineSteps, taskEvents]);
   
   return (
-    <div style={{ height: '350px', width: '100%', border: '1px solid var(--border-light)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-glass)' }}>
+    <div style={{ position: 'relative', height: '350px', width: '100%', border: '1px solid var(--border-light)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-glass)' }}>
       <ReactFlow 
         nodes={initialNodes} 
         edges={initialEdges}

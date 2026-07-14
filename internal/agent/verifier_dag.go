@@ -209,8 +209,8 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 				logx.Info("Verifier", "executing internal tool=%s id=%s", n.Step.Tool, id)
 				callParams := buildCallParams(ctx.Vars, n.Step.WithParams)
 				pref, _ := callParams["preference"].(string)
-				if pref != "" && v.stateManager != nil && v.stateManager.Vector() != nil && v.llmClient != nil {
-					emb, err := v.llmClient.Embed(context.Background(), pref)
+				if pref != "" && v.stateManager != nil && v.stateManager.Vector() != nil && v.getLLMClient() != nil {
+					emb, err := v.getLLMClient().Embed(context.Background(), pref)
 					if err == nil {
 						v.stateManager.Vector().AddMemory(context.Background(), state.Memory{
 							ID:        id + "_pref_" + n.Step.Tool,

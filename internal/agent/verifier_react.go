@@ -47,7 +47,7 @@ func executeReAct(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, 
 	maxIterations := 10
 	for i := 0; i < maxIterations; i++ {
 		// 1. Prompt LLM
-		step, err := llm.AskReActStep(taskCtx, v.llmClient, taskDesc, allowedTools, reactHistory)
+		step, err := llm.AskReActStep(taskCtx, v.getLLMClient(), taskDesc, allowedTools, reactHistory)
 		if err != nil {
 			v.storeError(id, "ReAct LLM error: " + err.Error())
 			return

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
@@ -19,8 +20,21 @@ type Planner struct {
 	cfg          *config.Config
 	inbox        chan bus.Message
 	llmClient    llm.LLMClient
+	llmMutex     sync.RWMutex
 	uiStore      *ui.UIStore
 	stateManager *state.StateManager
+}
+
+func (p *Planner) SetLLMClient(c llm.LLMClient) {
+	p.llmMutex.Lock()
+	defer p.llmMutex.Unlock()
+	p.llmClient = c
+}
+
+func (p *Planner) getLLMClient() llm.LLMClient {
+	p.llmMutex.RLock()
+	defer p.llmMutex.RUnlock()
+	return p.llmClient
 }
 
 func NewPlanner(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, ui *ui.UIStore, smOpt ...*state.StateManager) *Planner {
@@ -161,8 +175,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			}
 
 			// Vector Memory Injection
-			if vs := p.stateManager.Vector(); vs != nil && p.llmClient != nil {
-				embedding, err := p.llmClient.Embed(taskCtx, userMsg)
+			if vs := p.stateManager.Vector(); vs != nil && p.getLLMClient() != nil {
+				embedding, err := p.getLLMClient().Embed(taskCtx, userMsg)
 				if err == nil {
 					mems, err := vs.SearchMemories(taskCtx, sessionID, embedding, 3)
 					if err == nil && len(mems) > 0 {
@@ -181,7 +195,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 
 		timer := logx.Start(id, "Planner", "DetectIntentAndParamsLLM")
 
-		di, err := llm.DetectIntentAndParams(taskCtx, p.llmClient, userMsg, p.cfg.Intents, sessionContextStr)
+		di, err := llm.DetectIntentAndParams(taskCtx, p.getLLMClient(), userMsg, p.cfg.Intents, sessionContextStr)
 		timer.End()
 
 		if err != nil {
@@ -338,7 +352,7 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 		return
 	}
 
-	newParams, err := llm.ExtractParams(taskCtx, p.llmClient, userMsg, st.MissingParams)
+	newParams, err := llm.ExtractParams(taskCtx, p.getLLMClient(), userMsg, st.MissingParams)
 	if err != nil {
 		p.storeError(id, "clarification param extraction failed: "+err.Error())
 		return

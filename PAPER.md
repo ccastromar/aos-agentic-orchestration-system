@@ -6,7 +6,7 @@
 
 ## **Abstract**
 
-AOS (Agent Orchestration System) is a lightweight orchestration framework that enables natural-language control of deterministic workflows.
+AOS (Augmented Orchestration System) is a lightweight orchestration framework that enables natural-language control of deterministic workflows.
 Instead of relying on Large Language Models (LLMs) to execute business logic directly, AOS delegates LLMs only for *semantic interpretation and summarization*, while actual logic execution is handled by domain-specific agents and declarative pipelines.
 
 This architecture provides transparency, determinism, safety, and extensibility—key virtues typically missing in fully-LLM-driven “agentic” systems.
@@ -65,6 +65,16 @@ All workflows are executed by specialized agents coordinated through a message b
 * AnalystAgent
 
 Each agent is small, single-purpose, and testable.
+
+### **2.4 Execution Modes (Linear vs DAG)**
+
+AOS pipelines can be executed in two modes:
+1. **Linear**: Steps are executed sequentially.
+2. **DAG (Directed Acyclic Graph)**: Steps with `depends_on` relationships are executed concurrently, allowing complex orchestrations like mapping/reducing or parallel asynchronous tool execution.
+
+### **2.5 Active Resiliency**
+
+Instead of failing silently on API errors, the Planner acts as an active resiliency layer. If an unexpected error occurs or data is missing, it can fall back to alternative tools or emit a Clarification Request to the user (Human-in-the-Loop), asking for missing context before retrying.
 
 ---
 

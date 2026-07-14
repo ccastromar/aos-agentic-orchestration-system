@@ -121,8 +121,8 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 			logx.Info("Verifier", "executing internal tool=%s id=%s", toolName, id)
 			callParams := buildCallParams(ctx.Vars, step.WithParams)
 			pref, _ := callParams["preference"].(string)
-			if pref != "" && v.stateManager != nil && v.stateManager.Vector() != nil && v.llmClient != nil {
-				emb, err := v.llmClient.Embed(context.Background(), pref)
+			if pref != "" && v.stateManager != nil && v.stateManager.Vector() != nil && v.getLLMClient() != nil {
+				emb, err := v.getLLMClient().Embed(context.Background(), pref)
 				if err == nil {
 					v.stateManager.Vector().AddMemory(context.Background(), state.Memory{
 						ID:        id + "_pref",

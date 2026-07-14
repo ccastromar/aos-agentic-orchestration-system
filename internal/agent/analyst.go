@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"sync"
 
 	"fmt"
 	"time"
@@ -18,8 +19,21 @@ type Analyst struct {
 	bus          *bus.Bus
 	inbox        chan bus.Message
 	llmClient    llm.LLMClient
+	llmMutex     sync.RWMutex
 	uiStore      *ui.UIStore
 	stateManager *state.StateManager
+}
+
+func (a *Analyst) SetLLMClient(c llm.LLMClient) {
+	a.llmMutex.Lock()
+	defer a.llmMutex.Unlock()
+	a.llmClient = c
+}
+
+func (a *Analyst) getLLMClient() llm.LLMClient {
+	a.llmMutex.RLock()
+	defer a.llmMutex.RUnlock()
+	return a.llmClient
 }
 
 func NewAnalyst(b *bus.Bus, llmClient llm.LLMClient, ui *ui.UIStore, stateManager *state.StateManager) *Analyst {
@@ -107,7 +121,7 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 
  var summary string
  var err error
- if a.llmClient == nil {
+ if a.getLLMClient() == nil {
      // No LLM available → degrade gracefully to raw only
      logx.Warn("Analyst", "LLM client is nil; skipping summarization and returning raw")
      storeResult(id, Result{
@@ -120,7 +134,7 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
  }
 
  timer := logx.Start(id, "Analyst", "SummarizeLLM")
- summary, err = llm.SummarizeResult(taskCtx, a.llmClient, intentType, raw, language)
+ summary, err = llm.SummarizeResult(taskCtx, a.getLLMClient(), intentType, raw, language)
  timer.End()
 
  if err != nil {
@@ -141,9 +155,9 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	// Vector Memory (Long-Term Storage)
 	sessionID, _ := payload.GetString(msg.Payload, "session_id")
 	if sessionID != "" {
-		if vs := a.stateManager.Vector(); vs != nil && a.llmClient != nil {
+		if vs := a.stateManager.Vector(); vs != nil && a.getLLMClient() != nil {
 			textToEmbed := fmt.Sprintf("Intent: %s\nAction Summary: %s", intentType, summary)
-			embedding, err := a.llmClient.Embed(taskCtx, textToEmbed)
+			embedding, err := a.getLLMClient().Embed(taskCtx, textToEmbed)
 			if err == nil {
 				mem := state.Memory{
 					ID:        randomID(),

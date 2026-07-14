@@ -1,4 +1,4 @@
-# AOS — Agent Orchestration System
+# AOS — Augmented Orchestration System
 
 > **Project status: learning proof-of-concept.**
 > AOS is a personal PoC built to explore how to orchestrate LLM-assisted, deterministic
@@ -30,14 +30,11 @@ The framework uses YAML to describe:
 * **Tools**, which in practice are API calls (internal or external).
 * **Intents**, mapping natural-language requests to allowed pipelines.
 
-A pipeline might represent, for example, a banking transfer flow:
+A pipeline might represent, for example, a banking transfer flow. Pipelines can run in two modes:
+- **Linear**: (default) Step 1, then Step 2, then Step 3.
+- **DAG** (Directed Acyclic Graph): Steps execute concurrently based on declared `depends_on` relationships.
 
-1. AML / compliance check
-2. Balance retrieval
-3. Risk scoring
-4. Transfer execution
-
-Each step is explicit, auditable, and deterministic.
+Each step is explicit, auditable, and deterministic. It may also include `analyst: true` to trigger an LLM-based cognitive evaluation of the step's results.
 
 ### What This Is (and Is Not)
 
@@ -64,7 +61,9 @@ Read ARCHITECTURE.txt for an overview and a Mermaid diagram of the main componen
 - internal/llm: LLM client(s) and helpers
 - internal/app: HTTP server, wiring, and runtime state
 
-The app boots agents and an HTTP server, then routes user requests through the bus: APIAgent → Inspector → Planner → Verifier → Analyst. The Planner reads YAML definitions to select the right pipeline and tools. The Verifier executes tools with guardrails. The Analyst uses the LLM to generate a human summary.
+The app boots agents and an HTTP server, then routes user requests through the bus: APIAgent → Inspector → Planner → Verifier → Analyst. The Planner reads YAML definitions to select the right pipeline and tools. It also handles **Resiliency**: if an execution gets stuck, it can request human clarification (`ClarificationModal`) or find fallback tools. The Verifier executes tools with guardrails, either linearly or as a concurrent DAG. The Analyst uses the LLM to generate human summaries.
+
+The system also includes a **React-based Web UI** (Vite + React Flow) for real-time monitoring. It provides a chat interface, a chronological event timeline, a dynamic **Settings pane** (to swap LLM backends in real-time), and a **DAG Visualizer** to inspect the structure and live state of pipeline nodes.
 
 See also:
 - docs/architecture.mmd (source diagram)

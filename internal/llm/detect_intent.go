@@ -76,7 +76,7 @@ func DetectIntent(ctx context.Context, c LLMClient, text string, validIntents ma
 
 	//TODO first prompt for just intent detection
 	prompt := fmt.Sprintf(`
-You are an intent classifier for a multi-domain (banking, devops, CRM, Helpdesk) Agent Orchestration System (AOS).
+You are an intent classifier for a multi-domain (banking, devops, CRM, Helpdesk) Augmented Orchestration System (AOS).
 
 Valid intents (choose exactly one, output must be EXACTLY the key):
 
@@ -96,7 +96,7 @@ User message:
 `, intentsJSON, text)
 
 	//TODO second prompt for intent detection and params extraction from LLM
-	_ = fmt.Sprintf(`You are the NLU module for the Agent Orchestration System (AOS).
+	_ = fmt.Sprintf(`You are the NLU module for the Augmented Orchestration System (AOS).
 
 Your task: from the user's message, detect the correct intent and extract all relevant structured parameters.
 

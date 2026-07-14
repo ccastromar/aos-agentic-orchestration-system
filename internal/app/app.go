@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -114,17 +115,19 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	messageBus.Subscribe("verifier", verifier.Inbox())
 	messageBus.Subscribe("analyst", analyst.Inbox())
 
-	httpServer := NewHTTPServer(apiAgent, uiStore, r)
-
-	return &App{
+	app := &App{
 		cfg:    cfg,
 		env:    env,
 		bus:    messageBus,
 		ui:     uiStore,
 		agents: []agent.Agent{apiAgent, inspector, planner, verifier, analyst},
 		llm:    llmClient,
-		http:   httpServer,
-	}, nil
+	}
+
+	httpServer := NewHTTPServer(app, apiAgent, uiStore, r)
+	app.http = httpServer
+
+	return app, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -161,6 +164,51 @@ func (a *App) Handler() http.Handler {
 	return a.http.srv.Handler
 }
 
+// SetLLMClient dynamically updates the LLMClient for the App and all active agents.
+func (a *App) SetLLMClient(engine, model, url string) error {
+	var newClient llm.LLMClient
+	var err error
+
+	if engine == "gemini" {
+		newClient, err = llm.NewGeminiClient(context.Background(), model)
+		if err != nil {
+			return err
+		}
+	} else if engine == "ollama" {
+		// Use environment defaults or hardcoded defaults for embeddings if not provided
+		embedModel := "nomic-embed-text"
+		if a.env != nil && a.env.OllamaEmbedModel != "" {
+			embedModel = a.env.OllamaEmbedModel
+		}
+		newClient = llm.NewOllamaClient(url, model, embedModel)
+	} else {
+		newClient = llm.NewOpenAIClient(url, "", model)
+	}
+
+	a.llm = newClient
+
+	// Propagate to all agents that support dynamic LLM updating
+	for _, ag := range a.agents {
+		if consumer, ok := ag.(interface{ SetLLMClient(llm.LLMClient) }); ok {
+			consumer.SetLLMClient(newClient)
+		}
+	}
+
+	// Update the environment variables so they reflect the new state
+	if a.env != nil {
+		a.env.LLMEngine = engine
+		a.env.LLMModel = model
+		if engine == "ollama" {
+			a.env.OllamaBaseURL = url
+		} else {
+			a.env.LLMBaseURL = url
+		}
+	}
+
+	logx.Info("App", "Dynamically updated LLM client to Engine=%s, Model=%s", engine, model)
+	return nil
+}
+
 // StartAgents launches the background agent goroutines without starting
 // the HTTP server. It returns a cancel function to stop them.
 // This is intended for tests that embed the HTTP handler in an httptest server.
@@ -174,4 +222,63 @@ func (a *App) StartAgents(parent context.Context) context.CancelFunc {
 		go func() { _ = agentAI.Start(ctx) }()
 	}
 	return cancel
+}
+
+// HandlePipelines returns the currently loaded pipelines to the frontend
+func (a *App) HandlePipelines(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if a.cfg == nil || a.cfg.Pipelines == nil {
+		w.Write([]byte(`{}`))
+		return
+	}
+	
+	// Convert config pipelines to JSON
+	json.NewEncoder(w).Encode(a.cfg.Pipelines)
+}
+
+type llmSettingsRequest struct {
+	Engine  string `json:"engine"`
+	Model   string `json:"model"`
+	BaseURL string `json:"baseUrl"`
+}
+
+// HandleSettingsLLM gets or updates the current LLM configuration
+func (a *App) HandleSettingsLLM(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == http.MethodGet {
+		baseUrl := a.env.LLMBaseURL
+		if a.env.LLMEngine == "ollama" {
+			baseUrl = a.env.OllamaBaseURL
+		}
+		resp := llmSettingsRequest{
+			Engine:  a.env.LLMEngine,
+			Model:   a.env.LLMModel,
+			BaseURL: baseUrl,
+		}
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var req llmSettingsRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if err := a.SetLLMClient(req.Engine, req.Model, req.BaseURL); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte(`{"status": "ok"}`))
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }

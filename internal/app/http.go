@@ -34,7 +34,7 @@ func SetHTTPPort(p string) {
 	httpPort = p
 }
 
-func NewHTTPServer(apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Runtime) *HTTPServer {
+func NewHTTPServer(a *App, apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Runtime) *HTTPServer {
 	mux := http.NewServeMux()
 
 	apiAgent.RegisterHTTP(mux)
@@ -42,6 +42,10 @@ func NewHTTPServer(apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Ru
 	mux.HandleFunc("/ui/task", uiStore.HandleTask)
 	mux.HandleFunc("/ui/ask", uiStore.HandleAsk)
 	mux.HandleFunc("/ui/task/events", uiStore.HandleTaskStream)
+	
+	// Settings and Pipelines routes
+	mux.HandleFunc("/ui/pipelines", a.HandlePipelines)
+	mux.HandleFunc("/ui/settings/llm", a.HandleSettingsLLM)
 
 	mux.HandleFunc("/health/live", health.LiveHandler)
 	mux.HandleFunc("/health/ready", health.ReadyHandler(rt))

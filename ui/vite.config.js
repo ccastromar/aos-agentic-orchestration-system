@@ -12,6 +12,8 @@ export default defineConfig({
       '/human_approve': 'http://localhost:8088',
       '/human_reject': 'http://localhost:8088',
       '/intents': 'http://localhost:8088',
+      '/ui/pipelines': 'http://localhost:8088',
+      '/ui/settings': 'http://localhost:8088',
     }
   }
 })
