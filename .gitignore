@@ -6,6 +6,8 @@
 *.dylib
 *.out
 *.test
+aos
+aosd
 
 # Go build artifacts
 bin/
