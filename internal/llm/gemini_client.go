@@ -99,3 +99,24 @@ func (g *GeminiClient) GenerateSimple(ctx context.Context, prompt string) (strin
 	}
 	return resp.Text(), nil
 }
+
+func (g *GeminiClient) Embed(ctx context.Context, text string) ([]float32, error) {
+	if g == nil || g.client == nil {
+		return nil, fmt.Errorf("gemini client not initialized")
+	}
+	resp, err := g.client.Models.EmbedContent(
+		ctx,
+		"text-embedding-004",
+		genai.Text(text),
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("gemini embed content failed: %w", err)
+	}
+
+	if len(resp.Embeddings) == 0 {
+		return nil, fmt.Errorf("gemini embed: empty embeddings")
+	}
+
+	return resp.Embeddings[0].Values, nil
+}

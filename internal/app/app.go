@@ -67,7 +67,13 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		stateStore = state.NewMemoryStore()
 	}
 
-	stateManager := state.NewStateManager(stateStore)
+	var vectorStore state.VectorStore
+	if env.QdrantURL == "memory" || env.QdrantURL == "" {
+		vectorStore = state.NewMemoryVectorStore()
+	} else {
+		vectorStore = state.NewQdrantVectorStore(env.QdrantURL)
+	}
+	stateManager := state.NewStateManager(stateStore, vectorStore)
 
 	// Select an LLM client based on env. Ensure we always return a non-nil client for tests.
 	var llmClient llm.LLMClient
@@ -78,7 +84,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 			return nil, err
 		}
 	} else if env.LLMEngine == "ollama" {
-		llmClient = llm.NewOllamaClient(env.OllamaBaseURL, env.LLMModel)
+		llmClient = llm.NewOllamaClient(env.OllamaBaseURL, env.LLMModel, env.OllamaEmbedModel)
 	} else {
 		// Default to OpenAI client to keep a.llm non-nil in tests even if API key is missing.
 		// The tests don't call the LLM, so an empty key is acceptable.
@@ -94,14 +100,15 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	}
 
 	// Creates all agents
-	apiAgent := agent.NewAPIAgent(messageBus, env, uiStore)
+	apiAgent := agent.NewAPIAgent(messageBus, env, uiStore, cfg)
 	inspector := agent.NewInspector(messageBus, uiStore)
-	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore)
-	verifier := agent.NewVerifier(messageBus, cfg, uiStore, stateManager)
-	analyst := agent.NewAnalyst(messageBus, llmClient, uiStore)
+	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore, stateManager)
+	verifier := agent.NewVerifier(messageBus, cfg, llmClient, uiStore, stateManager)
+	analyst := agent.NewAnalyst(messageBus, llmClient, uiStore, stateManager)
 
 	uiStore.SetDispatcher(apiAgent)
 
+	messageBus.Subscribe("api", apiAgent.Inbox())
 	messageBus.Subscribe("inspector", inspector.Inbox())
 	messageBus.Subscribe("planner", planner.Inbox())
 	messageBus.Subscribe("verifier", verifier.Inbox())
@@ -114,7 +121,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		env:    env,
 		bus:    messageBus,
 		ui:     uiStore,
-		agents: []agent.Agent{inspector, planner, verifier, analyst},
+		agents: []agent.Agent{apiAgent, inspector, planner, verifier, analyst},
 		llm:    llmClient,
 		http:   httpServer,
 	}, nil

@@ -1,0 +1,30 @@
+pipelines:
+  - name: pipeline_dag_demo
+    description: "Demuestra la ejecución en paralelo de un DAG"
+    mode: dag
+    steps:
+      - id: check_risk
+        tool: banking.aml_risk_check
+        depends_on: []
+        
+      - id: check_balance
+        tool: banking.core_get_balance
+        depends_on: []
+        # Notar que al dejar depends_on vacío explícitamente, 
+        # arranca en paralelo con check_risk desde el principio.
+
+      - id: human_gate
+        human_approval: manager_review
+        depends_on: ["check_risk", "check_balance"]
+        
+      - id: execute_transfer
+        tool: banking.payments_transfer
+        depends_on: ["human_gate"]
+        
+      - id: notify
+        tool: banking.send_notification
+        depends_on: ["execute_transfer"]
+        
+      - id: summary
+        analyst: true
+        depends_on: ["notify"]

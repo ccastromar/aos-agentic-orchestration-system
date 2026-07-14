@@ -80,22 +80,25 @@ func (i *Inspector) dispatch(msg bus.Message) {
 		}
 		logx.Info("Inspector", "new task with lang=%s id=%s mode=%s", lang, id, mode)
 
-		payload := map[string]any{
+		payloadMap := map[string]any{
 			"id":      id,
 			"message": msg.Payload["message"],
 			"mode":    mode,
 			"lang":    lang,
 		}
+		if sessionID, ok := payload.GetString(msg.Payload, "session_id"); ok && sessionID != "" {
+			payloadMap["session_id"] = sessionID
+		}
 		if op, ok := msg.Payload["operation"].(string); ok && op != "" {
-			payload["operation"] = op
+			payloadMap["operation"] = op
 		}
 		if params, ok := msg.Payload["params"].(map[string]any); ok && params != nil {
-			payload["params"] = params
+			payloadMap["params"] = params
 		}
 		//send the message to the planner to detect intent
 		i.bus.Send("planner", bus.Message{
 			Type:    "detect_intent",
-			Payload: payload,
+			Payload: payloadMap,
 		})
 
 	default:

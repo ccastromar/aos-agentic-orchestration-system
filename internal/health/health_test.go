@@ -15,6 +15,7 @@ import (
 type fakeLLM struct{ pingErr error }
 
 func (f *fakeLLM) Ping(ctx context.Context) error                   { return f.pingErr }
+func (f *fakeLLM) Embed(ctx context.Context, text string) ([]float32, error) { return []float32{}, nil }
 func (f *fakeLLM) Chat(ctx context.Context, prompt string) (string, error) { return "", nil }
 
 var _ llm.LLMClient = (*fakeLLM)(nil)

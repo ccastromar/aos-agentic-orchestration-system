@@ -1,0 +1,7 @@
+pipelines:
+  - name: pipeline_react_demo
+    mode: react
+    description: "Autonomously checks AML risk and gets balance."
+    steps:
+      - tool: banking.aml_risk_check
+      - tool: banking.core_get_balance

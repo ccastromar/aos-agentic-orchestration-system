@@ -11,6 +11,7 @@ import (
 	mockHelpdesk "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/helpdesk"
 	mockHumanResources "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/human-resources"
 	mockLogistics "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/logistics"
+	mockOpenAPI "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/openapi"
 )
 
 var listenAndServe = http.ListenAndServe
@@ -25,6 +26,7 @@ func buildMux() *http.ServeMux {
 	mockLogistics.RegisterHandlers(mux)
 	mockHumanResources.RegisterHandlers(mux)
 	mockCustomerSupport.RegisterHandlers(mux)
+	mockOpenAPI.RegisterHandlers(mux)
 	return mux
 }
 

@@ -1,0 +1,7 @@
+pipelines:
+  - name: pipeline_rag_test
+    description: "Pipeline to test RAG summary"
+    mode: dag
+    steps:
+      - id: "step1"
+        analyst: true

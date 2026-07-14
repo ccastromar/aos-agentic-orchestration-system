@@ -1,0 +1,6 @@
+plugins:
+  - name: testapi
+    type: openapi
+    file: "test-swagger.json"
+    headers:
+      Authorization: "Bearer mocktoken123"

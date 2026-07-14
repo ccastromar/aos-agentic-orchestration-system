@@ -48,11 +48,11 @@ func TestE2E_AskForBalance(t *testing.T) {
         enc := json.NewEncoder(w)
         switch chatCalls {
         case 1:
-            // DetectIntent → just emit the intent key
-            _ = enc.Encode(map[string]any{"message": map[string]any{"role": "assistant", "content": "banking.get_balance"}, "done": false})
+            // DetectIntent → emit a valid JSON object matching the schema
+            _ = enc.Encode(map[string]any{"message": map[string]any{"role": "assistant", "content": `{"intent": "banking.core_get_balance", "confidence": 0.9, "language": "en", "parameters": {"accountId": "555"}, "errors": []}`}, "done": false})
             _ = enc.Encode(map[string]any{"done": true})
         case 2:
-            // ExtractParams → return required param as JSON string
+            // ExtractParams → not used in this test anymore since parameters are provided above, but we keep it
             _ = enc.Encode(map[string]any{"message": map[string]any{"role": "assistant", "content": `{"accountId":"555"}`}, "done": false})
             _ = enc.Encode(map[string]any{"done": true})
         default:

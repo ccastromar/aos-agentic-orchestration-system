@@ -4,6 +4,7 @@ import (
     "context"
     "errors"
     "testing"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
 
     "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
     "github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
@@ -17,6 +18,10 @@ type fakeLLM struct{
 }
 
 func (f *fakeLLM) Ping(ctx context.Context) error { return nil }
+func (f *fakeLLM) Embed(ctx context.Context, text string) ([]float32, error) {
+	return []float32{1.0, 2.0, 3.0}, nil
+}
+
 func (f *fakeLLM) Chat(ctx context.Context, prompt string) (string, error) { return f.out, f.err }
 
 var _ llm.LLMClient = (*fakeLLM)(nil)
@@ -24,7 +29,7 @@ var _ llm.LLMClient = (*fakeLLM)(nil)
 func TestAnalyst_HandleSummarize_InvalidRawStoresError(t *testing.T) {
     b := bus.New()
     uiStore := ui.NewUIStore()
-    a := NewAnalyst(b, &fakeLLM{}, uiStore)
+    a := NewAnalyst(b, &fakeLLM{}, uiStore, state.NewStateManager(state.NewMemoryStore()))
 
     id := "task-analyst-1"
     // rawResult is not a map[string]any → should store error
@@ -57,7 +62,7 @@ func TestAnalyst_HandleSummarize_InvalidRawStoresError(t *testing.T) {
 func TestAnalyst_HandleSummarize_LLMError_DegradesToRaw(t *testing.T) {
     b := bus.New()
     uiStore := ui.NewUIStore()
-    a := NewAnalyst(b, &fakeLLM{err: errors.New("down")}, uiStore)
+    a := NewAnalyst(b, &fakeLLM{err: errors.New("down")}, uiStore, state.NewStateManager(state.NewMemoryStore()))
 
     id := "task-analyst-2"
     raw := map[string]any{"ok": true}
@@ -96,7 +101,8 @@ func TestAnalyst_HandleSummarize_LLMError_DegradesToRaw(t *testing.T) {
 func TestAnalyst_HandleSummarize_SuccessStoresSummary(t *testing.T) {
     b := bus.New()
     uiStore := ui.NewUIStore()
-    a := NewAnalyst(b, &fakeLLM{out: "Resumen breve"}, uiStore)
+    sm := state.NewStateManager(state.NewMemoryStore())
+    a := NewAnalyst(b, &fakeLLM{out: "Resumen breve"}, uiStore, sm)
 
     id := "task-analyst-3"
     raw := map[string]any{"balance": 123.0}
@@ -115,8 +121,8 @@ func TestAnalyst_HandleSummarize_SuccessStoresSummary(t *testing.T) {
     res := results[id]
     resultsMu.Unlock()
 
-    if res.Status != "ok" {
-        t.Fatalf("expected status=ok, got %s", res.Status)
+    if res.Status != "completed" {
+        t.Fatalf("expected status=completed, got %s", res.Status)
     }
     data, ok := res.Data.(map[string]any)
     if !ok {

@@ -1,0 +1,7 @@
+intents:
+  - type: intent_resiliency_demo
+    description: "Inicia la demostración de resiliencia con fallos temporales"
+    pipeline: pipeline_resiliency_demo
+    allow_dangerous: true
+    required_params:
+      - param1

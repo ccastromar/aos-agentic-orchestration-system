@@ -1,0 +1,15 @@
+tools:
+  - name: banking.aml_risk_check
+    description: "Checks Anti-Money Laundering risk for a user."
+    type: http
+    method: POST
+    url: "http://127.0.0.1:9000/mock/aml/check"
+    mode: read
+    body:
+      userId: "{{ .userId }}"
+  - name: banking.core_get_balance
+    description: "Gets the core banking balance for an account."
+    type: http
+    method: GET
+    url: "http://127.0.0.1:9000/mock/core/balance?accountId={{ .accountId }}"
+    mode: read

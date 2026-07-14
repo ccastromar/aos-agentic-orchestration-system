@@ -20,7 +20,7 @@ func TestPing_OK(t *testing.T) {
     }))
     defer ts.Close()
 
-    c := NewOllamaClient(ts.URL, "qwen3:0.6b")
+    c := NewOllamaClient(ts.URL, "qwen3:0.6b", "test-embed")
     if err := c.Ping(context.Background()); err != nil {
         t.Fatalf("Ping() unexpected error: %v", err)
     }
@@ -32,7 +32,7 @@ func TestPing_Non200(t *testing.T) {
     }))
     defer ts.Close()
 
-    c := NewOllamaClient(ts.URL, "qwen3:0.6b")
+    c := NewOllamaClient(ts.URL, "qwen3:0.6b", "test-embed")
     if err := c.Ping(context.Background()); err == nil {
         t.Fatalf("expected error when non-200 status")
     }
@@ -63,7 +63,7 @@ func TestChat_StreamsConcatenated(t *testing.T) {
     }))
     defer ts.Close()
 
-    c := NewOllamaClient(ts.URL, "qwen3:0.6b")
+    c := NewOllamaClient(ts.URL, "qwen3:0.6b", "test-embed")
     out, err := c.Chat(context.Background(), "Say hello")
     if err != nil {
         t.Fatalf("Chat() unexpected error: %v", err)
@@ -79,7 +79,7 @@ func TestChat_ErrorStatus(t *testing.T) {
     }))
     defer ts.Close()
 
-    c := NewOllamaClient(ts.URL, "qwen3:0.6b")
+    c := NewOllamaClient(ts.URL, "qwen3:0.6b", "test-embed")
     _, err := c.Chat(context.Background(), "x")
     if err == nil {
         t.Fatalf("expected error on non-200 status")
@@ -98,7 +98,7 @@ func TestChat_BadJSONChunk(t *testing.T) {
     }))
     defer ts.Close()
 
-    c := NewOllamaClient(ts.URL, "qwen3:0.6b")
+    c := NewOllamaClient(ts.URL, "qwen3:0.6b", "test-embed")
     if _, err := c.Chat(context.Background(), "x"); err == nil {
         t.Fatalf("expected error on malformed json stream")
     }

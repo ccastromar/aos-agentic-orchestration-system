@@ -2,10 +2,12 @@ package engine
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
 type PipelineContext struct {
+	mu          sync.RWMutex
 	Vars        map[string]interface{}
 	ToolOutputs map[string]map[string]interface{} // to debug or audit
 	Meta        map[string]interface{}            // timing, flags, etc.
@@ -29,14 +31,20 @@ func NewPipelineContext(initial map[string]interface{}) *PipelineContext {
 }
 
 func (ctx *PipelineContext) SetVar(k string, v interface{}) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.Vars[k] = v
 }
 
 func (ctx *PipelineContext) GetVar(k string) interface{} {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
 	return ctx.Vars[k]
 }
 
 func (ctx *PipelineContext) RecordToolOutput(toolName string, output map[string]interface{}) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.ToolOutputs[toolName] = output
 	// flatten and add to general context
 	for k, v := range output {
@@ -51,4 +59,22 @@ func (ctx *PipelineContext) RecordToolOutput(toolName string, output map[string]
 			ctx.Vars[k] = v
 		}
 	}
+}
+
+// GetVarsSnapshot returns a copy of the current variables
+func (ctx *PipelineContext) GetVarsSnapshot() map[string]interface{} {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+	snapshot := make(map[string]interface{}, len(ctx.Vars))
+	for k, v := range ctx.Vars {
+		snapshot[k] = v
+	}
+	return snapshot
+}
+
+// ReplaceVars replaces all variables
+func (ctx *PipelineContext) ReplaceVars(newVars map[string]interface{}) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.Vars = newVars
 }

@@ -2,18 +2,18 @@ pipelines:
   - name: pipeline_crm_profile
     description: "Get client profile"
     steps:
-      - tool: get_customer_profile
+      - tool: crm.get_profile
       - analyst: true
 
   - name: pipeline_crm_interactions
     description: "Get client's last interactions"
     steps:
-      - tool: get_customer_profile
-      - tool: get_customer_interactions
+      - tool: crm.get_profile
+      - tool: crm.get_interactions
       - analyst: true
 
   - name: pipeline_crm_update_lead_status
     description: "Update lead status"
     steps:
-      - tool: update_lead_status
+      - tool: crm.update_lead_status
       - analyst: true

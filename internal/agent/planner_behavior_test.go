@@ -13,7 +13,8 @@ import (
 type llmNewTaskDummy struct{}
 
 func (llmNewTaskDummy) Ping(ctx context.Context) error { return nil }
-func (llmNewTaskDummy) Chat(ctx context.Context, prompt string) (string, error) {
+func (f llmNewTaskDummy) Embed(ctx context.Context, text string) ([]float32, error) { return []float32{}, nil }
+func (f llmNewTaskDummy) Chat(ctx context.Context, prompt string) (string, error) {
     return "unknown.intent", nil
 }
 

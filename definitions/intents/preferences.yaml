@@ -1,0 +1,9 @@
+intents:
+  - id: general.update_preference
+    description: "Saves a user preference or long-term instruction (e.g. always deploy to staging, prefer acme-service, never use force)."
+    pipelines:
+      - pipeline_update_preference
+    parameters:
+      - name: preference
+        description: "The specific preference or instruction provided by the user."
+        required: true

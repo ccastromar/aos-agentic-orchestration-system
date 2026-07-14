@@ -1,0 +1,6 @@
+intents:
+  - type: intent_react_demo
+    description: "ReAct loop demo"
+    pipeline: pipeline_react_demo
+    required_params:
+      - accountId

@@ -3,35 +3,39 @@ package state
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 type MemoryStore struct {
 	mu     sync.RWMutex
-	states map[string]*ExecutionState
+	data   map[string]string
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		states: make(map[string]*ExecutionState),
+		data: make(map[string]string),
 	}
 }
 
-func (m *MemoryStore) Save(ctx context.Context, st *ExecutionState) error {
+func (m *MemoryStore) Get(ctx context.Context, key string) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if val, ok := m.data[key]; ok {
+		return val, nil
+	}
+	return "", nil
+}
+
+func (m *MemoryStore) Set(ctx context.Context, key string, val string, ttl time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.states[st.ID] = st
+	m.data[key] = val
 	return nil
 }
 
-func (m *MemoryStore) Load(ctx context.Context, id string) (*ExecutionState, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.states[id], nil
-}
-
-func (m *MemoryStore) Delete(ctx context.Context, id string) error {
+func (m *MemoryStore) Delete(ctx context.Context, key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	delete(m.states, id)
+	delete(m.data, key)
 	return nil
 }

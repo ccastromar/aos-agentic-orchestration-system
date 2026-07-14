@@ -1,0 +1,18 @@
+pipelines:
+  - name: pipeline_resiliency_demo
+    description: "Pipeline to test retries and timeouts"
+    mode: dag
+    steps:
+      - id: "flaky_step"
+        tool: "banking.flaky_tool"
+        retries: 2
+        backoff_ms: 100
+        with_params:
+          param1: "$.param1"
+      
+      - id: "slow_step"
+        tool: "banking.slow_tool"
+        timeout_ms: 100
+        depends_on: ["flaky_step"]
+        with_params:
+          param1: "$.param1"

@@ -8,7 +8,7 @@ const intentSchemaJSON = `
   "properties": {
     "intent": {
       "type": "string",
-      "minLength": 1
+      "minLength": 0
     },
 	"language":{
 		"type": "string"

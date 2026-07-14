@@ -1,0 +1,16 @@
+tools:
+  - name: banking.flaky_tool
+    description: "Flaky tool for testing retries"
+    url: "http://localhost:9000/mock/flaky"
+    method: "POST"
+    parameters:
+      - name: "param1"
+        type: "string"
+
+  - name: banking.slow_tool
+    description: "Slow tool for testing timeouts"
+    url: "http://localhost:9000/mock/slow"
+    method: "POST"
+    parameters:
+      - name: "param1"
+        type: "string"

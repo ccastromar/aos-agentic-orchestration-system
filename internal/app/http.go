@@ -41,7 +41,7 @@ func NewHTTPServer(apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Ru
 	mux.HandleFunc("/ui", uiStore.HandleIndex)
 	mux.HandleFunc("/ui/task", uiStore.HandleTask)
 	mux.HandleFunc("/ui/ask", uiStore.HandleAsk)
-	mux.HandleFunc("/ui/task/events", uiStore.HandleTaskEvents)
+	mux.HandleFunc("/ui/task/events", uiStore.HandleTaskStream)
 
 	mux.HandleFunc("/health/live", health.LiveHandler)
 	mux.HandleFunc("/health/ready", health.ReadyHandler(rt))
@@ -62,7 +62,7 @@ func NewHTTPServer(apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Ru
 			Handler:           hardened,
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       10 * time.Second,
-			WriteTimeout:      15 * time.Second,
+			// WriteTimeout:      15 * time.Second, // Removed to support long-lived SSE connections
 			IdleTimeout:       60 * time.Second,
 			MaxHeaderBytes:    1 << 20, // 1MB
 		},
@@ -98,6 +98,16 @@ func secureMiddleware(next http.Handler) http.Handler {
 		// Block TRACE to avoid request smuggling tricks
 		if r.Method == http.MethodTrace {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Allow CORS for local frontend development
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 
@@ -152,21 +162,29 @@ func observabilityMiddleware(next http.Handler) http.Handler {
 		metrics.HTTPRequests.Inc(labels)
 		metrics.HTTPDuration.Observe(labels, float64(dur)/float64(time.Second))
 
-		// Structured log line
-		// Keep it minimal and dependency-free
-		logx.G("HTTP",
-			`{"ts":"%s","level":"info","component":"http","request_id":"%s","correlation_id":"%s","method":"%s","path":"%s","status":%d,"duration_ms":%d,"size":%d,"remote":"%s","ua":"%s"}`,
-			time.Now().Format(time.RFC3339),
-			reqID,
-			corrID,
-			r.Method,
-			r.URL.Path,
-			rw.status,
-			dur.Milliseconds(),
-			rw.size,
-			remoteHost(r.RemoteAddr),
-			sanitizeUserAgent(r.UserAgent()),
-		)
+		// Filter out noisy polling endpoints
+		noisy := false
+		if r.URL.Path == "/ui/task/events" || r.URL.Path == "/task" || strings.HasPrefix(r.URL.Path, "/health/") {
+			noisy = true
+		}
+
+		if !noisy {
+			// Structured log line
+			// Keep it minimal and dependency-free
+			logx.G("HTTP",
+				`{"ts":"%s","level":"info","component":"http","request_id":"%s","correlation_id":"%s","method":"%s","path":"%s","status":%d,"duration_ms":%d,"size":%d,"remote":"%s","ua":"%s"}`,
+				time.Now().Format(time.RFC3339),
+				reqID,
+				corrID,
+				r.Method,
+				r.URL.Path,
+				rw.status,
+				dur.Milliseconds(),
+				rw.size,
+				remoteHost(r.RemoteAddr),
+				sanitizeUserAgent(r.UserAgent()),
+			)
+		}
 	})
 }
 
@@ -186,6 +204,12 @@ func (w *respWriter) Write(b []byte) (int, error) {
 	n, err := w.ResponseWriter.Write(b)
 	w.size += n
 	return n, err
+}
+
+func (w *respWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // requestAndCorrelationID extracts or generates IDs from headers.

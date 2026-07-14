@@ -21,6 +21,7 @@ import (
 
 type APIAgent struct {
 	bus     *bus.Bus
+	cfg     *config.Config
 	inbox   chan bus.Message
 	uiStore *ui.UIStore // <-- nuevo
 	// minimal auth and rate limiting
@@ -36,12 +37,13 @@ type APIAgent struct {
 }
 
 // NewAPIAgent creates the API agent. Backward-compatible signature:
-// - NewAPIAgent(b, env, uiStore)
+// - NewAPIAgent(b, env, uiStore, cfg)
 // - NewAPIAgent(b, uiStore)
 func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 	var (
 		env *config.EnvVars
 		uiS *ui.UIStore
+		cfg *config.Config
 	)
 	for _, arg := range args {
 		switch v := arg.(type) {
@@ -49,6 +51,8 @@ func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 			env = v
 		case *ui.UIStore:
 			uiS = v
+		case *config.Config:
+			cfg = v
 		}
 	}
 	if uiS == nil {
@@ -57,6 +61,7 @@ func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 
 	a := &APIAgent{
 		bus:     b,
+		cfg:     cfg,
 		inbox:   make(chan bus.Message, 16),
 		uiStore: uiS,
 		apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
@@ -201,7 +206,14 @@ func (a *APIAgent) dispatch(msg bus.Message) {
 			return
 		}
 		logx.Info("API", "task %s awaiting human review [%s]", id, gate)
-		a.uiStore.AddEvent(id, "API", "await_human", gate, "")
+		// Verifier already emitted the await_human event with context vars to uiStore.
+		// We do not emit it again here to avoid overwriting the context.
+
+		// If sync request is waiting, release it
+		storeResult(id, Result{
+			Status: "await_human",
+			Data:   map[string]any{"gate": gate},
+		})
 	default:
 		// ignore silently
 	}
@@ -227,7 +239,31 @@ func (a *APIAgent) RegisterHTTP(mux *http.ServeMux) {
 	mux.HandleFunc("/task", a.handleTask)           // fetch task status/result
 	mux.HandleFunc("/task/approve", a.handleHumanApprove)
 	mux.HandleFunc("/task/reject", a.handleHumanReject)
+	mux.HandleFunc("/task/reply", a.handleClarifyReply)
+	mux.HandleFunc("/intents", a.handleIntents)
+}
 
+func (a *APIAgent) handleIntents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	type IntentExample struct {
+		Type        string `json:"type"`
+		Description string `json:"description"`
+	}
+	var examples []IntentExample
+
+	for _, it := range a.cfg.Intents {
+		examples = append(examples, IntentExample{
+			Type:        it.Type,
+			Description: it.Description,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(examples)
 }
 
 func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
@@ -268,8 +304,9 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type Req struct {
-		Lang    string `json:"lang"`
-		Message string `json:"message"`
+		SessionID string `json:"session_id,omitempty"`
+		Lang      string `json:"lang"`
+		Message   string `json:"message"`
 	}
 
 	// Limit request body size
@@ -292,10 +329,13 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if req.Lang == "" {
 		req.Lang = "es"
 	}
+	if req.SessionID == "" {
+		req.SessionID = randomID()
+	}
 
 	id := randomID()
 
-	logx.Info("Api", "new request lang=%s id=%s message='%s'", req.Lang, id, req.Message)
+	logx.Info("Api", "new request lang=%s session=%s id=%s message='%s'", req.Lang, req.SessionID, id, req.Message)
 	a.uiStore.AddEvent(id, "Api", "request", req.Message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
@@ -305,18 +345,20 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	a.bus.Send("inspector", bus.Message{
 		Type: "new_task",
 		Payload: map[string]any{
-			"id":      id,
-			"mode":    "structured",
-			"message": req.Message,
-			"lang":    req.Lang,
+			"id":         id,
+			"session_id": req.SessionID,
+			"mode":       "structured",
+			"message":    req.Message,
+			"lang":       req.Lang,
 		},
 	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"id":     id,
-		"status": "accepted",
+		"id":         id,
+		"session_id": req.SessionID,
+		"status":     "accepted",
 	})
 }
 
@@ -436,11 +478,15 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIAgent) handleHumanApprove(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+	gate := r.URL.Query().Get("gate")
+
+	a.uiStore.AddEvent(id, "UI", "human_decision", "approved", gate)
 
 	a.bus.Send("verifier", bus.Message{
 		Type: "human_decision",
 		Payload: map[string]any{
 			"id":       id,
+			"gate":     gate,
 			"decision": "approved",
 		},
 	})
@@ -451,11 +497,15 @@ func (a *APIAgent) handleHumanApprove(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIAgent) handleHumanReject(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+	gate := r.URL.Query().Get("gate")
+
+	a.uiStore.AddEvent(id, "UI", "human_decision", "rejected", gate)
 
 	a.bus.Send("verifier", bus.Message{
 		Type: "human_decision",
 		Payload: map[string]any{
 			"id":       id,
+			"gate":     gate,
 			"decision": "rejected",
 		},
 	})
@@ -487,4 +537,57 @@ func (a *APIAgent) DispatchAskInternal(message string, lang string) (string, err
 	})
 
 	return id, nil
+}
+
+func (a *APIAgent) handleClarifyReply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	// Auth check
+	if !a.checkAuth(r) {
+		w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// Rate limit
+	if err := a.acquireRL(getClientKey(r)); err != nil {
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+		return
+	}
+
+	var req askRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "id query param required", http.StatusBadRequest)
+		return
+	}
+
+	if req.Message == "" {
+		http.Error(w, "message required", http.StatusBadRequest)
+		return
+	}
+
+	logx.Info("Api", "clarification reply for id=%s message='%s'", id, req.Message)
+	a.uiStore.AddEvent(id, "Api", "reply", req.Message, "")
+
+	a.bus.Send("planner", bus.Message{
+		Type: "clarify_intent",
+		Payload: map[string]any{
+			"id":      id,
+			"message": req.Message,
+		},
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"id":     id,
+		"status": "accepted",
+	})
 }

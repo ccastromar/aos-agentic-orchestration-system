@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"path/filepath"
@@ -20,12 +21,14 @@ type Event struct {
 	Kind     string
 	Message  string
 	Duration string
+	Data     string
 }
 
 type UIStore struct {
 	mu sync.RWMutex
 
 	tasks map[string][]Event
+	subs  map[string]map[chan Event]struct{}
 
 	// injected domain dispatcher
 	dispatcher AskDispatcher
@@ -48,6 +51,7 @@ func NewUIStore(dispatcher ...AskDispatcher) *UIStore {
 	}
 	return &UIStore{
 		tasks:      make(map[string][]Event),
+		subs:       make(map[string]map[chan Event]struct{}),
 		dispatcher: d,
 	}
 }
@@ -80,6 +84,34 @@ func (s *UIStore) SetDispatcher(d AskDispatcher) {
 	Event handling
 */
 
+// Subscribe returns a channel for real-time events for a specific task
+func (s *UIStore) Subscribe(taskID string) chan Event {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	if s.subs == nil {
+		s.subs = make(map[string]map[chan Event]struct{})
+	}
+	if s.subs[taskID] == nil {
+		s.subs[taskID] = make(map[chan Event]struct{})
+	}
+	
+	ch := make(chan Event, 100)
+	s.subs[taskID][ch] = struct{}{}
+	return ch
+}
+
+// Unsubscribe removes a channel from the subscribers list
+func (s *UIStore) Unsubscribe(taskID string, ch chan Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	if s.subs != nil && s.subs[taskID] != nil {
+		delete(s.subs[taskID], ch)
+		close(ch)
+	}
+}
+
 // AddEvent registers an event
 func (s *UIStore) AddEvent(taskID, agent, kind, msg, duration string) {
 	s.mu.Lock()
@@ -93,6 +125,40 @@ func (s *UIStore) AddEvent(taskID, agent, kind, msg, duration string) {
 		Duration: duration,
 	}
 	s.tasks[taskID] = append(s.tasks[taskID], ev)
+
+	if s.subs != nil && s.subs[taskID] != nil {
+		for ch := range s.subs[taskID] {
+			select {
+			case ch <- ev:
+			default:
+			}
+		}
+	}
+}
+
+// AddEventWithData registers an event with extended data payload
+func (s *UIStore) AddEventWithData(taskID, agent, kind, msg, duration, data string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ev := Event{
+		Time:     time.Now(),
+		Agent:    agent,
+		Kind:     kind,
+		Message:  msg,
+		Duration: duration,
+		Data:     data,
+	}
+	s.tasks[taskID] = append(s.tasks[taskID], ev)
+
+	if s.subs != nil && s.subs[taskID] != nil {
+		for ch := range s.subs[taskID] {
+			select {
+			case ch <- ev:
+			default:
+			}
+		}
+	}
 }
 
 // snapshot returns a safe copy of the data
@@ -264,22 +330,44 @@ func (s *UIStore) handleAskPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/ui/task?id="+taskID, http.StatusFound)
 }
 
-func (s *UIStore) HandleTaskEvents(w http.ResponseWriter, r *http.Request) {
+func (s *UIStore) HandleTaskStream(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, "missing task id", http.StatusBadRequest)
 		return
 	}
 
-	s.mu.RLock()
-	events, ok := s.tasks[id]
-	s.mu.RUnlock()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
 
+	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "task not found", http.StatusNotFound)
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(events)
+	ch := s.Subscribe(id)
+	defer s.Unsubscribe(id, ch)
+
+	s.mu.RLock()
+	events := s.tasks[id]
+	s.mu.RUnlock()
+
+	for _, ev := range events {
+		data, _ := json.Marshal(ev)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+	}
+	flusher.Flush()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case ev := <-ch:
+			data, _ := json.Marshal(ev)
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+		}
+	}
 }

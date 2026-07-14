@@ -59,12 +59,16 @@ type RestartResponse struct {
 }
 
 func handleRestart(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+	var req struct {
+		Service string `json:"service"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// fallback to form parsing just in case
+		r.ParseForm()
+		req.Service = r.Form.Get("service")
 	}
 
-	service := r.Form.Get("service")
+	service := req.Service
 	if service == "" {
 		service = "unknown-service"
 	}
@@ -95,13 +99,18 @@ type DeployResponse struct {
 }
 
 func handleDeploy(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+	var req struct {
+		Service string `json:"service"`
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		r.ParseForm()
+		req.Service = r.Form.Get("service")
+		req.Version = r.Form.Get("version")
 	}
 
-	service := r.Form.Get("service")
-	version := r.Form.Get("version")
+	service := req.Service
+	version := req.Version
 	if service == "" {
 		service = "unknown-service"
 	}

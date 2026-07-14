@@ -15,6 +15,7 @@ type dummyLLM struct {
 // Ping implements llm.LLMClient.
 func (d dummyLLM) Ping(ctx context.Context) error { return nil }
 
+func (d dummyLLM) Embed(ctx context.Context, text string) ([]float32, error) { return []float32{}, nil }
 func (d dummyLLM) Chat(ctx context.Context, prompt string) (string, error) {
 	return d.output, nil
 }

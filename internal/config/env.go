@@ -24,11 +24,14 @@ type EnvVars struct {
 	LLMTimeout time.Duration `envconfig:"LLM_TIMEOUT" default:"10s"`
 
 	// Ollama (local LLM) configuration
-	OllamaBaseURL string `envconfig:"OLLAMA_BASE_URL" default:"http://localhost:11434"`
-	OllamaModel   string `envconfig:"OLLAMA_MODEL" default:"qwen3:0.6b"`
+	OllamaBaseURL    string `envconfig:"OLLAMA_BASE_URL" default:"http://localhost:11434"`
+	OllamaModel      string `envconfig:"OLLAMA_MODEL" default:"qwen3:0.6b"`
+	OllamaEmbedModel string `envconfig:"OLLAMA_EMBED_MODEL" default:"nomic-embed-text"`
 
 	RedisAddr     string `envconfig:"REDIS_ADDR"`
 	RedisPassword string `envconfig:"REDIS_PASSWORD"`
+	
+	QdrantURL     string `envconfig:"QDRANT_URL" default:"http://localhost:6333"`
 
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 	// ---------- AUTH / IDENTITY CONFIG (NEW) ----------

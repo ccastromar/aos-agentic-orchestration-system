@@ -29,9 +29,7 @@ tools:
   - name: devops.infra_tail_logs
     type: http
     method: GET
-    url: "http://localhost:9000/mock/devops/logs"
+    url: "http://localhost:9000/mock/devops/logs?service={{ .serviceName }}&lines={{ .lines }}"
     mode: read
     timeout: 5000
-    body:
-      service: "{{ .serviceName }}"
-      lines: "{{ .lines }}"
+    body: {}

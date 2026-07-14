@@ -37,6 +37,7 @@ intents:
     pipeline: pipeline_send_bizum
     required_params:
       - amount
+      - fromPhone
       - toPhone
       - concept
     allow_dangerous: true
@@ -52,6 +53,7 @@ intents:
     required_params:
       - amount
       - currency
+      - fromAccount
       - toAccount
       - concept
     allow_dangerous: true
@@ -67,6 +69,7 @@ intents:
     pipeline: pipeline_send_bitcoin
     required_params:
       - amount
+      - fromAddress
       - toAddress
       - concept
     allow_dangerous: true

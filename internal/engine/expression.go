@@ -23,7 +23,7 @@ func EvalBoolExpression(raw string, ctx *PipelineContext) (bool, error) {
 	}
 
 	params := map[string]interface{}{}
-	for k, v := range ctx.Vars {
+	for k, v := range ctx.GetVarsSnapshot() {
 		params[k] = v
 	}
 

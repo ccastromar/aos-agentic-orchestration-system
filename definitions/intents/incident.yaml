@@ -1,0 +1,8 @@
+intents:
+  - type: incident.resolve_outage
+    description: "Diagnose and resolve a service outage reported by a customer"
+    pipeline: pipeline_incident_response
+    allow_dangerous: true
+    required_params:
+      - customerId
+      - serviceName

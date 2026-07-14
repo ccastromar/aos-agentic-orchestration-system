@@ -1,0 +1,44 @@
+pipelines:
+  - name: pipeline_incident_response
+    description: "Cross-domain incident resolution with human in the loop"
+    mode: dag
+    steps:
+      - id: check_customer
+        tool: crm.get_profile
+        depends_on: []
+        
+      - id: check_status
+        tool: devops.infra_get_status
+        depends_on: []
+        
+      - id: fetch_logs
+        tool: devops.infra_tail_logs
+        depends_on: ["check_status"]
+        with_params:
+          serviceName: "{{ .serviceName }}"
+          lines: "50"
+        
+      - id: create_ticket
+        tool: helpdesk.support_create_ticket
+        depends_on: ["check_customer", "fetch_logs"]
+        with_params:
+          subject: "Outage reported for service {{ .serviceName }}"
+          description: "Customer {{ index . \"crm.get_profile.name\" }} reported an outage."
+          priority: "high"
+        
+      - id: sre_approval
+        human_approval: sre_lead_approval
+        depends_on: ["create_ticket"]
+        
+      - id: restart_service
+        tool: devops.infra_restart_service
+        depends_on: ["sre_approval"]
+        with_params:
+          serviceName: "{{ .serviceName }}"
+        
+      - id: close_ticket
+        tool: helpdesk.support_close_ticket
+        depends_on: ["restart_service"]
+        with_params:
+          ticketId: "{{ index . \"helpdesk.support_create_ticket.ticketId\" }}"
+          reason: "Service restarted successfully"

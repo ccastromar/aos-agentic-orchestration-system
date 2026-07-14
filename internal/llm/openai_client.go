@@ -168,3 +168,68 @@ func (c *OpenAIClient) Chat(ctx context.Context, prompt string) (string, error) 
 	return result.Choices[0].Message.Content, nil
 
 }
+
+type openAIEmbedRequest struct {
+	Model string `json:"model"`
+	Input string `json:"input"`
+}
+
+type openAIEmbedResponse struct {
+	Data []struct {
+		Embedding []float32 `json:"embedding"`
+	} `json:"data"`
+}
+
+func (c *OpenAIClient) Embed(ctx context.Context, text string) ([]float32, error) {
+	reqBody := openAIEmbedRequest{
+		Model: "text-embedding-ada-002",
+		Input: text,
+	}
+
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal embed payload: %w", err)
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	url := strings.TrimRight(c.BaseURL, "/") + "/embeddings"
+	httpClient := c.HTTP
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 35 * time.Second}
+	}
+
+	resp, err := retryHTTP(ctx, 3, 100*time.Millisecond, func() (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+		req.Header.Set("Content-Type", "application/json")
+		return httpClient.Do(req)
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("openai embed failed: status %d, body: %s", resp.StatusCode, string(b))
+	}
+
+	var res openAIEmbedResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("decode embed response: %w", err)
+	}
+
+	if len(res.Data) == 0 {
+		return nil, fmt.Errorf("openai embed: empty data")
+	}
+
+	return res.Data[0].Embedding, nil
+}

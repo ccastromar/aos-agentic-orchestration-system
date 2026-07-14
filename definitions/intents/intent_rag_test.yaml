@@ -1,0 +1,4 @@
+intents:
+  - type: intent_rag_test
+    description: "Intent for testing RAG"
+    pipeline: pipeline_rag_test

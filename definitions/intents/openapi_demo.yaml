@@ -1,0 +1,7 @@
+intents:
+  - type: intent_openapi_demo
+    description: "Inicia la demostración de OpenAPI dynamic tool loading"
+    pipeline: pipeline_openapi_demo
+    required_params:
+      - userId
+      - title

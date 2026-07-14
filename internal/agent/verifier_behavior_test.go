@@ -51,7 +51,7 @@ func TestVerifier_RunPipeline_SendsToAnalyst(t *testing.T) {
     }
 
     b := bus.New()
-    v := NewVerifier(b, cfg, ui.NewUIStore())
+    v := NewVerifier(b, cfg, nil, ui.NewUIStore())
 
     // Capture message sent to analyst
     analystCh := make(chan bus.Message, 1)
@@ -89,7 +89,7 @@ func TestVerifier_MissingTool_StoresError(t *testing.T) {
     pipe := config.Pipeline{Name: "p2", Steps: []config.PipelineStep{{Tool: "nonexistent"}}}
 
     b := bus.New()
-    v := NewVerifier(b, cfg, ui.NewUIStore())
+    v := NewVerifier(b, cfg, nil, ui.NewUIStore())
 
     id := "id-err"
     v.dispatch(bus.Message{

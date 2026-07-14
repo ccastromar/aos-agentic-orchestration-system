@@ -3,26 +3,32 @@ package agent
 import (
 	"context"
 
+	"fmt"
+	"time"
+
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
 	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
 )
 
 type Analyst struct {
-	bus       *bus.Bus
-	inbox     chan bus.Message
-	llmClient llm.LLMClient
-	uiStore   *ui.UIStore
+	bus          *bus.Bus
+	inbox        chan bus.Message
+	llmClient    llm.LLMClient
+	uiStore      *ui.UIStore
+	stateManager *state.StateManager
 }
 
-func NewAnalyst(b *bus.Bus, llmClient llm.LLMClient, ui *ui.UIStore) *Analyst {
+func NewAnalyst(b *bus.Bus, llmClient llm.LLMClient, ui *ui.UIStore, stateManager *state.StateManager) *Analyst {
 	return &Analyst{
-		bus:       b,
-		inbox:     make(chan bus.Message, 16),
-		llmClient: llmClient,
-		uiStore:   ui,
+		bus:          b,
+		inbox:        make(chan bus.Message, 16),
+		llmClient:    llmClient,
+		uiStore:      ui,
+		stateManager: stateManager,
 	}
 }
 
@@ -88,8 +94,11 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 		return
 	}
 
- logx.Info("Analyst", "requesting summary to the LLM...")
- // obtain task context if present
+ 	logx.Info("Analyst", "requesting summary to the LLM...")
+	if a.uiStore != nil {
+		a.uiStore.AddEvent(id, "Analyst", "summarizing", "Requesting final summary to LLM...", "")
+	}
+ 	// obtain task context if present
  taskCtx, _ := GetTaskContext(id)
  if taskCtx == nil {
      taskCtx = context.Background()
@@ -129,11 +138,30 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	a.uiStore.AddEvent(id, "Analyst", "summary", summary, "")
 	a.uiStore.AddEvent(id, "Analyst", "completed", "Pipeline completed", "")
 
- storeResult(id, Result{
-        Status: "ok",
-        Data: map[string]any{
-            "raw":     raw,
-            "summary": summary,
-        },
-    })
+	// Vector Memory (Long-Term Storage)
+	sessionID, _ := payload.GetString(msg.Payload, "session_id")
+	if sessionID != "" {
+		if vs := a.stateManager.Vector(); vs != nil && a.llmClient != nil {
+			textToEmbed := fmt.Sprintf("Intent: %s\nAction Summary: %s", intentType, summary)
+			embedding, err := a.llmClient.Embed(taskCtx, textToEmbed)
+			if err == nil {
+				mem := state.Memory{
+					ID:        randomID(),
+					SessionID: sessionID,
+					Text:      textToEmbed,
+					Embedding: embedding,
+					Timestamp: time.Now(),
+				}
+				_ = vs.AddMemory(taskCtx, mem)
+			}
+		}
+	}
+
+	storeResult(id, Result{
+		Status: "completed",
+		Data: map[string]any{
+			"raw":     raw,
+			"summary": summary,
+		},
+	})
 }

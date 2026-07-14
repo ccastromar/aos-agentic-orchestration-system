@@ -15,17 +15,22 @@ import (
 type OllamaClient struct {
 	BaseURL    string
 	Model      string
+	EmbedModel string
 	HTTPClient *http.Client
 }
 
 var _ LLMClient = (*OllamaClient)(nil)
 
-func NewOllamaClient(baseURL, model string) *OllamaClient {
+func NewOllamaClient(baseURL, model, embedModel string) *OllamaClient {
+	if embedModel == "" {
+		embedModel = "nomic-embed-text"
+	}
 	return &OllamaClient{
-		BaseURL: baseURL,
-		Model:   model,
+		BaseURL:    baseURL,
+		Model:      model,
+		EmbedModel: embedModel,
 		HTTPClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 305 * time.Second,
 		},
 	}
 }
@@ -67,11 +72,13 @@ func (c *OllamaClient) Chat(ctx context.Context, prompt string) (string, error) 
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	// Increase timeout for slower machines like Mac Mini (e.g. 5 minutes)
+	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
 	defer cancel()
+
 	httpClient := c.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 65 * time.Second}
+		httpClient = &http.Client{Timeout: 305 * time.Second}
 	}
 
 	start := time.Now()
@@ -161,4 +168,61 @@ func (c *OllamaClient) Ping(ctx context.Context) error {
 	}
 	metrics.LLMPings.Inc(map[string]string{"provider": "ollama", "outcome": "ok"})
 	return nil
+}
+
+type ollamaEmbedRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+}
+
+type ollamaEmbedResponse struct {
+	Embedding []float32 `json:"embedding"`
+}
+
+func (c *OllamaClient) Embed(ctx context.Context, text string) ([]float32, error) {
+	reqBody := ollamaEmbedRequest{
+		Model:  c.EmbedModel,
+		Prompt: text,
+	}
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal embed payload: %w", err)
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// Increase timeout for slower machines like Mac Mini (e.g. 5 minutes)
+	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
+	defer cancel()
+
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 305 * time.Second}
+	}
+
+	resp, err := retryHTTP(ctx, 3, 100*time.Millisecond, func() (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/api/embeddings", bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("new request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return httpClient.Do(req)
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("ollama embed failed: status %d, body: %s", resp.StatusCode, string(b))
+	}
+
+	var res ollamaEmbedResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("decode embed response: %w", err)
+	}
+
+	return res.Embedding, nil
 }

@@ -1,0 +1,9 @@
+pipelines:
+  - name: pipeline_update_preference
+    mode: linear
+    description: "Stores a user preference."
+    steps:
+      - tool: system.save_preference
+        with:
+          preference: "{{.preference}}"
+      - analyst: true

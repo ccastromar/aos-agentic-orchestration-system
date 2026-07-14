@@ -10,8 +10,9 @@ import (
 )
 
 type Tool struct {
-	Name      string            `yaml:"name"`
-	Type      string            `yaml:"type"` // http, cli (todo)
+	Name        string            `yaml:"name"`
+	Description string            `yaml:"description,omitempty"`
+	Type        string            `yaml:"type"` // http, cli (todo)
 	Method    string            `yaml:"method"`
 	URL       string            `yaml:"url"`
 	Mode      string            `yaml:"mode"` // read, write, dangerous
@@ -22,16 +23,22 @@ type Tool struct {
 }
 
 type PipelineStep struct {
-	Tool       string            `yaml:"tool"`
-	WithParams map[string]string `yaml:"with_params"`
-	Analyst    bool              `yaml:"analyst"`
+	ID         string            `yaml:"id,omitempty" json:"id,omitempty"`
+	DependsOn  []string          `yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
+	Tool       string            `yaml:"tool" json:"tool,omitempty"`
+	WithParams map[string]string `yaml:"with_params" json:"with_params,omitempty"`
+	Analyst    bool              `yaml:"analyst" json:"analyst,omitempty"`
 	HumanGate  string            `yaml:"human_approval,omitempty" json:"human_approval,omitempty"`
 	When       string            `yaml:"when,omitempty" json:"when,omitempty"`
+	Retries    int               `yaml:"retries,omitempty" json:"retries,omitempty"`
+	TimeoutMs  int               `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
+	BackoffMs  int               `yaml:"backoff_ms,omitempty" json:"backoff_ms,omitempty"`
 }
 
 type Pipeline struct {
 	Name        string         `yaml:"name"`
 	Description string         `yaml:"description"`
+	Mode        string         `yaml:"mode"` // linear, dag
 	Steps       []PipelineStep `yaml:"steps"`
 }
 
@@ -48,10 +55,19 @@ type Intent struct {
 	ShadowMode     bool    `yaml:"shadow_mode"`
 }
 
+type Plugin struct {
+	Name    string            `yaml:"name"`
+	Type    string            `yaml:"type"` // "openapi"
+	File    string            `yaml:"file"` // Relative path to definition file
+	BaseURL string            `yaml:"base_url,omitempty"`
+	Headers map[string]string `yaml:"headers,omitempty"`
+}
+
 type Config struct {
 	Tools     map[string]Tool
 	Pipelines map[string]Pipeline
 	Intents   map[string]Intent
+	Plugins   map[string]Plugin
 }
 
 func LoadFromDir(base string) (*Config, error) {
@@ -59,9 +75,13 @@ func LoadFromDir(base string) (*Config, error) {
 		Tools:     make(map[string]Tool),
 		Pipelines: make(map[string]Pipeline),
 		Intents:   make(map[string]Intent),
+		Plugins:   make(map[string]Plugin),
 	}
 
 	if err := loadToolsDir(filepath.Join(base, "tools"), cfg); err != nil {
+		return nil, err
+	}
+	if err := loadPluginsDir(filepath.Join(base, "plugins"), cfg); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	if err := loadPipelinesDir(filepath.Join(base, "pipelines"), cfg); err != nil {

@@ -155,6 +155,7 @@ func DetectIntentAndParams(
 	c LLMClient,
 	text string,
 	intents map[string]config.Intent,
+	sessionContext string,
 ) (*DetectedIntentAndParams, error) {
 
 	// Build JSON of all intents + required params + descriptions
@@ -177,7 +178,11 @@ Your task:
 4. Use EXACTLY the parameter names as defined in required_params.
 5. DO NOT invent parameter names. DO NOT use placeholders like "param1", "param2", etc.
 
-DEFINED INTENTS (DO NOT invent new ones):
+DEFINED INTENTS (DO NOT invent new ones. If no intent matches, return "unknown"):
+%s
+
+RECENT CONVERSATION CONTEXT:
+Use this to resolve ambiguous or missing parameters if the user refers to previous context (e.g. "and now transfer 20 to that account").
 %s
 
 The user message below may be in any language.
@@ -213,7 +218,7 @@ RULES:
 - If there are no parameters, return {}.
 - If there are no errors, return [].
 
-`, string(intentsJSON), text)
+`, string(intentsJSON), sessionContext, text)
 
 	raw, err := c.Chat(ctx, prompt)
 	if err != nil {
@@ -264,7 +269,7 @@ RULES:
 	}
 
 	for _, req := range intentCfg.RequiredParams {
-		if _, ok := out.Params[req]; !ok {
+		if val, ok := out.Params[req]; !ok || val == "" {
 			out.Params[req] = ""
 			out.Errors = append(out.Errors, req)
 		}

@@ -41,30 +41,25 @@ func handleShipment(w http.ResponseWriter, r *http.Request) {
 }
 
 type CustomerResponse struct {
-	Service string `json:"service"`
-	Result  string `json:"result"`
-	Message string `json:"message"`
-	Took    string `json:"took"`
+	CustomerID string `json:"customerId"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	Tier       string `json:"tier"`
 }
 
 func handleCustomer(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+	customerId := r.URL.Query().Get("customerId")
+	if customerId == "" {
+		customerId = "unknown-customer"
 	}
 
-	service := r.Form.Get("service")
-	if service == "" {
-		service = "unknown-service"
-	}
-
-	time.Sleep(time.Duration(500+rand.Intn(300)) * time.Millisecond)
+	time.Sleep(time.Duration(100+rand.Intn(200)) * time.Millisecond)
 
 	resp := CustomerResponse{
-		Service: service,
-		Result:  "ok",
-		Message: "service restarted successfully",
-		Took:    "750ms",
+		CustomerID: customerId,
+		Name:       "Acme Corp Logistics",
+		Email:      "contact@acme.corp",
+		Tier:       "enterprise",
 	}
 
 	jsonResponse(w, resp)
