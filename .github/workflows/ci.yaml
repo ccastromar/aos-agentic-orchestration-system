@@ -1,0 +1,66 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: [ '1.24' ]
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+
+    - name: Install Dependencies
+      run: go mod download
+
+    - name: Run Tests
+      run: go test -v -race ./...
+
+    - name: Build macOS (ARM64 / Apple Silicon)
+      env:
+        GOOS: darwin
+        GOARCH: arm64
+      run: go build -v -o aos-macos-arm64 ./cmd/aos
+
+    - name: Build macOS (Intel)
+      env:
+        GOOS: darwin
+        GOARCH: amd64
+      run: go build -v -o aos-macos-amd64 ./cmd/aos
+
+    - name: Build Linux (AMD64)
+      env:
+        GOOS: linux
+        GOARCH: amd64
+      run: go build -v -o aos-linux-amd64 ./cmd/aos
+
+    - name: Build Windows (AMD64)
+      env:
+        GOOS: windows
+        GOARCH: amd64
+      run: go build -v -o aos-windows-amd64.exe ./cmd/aos
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aos-binaries
+        path: |
+          aos-macos-arm64
+          aos-macos-amd64
+          aos-linux-amd64
+          aos-windows-amd64.exe
