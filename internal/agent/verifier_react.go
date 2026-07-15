@@ -72,7 +72,7 @@ func executeReAct(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, 
 					"id":         id,
 					"session_id": sessionID,
 					"intent":     intentType,
-					"rawResult":  stepResults,
+					"rawResult":  cloneMap(stepResults),
 					"language":   language,
 				},
 			})

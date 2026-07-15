@@ -194,7 +194,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 						"id":         id,
 						"session_id": sessionID,
 						"intent":     intentType,
-						"rawResult":  stepResults,
+						"rawResult":  cloneMap(stepResults),
 						"language":   language,
 					},
 				})
@@ -312,7 +312,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			"id":         id,
 			"session_id": sessionID,
 			"intent":     intentType,
-			"rawResult":  stepResults,
+			"rawResult":  cloneMap(stepResults),
 			"language":   language,
 		},
 	})

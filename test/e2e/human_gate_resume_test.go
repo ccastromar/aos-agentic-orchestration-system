@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,9 +24,12 @@ func TestE2E_HumanGateResume(t *testing.T) {
 	// 2. Fake backend
 	mux9000 := http.NewServeMux()
 	var callCount int
+	var mu sync.Mutex
 	mux9000.HandleFunc("/mock/", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.URL.Path, "ping") {
+			mu.Lock()
 			callCount++
+			mu.Unlock()
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "risk_level": "low", "balance": 5000})
 	})

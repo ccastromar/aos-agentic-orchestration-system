@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ func TestE2ERAG(t *testing.T) {
 
 	var chatCalls int
 	var capturedPrompt string
+	var mu sync.Mutex
 
 	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/api/embeddings") {
@@ -30,7 +32,10 @@ func TestE2ERAG(t *testing.T) {
 		}
 
 		if strings.Contains(r.URL.Path, "/api/chat") {
+			mu.Lock()
 			chatCalls++
+			mu.Unlock()
+			
 			var reqBody struct {
 				Messages []struct {
 					Role    string `json:"role"`
@@ -42,7 +47,9 @@ func TestE2ERAG(t *testing.T) {
 			if len(reqBody.Messages) > 0 {
 				prompt = reqBody.Messages[0].Content
 				if strings.Contains(prompt, "NLU module") {
+					mu.Lock()
 					capturedPrompt = prompt
+					mu.Unlock()
 				}
 			}
 
@@ -148,11 +155,15 @@ func TestE2ERAG(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond) // let the planner run
 
-	if !strings.Contains(capturedPrompt, "LONG-TERM KNOWLEDGE") {
-		t.Errorf("Expected RAG to inject long-term knowledge, but prompt was: %s", capturedPrompt)
+	mu.Lock()
+	p := capturedPrompt
+	mu.Unlock()
+
+	if !strings.Contains(p, "LONG-TERM KNOWLEDGE") {
+		t.Errorf("Expected RAG to inject long-term knowledge, but prompt was: %s", p)
 	}
 	
-	if !strings.Contains(capturedPrompt, "El usuario indico que su color favorito es el rojo") {
-		t.Errorf("Expected RAG to contain the summary from session 1, but prompt was: %s", capturedPrompt)
+	if !strings.Contains(p, "El usuario indico que su color favorito es el rojo") {
+		t.Errorf("Expected RAG to contain the summary from session 1, but prompt was: %s", p)
 	}
 }
