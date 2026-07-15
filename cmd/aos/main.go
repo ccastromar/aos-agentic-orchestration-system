@@ -37,13 +37,25 @@ func run(ctx context.Context) {
 	}
 }
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	// load .env always if exists
 	_ = godotenv.Load()
 
 	// CLI flags
 	port := flag.String("port", "", "HTTP port to listen on")
+	vFlag := flag.Bool("version", false, "Print version information")
 	flag.Parse()
+
+	if *vFlag {
+		fmt.Printf("AOS Engine v%s\nCommit: %s\nBuilt: %s\n", version, commit, date)
+		os.Exit(0)
+	}
 
 	env, err := config.LoadEnv()
 	if err != nil {

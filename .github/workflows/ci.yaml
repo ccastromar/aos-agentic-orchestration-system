@@ -28,6 +28,13 @@ jobs:
     - name: Install Dependencies
       run: go mod download
 
+    - name: Set Build Variables
+      id: vars
+      run: |
+        echo "COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        echo "DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+        echo "VERSION=${GITHUB_REF_NAME:-dev}" >> $GITHUB_ENV
+
     - name: Run Tests
       run: go test -v -race ./...
 
@@ -35,25 +42,25 @@ jobs:
       env:
         GOOS: darwin
         GOARCH: arm64
-      run: go build -v -o aos-macos-arm64 ./cmd/aos
+      run: go build -v -ldflags="-X 'main.version=${{ env.VERSION }}' -X 'main.commit=${{ env.COMMIT }}' -X 'main.date=${{ env.DATE }}'" -o aos-macos-arm64 ./cmd/aos
 
     - name: Build macOS (Intel)
       env:
         GOOS: darwin
         GOARCH: amd64
-      run: go build -v -o aos-macos-amd64 ./cmd/aos
+      run: go build -v -ldflags="-X 'main.version=${{ env.VERSION }}' -X 'main.commit=${{ env.COMMIT }}' -X 'main.date=${{ env.DATE }}'" -o aos-macos-amd64 ./cmd/aos
 
     - name: Build Linux (AMD64)
       env:
         GOOS: linux
         GOARCH: amd64
-      run: go build -v -o aos-linux-amd64 ./cmd/aos
+      run: go build -v -ldflags="-X 'main.version=${{ env.VERSION }}' -X 'main.commit=${{ env.COMMIT }}' -X 'main.date=${{ env.DATE }}'" -o aos-linux-amd64 ./cmd/aos
 
     - name: Build Windows (AMD64)
       env:
         GOOS: windows
         GOARCH: amd64
-      run: go build -v -o aos-windows-amd64.exe ./cmd/aos
+      run: go build -v -ldflags="-X 'main.version=${{ env.VERSION }}' -X 'main.commit=${{ env.COMMIT }}' -X 'main.date=${{ env.DATE }}'" -o aos-windows-amd64.exe ./cmd/aos
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
