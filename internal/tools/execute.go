@@ -9,9 +9,37 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"net"
 )
+
+var SkipSSRF bool
+
+var safeClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if SkipSSRF {
+				return net.Dial(network, addr)
+			}
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			ips, err := net.LookupIP(host)
+			if err != nil {
+				return nil, err
+			}
+			for _, ip := range ips {
+				if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() {
+					return nil, fmt.Errorf("ssrf prevention: access to internal IP %s is denied", ip.String())
+				}
+			}
+			return net.Dial(network, net.JoinHostPort(ips[0].String(), port))
+		},
+	},
+}
 
 func ExecuteTool(t config.Tool, params map[string]string) (map[string]any, error) {
 	return ExecuteToolCtx(context.Background(), t, params)
@@ -81,7 +109,10 @@ func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string
 	if effTimeout <= 0 {
 		effTimeout = 30 * time.Second
 	}
-	client := &http.Client{Timeout: effTimeout}
+	client := &http.Client{
+		Transport: safeClient.Transport,
+		Timeout:   effTimeout,
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

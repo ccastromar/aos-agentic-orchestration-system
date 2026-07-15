@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Knetic/govaluate"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 )
 
 // EvalBoolExpression evaluate  "${amount > 1000}" or "amount > 1000"

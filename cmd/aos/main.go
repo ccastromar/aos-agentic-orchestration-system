@@ -9,8 +9,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/app"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 	"github.com/joho/godotenv"
 )
 
@@ -53,6 +55,11 @@ func main() {
 		app.SetHTTPPort(*port)
 	} else if env.Port != 0 {
 		app.SetHTTPPort(fmt.Sprintf("%d", env.Port))
+	}
+
+	if os.Getenv("ALLOW_LOCAL_TOOLS") == "true" {
+		logx.Warn("App", "ALLOW_LOCAL_TOOLS is true. SSRF protection is disabled!")
+		tools.SkipSSRF = true
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

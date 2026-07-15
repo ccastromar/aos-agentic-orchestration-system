@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/engine"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/tools"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/engine"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 )
 
 type Verifier struct {

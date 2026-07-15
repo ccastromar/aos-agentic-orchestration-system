@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ChatPanel from './components/ChatPanel';
 import Timeline from './components/Timeline';
 import HumanApprovalModal from './components/HumanApprovalModal';
@@ -74,49 +75,72 @@ function App() {
         </div>
       </header>
 
-      {view === 'chat' ? (
-        <main className="main-content">
-          <section className="glass-panel chat-panel">
-            <ChatPanel onTaskCreated={handleTaskCreated} />
-          </section>
+      <AnimatePresence mode="wait">
+        {view === 'chat' ? (
+          <motion.main 
+            key="chat-view"
+            className="main-content"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <section className="glass-panel chat-panel">
+              <ChatPanel onTaskCreated={handleTaskCreated} />
+            </section>
 
-          <section className="glass-panel timeline-container">
-            {activeTaskId ? (
-              <Timeline 
-                taskId={activeTaskId} 
-                onApprovalNeeded={handleApprovalNeeded} 
-              />
-            ) : (
-              <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--text-muted)' }}>
-                <Bot size={64} opacity={0.2} style={{ margin: '0 auto 1rem' }} />
-                <h2>No active task</h2>
-                <p>Send a message to wake up the agents.</p>
-              </div>
-            )}
-          </section>
-        </main>
-      ) : (
-        <main className="main-content" style={{ gridTemplateColumns: '1fr', maxWidth: '1000px', margin: '0 auto' }}>
-          <Settings />
-        </main>
-      )}
+            <section className="glass-panel timeline-container">
+              {activeTaskId ? (
+                <Timeline 
+                  taskId={activeTaskId} 
+                  onApprovalNeeded={handleApprovalNeeded} 
+                />
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--text-muted)' }}
+                >
+                  <Bot size={64} opacity={0.2} style={{ margin: '0 auto 1rem' }} />
+                  <h2>No active task</h2>
+                  <p>Send a message to wake up the agents.</p>
+                </motion.div>
+              )}
+            </section>
+          </motion.main>
+        ) : (
+          <motion.main 
+            key="settings-view"
+            className="main-content" 
+            style={{ gridTemplateColumns: '1fr', maxWidth: '1000px', margin: '0 auto' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Settings />
+          </motion.main>
+        )}
+      </AnimatePresence>
 
-      {pendingApproval && pendingApproval.gate === 'clarification' && (
-        <ClarificationModal 
-          taskId={pendingApproval.id} 
-          missingParamsMessage={pendingApproval.message}
-          onResolved={handleApprovalResolved}
-        />
-      )}
-      
-      {pendingApproval && pendingApproval.gate !== 'clarification' && (
-        <HumanApprovalModal 
-          taskId={pendingApproval.id} 
-          gate={pendingApproval.gate}
-          message={pendingApproval.message}
-          onResolved={handleApprovalResolved}
-        />
-      )}
+      <AnimatePresence>
+        {pendingApproval && pendingApproval.gate === 'clarification' && (
+          <ClarificationModal 
+            taskId={pendingApproval.id} 
+            missingParamsMessage={pendingApproval.message}
+            onResolved={handleApprovalResolved}
+          />
+        )}
+        
+        {pendingApproval && pendingApproval.gate !== 'clarification' && (
+          <HumanApprovalModal 
+            taskId={pendingApproval.id} 
+            gate={pendingApproval.gate}
+            message={pendingApproval.message}
+            onResolved={handleApprovalResolved}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

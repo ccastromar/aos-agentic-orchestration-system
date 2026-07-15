@@ -7,17 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/agent"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type App struct {
@@ -147,9 +147,9 @@ func (a *App) Run(ctx context.Context) error {
 	})
 
 	if a.env != nil {
-		logx.Info("App", "AOS v0.2.0 started (env=%s)", a.env.AppEnv)
+		logx.Info("App", "AOS v0.3.0 started (env=%s)", a.env.AppEnv)
 	} else {
-		logx.Info("App", "AOS v0.2.0 started")
+		logx.Info("App", "AOS v0.3.0 started")
 	}
 
 	return g.Wait()
@@ -235,7 +235,7 @@ func (a *App) HandlePipelines(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{}`))
 		return
 	}
-	
+
 	// Convert config pipelines to JSON
 	json.NewEncoder(w).Encode(a.cfg.Pipelines)
 }

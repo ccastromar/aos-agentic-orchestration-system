@@ -8,8 +8,8 @@ import (
     "net/http/httptest"
     "testing"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
 )
 
 type fakeLLM struct{ pingErr error }

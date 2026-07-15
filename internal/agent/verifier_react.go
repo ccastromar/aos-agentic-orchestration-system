@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 )
 
 func executeReAct(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, language string, taskCtx context.Context, stepResults map[string]any, baseParams map[string]any) {

@@ -10,7 +10,7 @@
 * Parameter validation
 * Intent-level policies
 * Dangerous action limits
-* Security filters
+* Security filters (JWT, RBAC)
 
 ### **3. Multi-Agent**
 
@@ -64,6 +64,6 @@
 * Meta-reasoning
 * Self-diagnostics
 
-### **UI**
+### **UI** *(Done)*
 
-* Complete Dashboard
+* Complete Dashboard (React Flow, Chat Widget, Server-Sent Events, Prometheus Metrics)

@@ -6,10 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/tools"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	tools.SkipSSRF = true
+}
 
 func TestVerifierPipelineMock(t *testing.T) {
 	// mock service

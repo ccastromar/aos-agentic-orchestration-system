@@ -1,9 +1,13 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWTConfig struct {
@@ -24,6 +28,14 @@ func NewJWTAuthenticator(cfg JWTConfig) *JWTAuthenticator {
 func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		if os.Getenv("JWT_SECRET") == "" {
+			return &Identity{
+				UserID: "demo-user",
+				Email:  "demo@example.com",
+				Roles:  []string{"admin"},
+				Source: "mock",
+			}, nil
+		}
 		return nil, &AuthError{Code: http.StatusUnauthorized, Message: "missing bearer token"}
 	}
 
@@ -63,15 +75,34 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	}, nil
 }
 
-// Stub conceptual: cambia por implementación real.
-func verifyAndParseJWT(token string, cfg JWTConfig) (map[string]interface{}, error) {
+// verifyAndParseJWT validates the JWT signature and extracts claims.
+func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{}, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// Mock fallback for local dev if no secret is configured
+		return map[string]interface{}{
+			"sub":   "demo-user",
+			"email": "demo@example.com",
+			"roles": []interface{}{"admin"},
+			"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		}, nil
+	}
 
-	// TODO - parse & validate signature
-	// TODO - validate iss, aud, exp, nbf...
-	return map[string]interface{}{
-		"sub":   "demo-user",
-		"email": "demo@example.com",
-		"roles": []interface{}{"admin"},
-		"exp":   time.Now().Add(1 * time.Hour).Unix(),
-	}, nil
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the signing method is HMAC
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
 }

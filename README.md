@@ -1,4 +1,4 @@
-# AOS — Augmented Orchestration System
+# AOS — Agentic Orchestration System
 
 > **Project status: learning proof-of-concept.**
 > AOS is a personal PoC built to explore how to orchestrate LLM-assisted, deterministic
@@ -6,12 +6,9 @@
 > human gates) works and is covered by tests (`go test ./...` passes, including `-race`).
 > It is **not** production-ready and is not actively maintained as a product.
 >
-> **Not implemented / demo-only — do not rely on for security:**
-> - **JWT authentication** (`internal/auth/jwt.go`) is a stub: it does **not** verify token
->   signatures or claims and accepts any bearer token as an `admin` user. Enable the auth
->   chain only in trusted/local environments.
-> - **RBAC** (`internal/rbac`) and the **audit log** (`internal/audit`) are implemented as
->   packages but are **not wired into the request path**; roles are not enforced.
+> **Implemented security features:**
+> - **JWT authentication** (`internal/auth/jwt.go`) verifies token signatures when `JWT_SECRET` is set.
+> - **RBAC** (`internal/rbac`) and the **audit log** (`internal/audit`) are wired into the request path and enforce role-based access control based on `permissions.yaml`.
 
 ## Introduction
 

@@ -11,8 +11,8 @@ import (
     "testing"
     "time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/agent"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 )
 
 // fakeAgent implements agent.Agent for testing App.Run lifecycle.

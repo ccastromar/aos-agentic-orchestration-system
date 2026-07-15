@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/app"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
 )
 
 func TestE2EReAct(t *testing.T) {

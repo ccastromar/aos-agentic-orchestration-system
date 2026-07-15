@@ -11,12 +11,13 @@ import (
 
 	"strconv"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/agent"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/health"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/metrics"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/health"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type HTTPServer struct {
@@ -58,12 +59,14 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *ru
 	)
 
 	// Wrap with security and observability middleware
+	authenticator := auth.NewJWTAuthenticator(auth.JWTConfig{})
 	hardened := secureMiddleware(observabilityMiddleware(mux))
+	authenticated := authMiddleware(hardened, authenticator)
 
 	return &HTTPServer{
 		srv: &http.Server{
 			Addr:              ":" + httpPort,
-			Handler:           hardened,
+			Handler:           authenticated,
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       10 * time.Second,
 			// WriteTimeout:      15 * time.Second, // Removed to support long-lived SSE connections
@@ -134,6 +137,29 @@ func secureMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+func authMiddleware(next http.Handler, authenticator *auth.JWTAuthenticator) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip auth for /ui, /health, /metrics
+		if strings.HasPrefix(r.URL.Path, "/ui") || strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		identity, err := authenticator.Authenticate(r)
+		if err != nil {
+			if authErr, ok := err.(*auth.AuthError); ok {
+				http.Error(w, authErr.Message, authErr.Code)
+			} else {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+			}
+			return
+		}
+
+		ctx := auth.WithIdentity(r.Context(), identity)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

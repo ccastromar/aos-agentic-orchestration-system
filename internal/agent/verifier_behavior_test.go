@@ -7,9 +7,9 @@ import (
     "testing"
     "time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 // helper to wait for a stored result with timeout

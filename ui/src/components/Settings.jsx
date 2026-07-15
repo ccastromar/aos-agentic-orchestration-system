@@ -159,9 +159,38 @@ export default function Settings() {
           zIndex: 1000
         }}>
           <div className="glass-panel" style={{ width: '90%', height: '90%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between' }}>
-              <h2>Pipeline Flow: {selectedPipeline.Name}</h2>
-              <button className="btn btn-secondary" onClick={() => setSelectedPipeline(null)}>Close</button>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0 }}>Pipeline Flow: {selectedPipeline.Name}</h2>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={async () => {
+                    try {
+                      // Trigger pipeline by sending its description or name to the NLP intent matcher
+                      const reqBody = { message: `Please run: ${selectedPipeline.Description || selectedPipeline.Name}`, lang: 'en' };
+                      const res = await fetch('/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(reqBody)
+                      });
+                      if (!res.ok) throw new Error('API Error');
+                      const data = await res.json();
+                      
+                      alert(`Pipeline started! Task ID: ${data.id}. Switching to the Chat view...`);
+                      setSelectedPipeline(null);
+                      // Dispatch custom event to trigger app navigation or just alert for now.
+                      // Usually, we'd pass a prop, but a global window reload or location change works.
+                      window.location.href = `/?taskId=${data.id}`;
+                    } catch (e) {
+                      alert(`Failed to start pipeline: ${e.message}`);
+                    }
+                  }}
+                  style={{ background: 'linear-gradient(135deg, var(--secondary), #059669)' }}
+                >
+                  Run Pipeline
+                </button>
+                <button className="btn btn-secondary" onClick={() => setSelectedPipeline(null)}>Close</button>
+              </div>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <DAGVisualizer 

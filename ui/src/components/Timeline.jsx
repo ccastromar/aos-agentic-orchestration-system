@@ -79,7 +79,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
                 return `- ${shortKey}: ${JSON.stringify(v)}`;
               });
             ctxString = "Pipeline Context: \n" + filtered.join("\n");
-          } catch(e) {
+          } catch(_) {
             ctxString = lastEvent.Data;
           }
         }
@@ -214,17 +214,18 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           className="glass-card" 
           style={{ marginTop: '2rem' }}
         >
-          <h3 style={{ marginBottom: '1rem', color: status === 'error' ? '#fecaca' : '#bbf7d0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h3 style={{ marginBottom: '1rem', color: status === 'error' ? '#f87171' : 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {status === 'error' ? <><AlertTriangle size={20} /> Execution Failed</> : <><CheckCircle size={20} /> Final Result</>}
           </h3>
           <pre style={{ 
-            background: 'rgba(0,0,0,0.3)', 
-            padding: '1rem', 
-            borderRadius: 'var(--radius-sm)',
+            background: 'color-mix(in srgb, var(--bg-base) 80%, transparent)', 
+            padding: '1.25rem', 
+            borderRadius: 'var(--radius-md)',
             overflowX: 'auto',
             fontSize: '0.85rem',
             color: 'var(--text-secondary)',
-            whiteSpace: 'pre-wrap'
+            whiteSpace: 'pre-wrap',
+            border: '1px solid var(--border-light)'
           }}>
             {JSON.stringify(finalData, null, 2)}
           </pre>

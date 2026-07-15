@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 )
 
 type Agent interface {

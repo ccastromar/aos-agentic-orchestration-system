@@ -30,15 +30,22 @@ const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
   };
 
   return (
-    <div className="modal-overlay">
+    <motion.div 
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: "spring", bounce: 0.4 }}
         className="glass-panel modal-content"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', color: '#fef08a' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', color: 'var(--accent)' }}>
           <AlertTriangle size={32} />
-          <h2 style={{ color: 'white', margin: 0 }}>Human Approval Required</h2>
+          <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Human Approval Required</h2>
         </div>
         
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
@@ -47,8 +54,8 @@ const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
 
         {message && (
           <div style={{ 
-            background: 'rgba(59, 130, 246, 0.1)', 
-            borderLeft: '4px solid var(--primary)', 
+            background: 'color-mix(in srgb, var(--accent) 10%, transparent)', 
+            borderLeft: '4px solid var(--accent)', 
             padding: '1rem', 
             borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
             marginBottom: '1.5rem',
@@ -64,7 +71,7 @@ const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
           </div>
         )}
         
-        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '2rem' }}>
+        <div style={{ background: 'color-mix(in srgb, var(--bg-base) 80%, transparent)', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', border: '1px solid var(--border-light)' }}>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Task ID</div>
           <div style={{ fontFamily: 'monospace', marginBottom: '0.5rem' }}>{taskId}</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Gate Name</div>
@@ -93,7 +100,7 @@ const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 

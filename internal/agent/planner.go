@@ -4,15 +4,18 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/guard"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/guard"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type Planner struct {
@@ -279,7 +282,56 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	}
 
 	// ---------------------------------------------------------
-	// 4) Resolve pipeline
+	// 4) Extract Identity & Enforce RBAC
+	// ---------------------------------------------------------
+	var userID string
+	var userRoles []string
+	if idVal, ok := msg.Payload["identity"]; ok && idVal != nil {
+		if identity, ok := idVal.(*auth.Identity); ok {
+			userID = identity.UserID
+			userRoles = identity.Roles
+		}
+	}
+
+	var rbacDenied bool
+	if p.cfg.RBAC != nil {
+		allowed, _ := p.cfg.RBAC.IsAllowed(detectedType, userRoles)
+		if !allowed {
+			rbacDenied = true
+			logx.Warn("Planner", "[%s] RBAC denied intent '%s' for roles %v", id, detectedType, userRoles)
+		}
+	}
+
+	// Emit audit event
+	auditParams := make(map[string]interface{})
+	for k, v := range params {
+		auditParams[k] = v
+	}
+
+	auditLogger := audit.StdLogger{}
+	auditEvent := audit.Event{
+		Timestamp: time.Now(),
+		UserID:    userID,
+		Roles:     userRoles,
+		Intent:    detectedType,
+		Pipeline:  intentCfg.Pipeline,
+		Params:    auditParams,
+		TraceID:   id,
+	}
+
+	if rbacDenied {
+		auditEvent.Result = "denied"
+		auditEvent.Error = "RBAC policy denied access"
+		auditLogger.Log(auditEvent)
+		p.storeError(id, "access denied by rbac")
+		return
+	}
+
+	auditEvent.Result = "success"
+	auditLogger.Log(auditEvent)
+
+	// ---------------------------------------------------------
+	// 5) Resolve pipeline
 	// ---------------------------------------------------------
 	pipeName := intentCfg.Pipeline
 	pipe, ok := p.cfg.Pipelines[pipeName]

@@ -109,57 +109,57 @@ const ChatPanel = ({ onTaskCreated }) => {
       <div className="chat-messages">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
-            <motion.div 
-              key={msg.id} 
-              initial={{ opacity: 0, scale: 0.8, y: 20, originX: msg.sender === 'user' ? 1 : 0 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              layout
-              style={{
-                alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                background: msg.sender === 'user' ? 'linear-gradient(135deg, var(--primary), #818CF8)' : msg.isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                border: msg.sender === 'user' ? 'none' : `1px solid ${msg.isError ? 'rgba(239, 68, 68, 0.4)' : 'var(--border-light)'}`,
-                padding: '0.85rem 1.25rem',
-                borderRadius: msg.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                maxWidth: '85%',
-                fontSize: '0.95rem',
-                boxShadow: msg.sender === 'user' ? '0 4px 15px rgba(79, 70, 229, 0.3)' : '0 4px 15px rgba(0,0,0,0.1)',
-                whiteSpace: 'pre-wrap',
-                backdropFilter: 'blur(8px)',
-                color: msg.isError ? '#FCA5A5' : 'var(--text-primary)'
-              }}>
-              {msg.text}
-              {msg.taskId && (
-                <div 
-                  onClick={() => onTaskCreated(msg.taskId)}
-                  style={{
-                    marginTop: '0.75rem',
-                    padding: '0.5rem 0.75rem',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    transition: 'all var(--transition-fast)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                    e.currentTarget.style.borderColor = 'var(--primary)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                  }}
-                >
-                  <span style={{ fontWeight: '600', color: '#A5B4FC' }}>Task ID:</span> 
-                  <span style={{ fontFamily: 'monospace' }}>{msg.taskId.substring(0,8)}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.8 }}>View Timeline ➔</span>
-                </div>
-              )}
-            </motion.div>
+              <motion.div 
+                key={msg.id} 
+                initial={{ opacity: 0, scale: 0.8, y: 20, originX: msg.sender === 'user' ? 1 : 0 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                layout
+                style={{
+                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                  background: msg.sender === 'user' ? 'linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, white))' : msg.isError ? 'color-mix(in srgb, #ef4444 15%, transparent)' : 'color-mix(in srgb, var(--bg-surface) 60%, transparent)',
+                  border: msg.sender === 'user' ? 'none' : `1px solid ${msg.isError ? 'color-mix(in srgb, #ef4444 40%, transparent)' : 'var(--border-light)'}`,
+                  padding: '0.85rem 1.25rem',
+                  borderRadius: msg.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                  maxWidth: '85%',
+                  fontSize: '0.95rem',
+                  boxShadow: msg.sender === 'user' ? '0 4px 15px var(--primary-glow)' : '0 4px 15px rgba(0,0,0,0.1)',
+                  whiteSpace: 'pre-wrap',
+                  backdropFilter: 'blur(12px)',
+                  color: msg.isError ? '#FCA5A5' : 'var(--text-primary)'
+                }}>
+                {msg.text}
+                {msg.taskId && (
+                  <div 
+                    onClick={() => onTaskCreated(msg.taskId)}
+                    style={{
+                      marginTop: '0.75rem',
+                      padding: '0.5rem 0.75rem',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      border: '1px solid var(--border-light)',
+                      transition: 'all var(--transition-fast)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 10%, transparent)';
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = 'var(--border-light)';
+                    }}
+                  >
+                    <span style={{ fontWeight: '600', color: 'var(--primary)' }}>Task ID:</span> 
+                    <span style={{ fontFamily: 'monospace' }}>{msg.taskId.substring(0,8)}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.8 }}>View Timeline ➔</span>
+                  </div>
+                )}
+              </motion.div>
           ))}
         </AnimatePresence>
         <div ref={messagesEndRef} />

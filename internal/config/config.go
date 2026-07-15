@@ -5,7 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/rbac"
 	"gopkg.in/yaml.v3"
 )
 
@@ -68,6 +69,7 @@ type Config struct {
 	Pipelines map[string]Pipeline
 	Intents   map[string]Intent
 	Plugins   map[string]Plugin
+	RBAC      *rbac.Config
 }
 
 func LoadFromDir(base string) (*Config, error) {
@@ -89,6 +91,19 @@ func LoadFromDir(base string) (*Config, error) {
 	}
 	if err := loadIntentsDir(filepath.Join(base, "intents"), cfg); err != nil {
 		return nil, err
+	}
+
+	rbacPath := filepath.Join(base, "rbac", "permissions.yaml")
+	if rbacCfg, err := rbac.LoadConfig(rbacPath); err == nil {
+		cfg.RBAC = rbacCfg
+		logx.Info("Config", "Loaded RBAC from %s", rbacPath)
+	} else if !os.IsNotExist(err) {
+		logx.Error("Config", "Failed to load RBAC: %v", err)
+	} else {
+		// Provide default config if file is missing
+		cfg.RBAC = &rbac.Config{
+			Defaults: rbac.Defaults{UnknownIntent: "deny"},
+		}
 	}
 
 	return cfg, nil

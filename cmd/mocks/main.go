@@ -4,14 +4,14 @@ import (
 	"log"
 	"net/http"
 
-	mockBanking "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/banking"
-	mockCRM "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/crm"
-	mockCustomerSupport "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/customer-support"
-	mockDevops "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/devops"
-	mockHelpdesk "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/helpdesk"
-	mockHumanResources "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/human-resources"
-	mockLogistics "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/logistics"
-	mockOpenAPI "github.com/ccastromar/aos-agent-orchestration-system/internal/mocks/openapi"
+	mockBanking "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/banking"
+	mockCRM "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/crm"
+	mockCustomerSupport "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/customer-support"
+	mockDevops "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/devops"
+	mockHelpdesk "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/helpdesk"
+	mockHumanResources "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/human-resources"
+	mockLogistics "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/logistics"
+	mockOpenAPI "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/openapi"
 )
 
 var listenAndServe = http.ListenAndServe

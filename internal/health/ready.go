@@ -3,7 +3,7 @@ package health
 import (
 	"net/http"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/runtime"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
 )
 
 func ReadyHandler(rt *runtime.Runtime) http.HandlerFunc {

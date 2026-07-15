@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type Analyst struct {

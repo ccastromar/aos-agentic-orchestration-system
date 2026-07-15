@@ -1,4 +1,20 @@
 permissions:
+  banking.transfer:
+    - admin
+  banking.get_balance:
+    - admin
+  intent_dag_demo:
+    - admin
+  incident.resolve_outage:
+    - admin
+  intent_openapi_demo:
+    - admin
+  intent_rag_test:
+    - admin
+  intent_react_demo:
+    - admin
+  intent_resiliency_demo:
+    - admin
   economic.transfer:
     - admin
     - finance

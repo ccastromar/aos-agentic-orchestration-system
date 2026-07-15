@@ -5,8 +5,8 @@ import (
     "testing"
     "time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 )
 
 // llmNewTaskDummy causes DetectIntent to return a key not present in cfg

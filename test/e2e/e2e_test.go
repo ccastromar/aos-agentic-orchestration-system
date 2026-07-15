@@ -12,8 +12,13 @@ import (
     "testing"
     "time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/app"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 )
+
+func init() {
+    tools.SkipSSRF = true
+}
 
 // chdirToRepoRoot ensures relative paths like "definitions/..." resolve during tests.
 func chdirToRepoRoot(t *testing.T) {

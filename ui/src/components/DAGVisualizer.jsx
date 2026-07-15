@@ -38,7 +38,28 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   return { nodes, edges };
 };
 
-const nodeTypes = {};
+import { Handle, Position } from 'reactflow';
+
+const CustomNode = ({ data, isConnectable }) => {
+  return (
+    <div className="custom-node" style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} style={{ opacity: 0 }} />
+      <div style={{ padding: '0px', textAlign: 'center', width: '100%', wordBreak: 'break-word' }}>
+        {data.label}
+      </div>
+      
+      {data.with_params && Object.keys(data.with_params).length > 0 && (
+        <div className="node-tooltip">
+          <strong>Parameters:</strong>
+          <pre>{JSON.stringify(data.with_params, null, 2)}</pre>
+        </div>
+      )}
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} style={{ opacity: 0 }} />
+    </div>
+  );
+};
+
+const nodeTypes = { custom: CustomNode };
 const edgeTypes = {};
 
 export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mode = 'dag' }) {
@@ -53,8 +74,8 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
       
       // Determine status from taskEvents
       let status = 'pending';
-      let backgroundColor = 'rgba(255,255,255,0.05)';
-      let borderColor = 'rgba(255,255,255,0.1)';
+      let backgroundColor = 'color-mix(in srgb, var(--bg-surface) 60%, transparent)';
+      let borderColor = 'var(--border-light)';
       
       // Check events to see if tool executed
       const toolOkEvent = taskEvents.find(e => e.action === `tool ${step.tool}` && e.status === 'ok');
@@ -67,29 +88,31 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
 
       if (toolErrorEvent) {
         status = 'error';
-        backgroundColor = 'rgba(239, 68, 68, 0.2)';
-        borderColor = '#ef4444';
+        backgroundColor = 'color-mix(in srgb, #ef4444 20%, transparent)';
+        borderColor = 'color-mix(in srgb, #ef4444 60%, transparent)';
       } else if (toolOkEvent || (step.analyst && analystSummaryEvent) || isApproved) {
         status = 'success';
-        backgroundColor = 'rgba(16, 185, 129, 0.2)';
-        borderColor = '#10b981';
+        backgroundColor = 'color-mix(in srgb, var(--secondary) 20%, transparent)';
+        borderColor = 'color-mix(in srgb, var(--secondary) 60%, transparent)';
       } else if (awaitHumanEvent && !isApproved) {
         status = 'paused';
-        backgroundColor = 'rgba(245, 158, 11, 0.2)';
-        borderColor = '#f59e0b';
+        backgroundColor = 'color-mix(in srgb, var(--accent) 20%, transparent)';
+        borderColor = 'color-mix(in srgb, var(--accent) 60%, transparent)';
       }
       
       nodes.push({
         id,
-        data: { label: label },
+        type: 'custom',
+        data: { label: label, with_params: step.with_params },
         className: `dag-node status-${status} ${step.human_approval ? 'is-gate' : ''}`,
         style: {
           background: backgroundColor,
-          color: '#fff',
+          color: 'var(--text-primary)',
           border: `1px solid ${borderColor}`,
-          borderRadius: '8px',
+          borderRadius: 'var(--radius-sm)',
           padding: '10px',
-          fontSize: '12px'
+          fontSize: '12px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
         }
       });
       
@@ -119,7 +142,7 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
     });
     
     return getLayoutedElements(nodes, edges, 'TB');
-  }, [pipelineSteps, taskEvents]);
+  }, [pipelineSteps, taskEvents, mode]);
   
   return (
     <div style={{ position: 'relative', height: '350px', width: '100%', border: '1px solid var(--border-light)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-glass)' }}>

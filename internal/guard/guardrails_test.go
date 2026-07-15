@@ -3,7 +3,7 @@ package guard
 import (
     "testing"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/config"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 )
 
 func TestValidateIntentPermissions_DangerousNotAllowed(t *testing.T) {

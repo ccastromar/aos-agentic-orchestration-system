@@ -3,10 +3,10 @@ package agent
 import (
 	"context"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type Inspector struct {
@@ -94,6 +94,9 @@ func (i *Inspector) dispatch(msg bus.Message) {
 		}
 		if params, ok := msg.Payload["params"].(map[string]any); ok && params != nil {
 			payloadMap["params"] = params
+		}
+		if identity, ok := msg.Payload["identity"]; ok && identity != nil {
+			payloadMap["identity"] = identity
 		}
 		//send the message to the planner to detect intent
 		i.bus.Send("planner", bus.Message{

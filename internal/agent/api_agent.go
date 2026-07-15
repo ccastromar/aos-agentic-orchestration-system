@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/auth"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type APIAgent struct {
@@ -223,6 +223,7 @@ type askRequest struct {
 	Operation string         `json:"operation,omitempty"`
 	Params    map[string]any `json:"params,omitempty"`
 	Message   string         `json:"message"`
+	Async     bool           `json:"async,omitempty"`
 }
 
 type askResponse struct {
@@ -272,25 +273,8 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	// Auth check (optional)
-	//if !a.checkAuth(r) {
-	//	w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
-	//	http.Error(w, "unauthorized", http.StatusUnauthorized)
-	//	return
-	//}
-	// Chain auth only if we have authenticators configured
-	if len(a.authChain.Authenticators) > 0 {
-		identity, err := a.authChain.Authenticate(r)
-		if err != nil {
-			if ae, ok := err.(*auth.AuthError); ok {
-				http.Error(w, ae.Message, ae.Code)
-			} else {
-				http.Error(w, "auth failed", http.StatusUnauthorized)
-			}
-			return
-		}
-		r = r.WithContext(auth.WithIdentity(r.Context(), identity))
-	}
+	// Extract Identity from context (populated by AuthMiddleware)
+	identity, _ := auth.IdentityFromContext(r.Context())
 
 	// Rate limit
 	if err := a.acquireRL(getClientKey(r)); err != nil {
@@ -350,6 +334,7 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 			"mode":       "structured",
 			"message":    req.Message,
 			"lang":       req.Lang,
+			"identity":   identity,
 		},
 	})
 
@@ -369,12 +354,8 @@ func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auth check
-	if !a.checkAuth(r) {
-		w.Header().Set("WWW-Authenticate", "Bearer, X-API-Key")
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	// Extract Identity from context (populated by AuthMiddleware)
+	identity, _ := auth.IdentityFromContext(r.Context())
 	// Rate limit
 	if err := a.acquireRL(getClientKey(r)); err != nil {
 		http.Error(w, "too many requests", http.StatusTooManyRequests)
@@ -412,8 +393,18 @@ func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 			"mode":      "structured",
 			"operation": req.Operation,
 			"params":    req.Params,
+			"identity":  identity,
 		},
 	})
+
+	if req.Async {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(askResponse{
+			ID:     id,
+			Status: "processing",
+		})
+		return
+	}
 
 	res := waitForResult(id, 30*time.Second)
 

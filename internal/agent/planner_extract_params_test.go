@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/llm"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
 	"github.com/stretchr/testify/require"
 )
 

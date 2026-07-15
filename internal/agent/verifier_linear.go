@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/engine"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/tools"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/engine"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 )
 
 // executeLinear runs the pipeline steps in strict sequential order.
@@ -164,6 +164,11 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				Err:    fmt.Sprintf("tool error: %v", err),
 			})
 			return
+		}
+
+		// Inject executed flag to satisfy Analyst prompt rules
+		if _, exists := out["executed"]; !exists {
+			out["executed"] = true
 		}
 
 		stepResults[toolName] = out

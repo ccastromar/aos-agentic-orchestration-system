@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/app"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
 	"github.com/stretchr/testify/assert"
 )
 

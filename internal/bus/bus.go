@@ -1,6 +1,6 @@
 package bus
 
-import "github.com/ccastromar/aos-agent-orchestration-system/internal/metrics"
+import "github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 
 type Message struct {
     Type    string

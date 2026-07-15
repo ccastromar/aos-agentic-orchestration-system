@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/metrics"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 )
 
 type OllamaClient struct {

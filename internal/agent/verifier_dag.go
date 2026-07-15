@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/config"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/engine"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/logx"
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/engine"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 )
 
 type dagNode struct {
@@ -261,6 +261,9 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 				n.Status = "failed"
 			} else {
 				if out != nil {
+					if _, exists := out["executed"]; !exists {
+						out["executed"] = true
+					}
 					out["_executedAt"] = time.Now().Format(time.RFC3339)
 				}
 				stepResults[n.Step.Tool] = out

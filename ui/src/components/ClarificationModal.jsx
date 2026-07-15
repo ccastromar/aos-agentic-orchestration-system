@@ -31,15 +31,22 @@ const ClarificationModal = ({ taskId, missingParamsMessage, onResolved }) => {
   };
 
   return (
-    <div className="modal-overlay">
+    <motion.div 
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: "spring", bounce: 0.4 }}
         className="glass-panel modal-content"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', color: '#60a5fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', color: 'var(--primary)' }}>
           <HelpCircle size={32} />
-          <h2 style={{ color: 'white', margin: 0 }}>Clarification Needed</h2>
+          <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Clarification Needed</h2>
         </div>
         
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
@@ -47,7 +54,7 @@ const ClarificationModal = ({ taskId, missingParamsMessage, onResolved }) => {
         </p>
 
         <div style={{ 
-          background: 'rgba(59, 130, 246, 0.1)', 
+          background: 'color-mix(in srgb, var(--primary) 10%, transparent)', 
           borderLeft: '4px solid var(--primary)', 
           padding: '1rem', 
           borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
@@ -79,7 +86,7 @@ const ClarificationModal = ({ taskId, missingParamsMessage, onResolved }) => {
           </button>
         </form>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 

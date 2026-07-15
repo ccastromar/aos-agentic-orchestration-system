@@ -5,7 +5,7 @@ import (
     "testing"
     "time"
 
-    "github.com/ccastromar/aos-agent-orchestration-system/internal/bus"
+    "github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 )
 
 func TestInspector_NewTask_ForwardsToPlanner(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/app"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
 )
 
 func TestE2E_ClarificationFlow(t *testing.T) {
@@ -124,6 +124,7 @@ func TestE2E_ClarificationFlow(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, httpSrv.URL+"/ask", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-Key", "e2e-key")
+	req.Header.Set("Authorization", "Bearer e2e-key")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

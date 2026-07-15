@@ -1,16 +1,17 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/ccastromar/aos-agent-orchestration-system/internal/app"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestE2EDAG(t *testing.T) {
@@ -61,7 +62,12 @@ func TestE2EDAG(t *testing.T) {
 	// Supongamos que añadimos un intent_dag_demo en definitions/intents
 	// Pero mejor lo enviamos directamente por operation
 	reqBody := `{"operation": "intent_dag_demo", "lang": "es", "params": {"amount": "100", "source": "A", "target": "B"}}`
-	resp, err := http.Post(ts.URL+"/ask_structured", "application/json", strings.NewReader(reqBody))
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/ask_structured", bytes.NewReader([]byte(reqBody)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer e2e-key")
+
+	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 

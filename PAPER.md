@@ -6,7 +6,7 @@
 
 ## **Abstract**
 
-AOS (Augmented Orchestration System) is a lightweight orchestration framework that enables natural-language control of deterministic workflows.
+AOS (Agentic Orchestration System) is a lightweight orchestration framework that enables natural-language control of deterministic workflows.
 Instead of relying on Large Language Models (LLMs) to execute business logic directly, AOS delegates LLMs only for *semantic interpretation and summarization*, while actual logic execution is handled by domain-specific agents and declarative pipelines.
 
 This architecture provides transparency, determinism, safety, and extensibility—key virtues typically missing in fully-LLM-driven “agentic” systems.
