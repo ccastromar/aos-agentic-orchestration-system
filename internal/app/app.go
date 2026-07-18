@@ -17,14 +17,13 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type App struct {
 	cfg    *config.Config
 	env    *config.EnvVars
 	bus    *bus.Bus
-	ui     *ui.UIStore
+	eventBus *bus.Bus
 	agents []agent.Agent
 	llm    llm.LLMClient
 	http   *HTTPServer
@@ -50,7 +49,6 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		return nil, err
 	}
 
-	uiStore := ui.NewUIStore(nil)
 	messageBus := bus.New()
 
 	var stateStore state.StateStore
@@ -101,13 +99,12 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	}
 
 	// Creates all agents
-	apiAgent := agent.NewAPIAgent(messageBus, env, uiStore, cfg)
-	inspector := agent.NewInspector(messageBus, uiStore)
-	planner := agent.NewPlanner(messageBus, cfg, llmClient, uiStore, stateManager)
-	verifier := agent.NewVerifier(messageBus, cfg, llmClient, uiStore, stateManager)
-	analyst := agent.NewAnalyst(messageBus, llmClient, uiStore, stateManager)
+	apiAgent := agent.NewAPIAgent(messageBus, env, messageBus, cfg, stateManager)
+	inspector := agent.NewInspector(messageBus, messageBus)
+	planner := agent.NewPlanner(messageBus, cfg, llmClient, messageBus, stateManager)
+	verifier := agent.NewVerifier(messageBus, cfg, llmClient, messageBus, stateManager)
+	analyst := agent.NewAnalyst(messageBus, llmClient, messageBus, stateManager)
 
-	uiStore.SetDispatcher(apiAgent)
 
 	messageBus.Subscribe("api", apiAgent.Inbox())
 	messageBus.Subscribe("inspector", inspector.Inbox())
@@ -119,12 +116,11 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		cfg:    cfg,
 		env:    env,
 		bus:    messageBus,
-		ui:     uiStore,
 		agents: []agent.Agent{apiAgent, inspector, planner, verifier, analyst},
 		llm:    llmClient,
 	}
 
-	httpServer := NewHTTPServer(app, apiAgent, uiStore, r)
+	httpServer := NewHTTPServer(app, apiAgent, messageBus, r)
 	app.http = httpServer
 
 	return app, nil

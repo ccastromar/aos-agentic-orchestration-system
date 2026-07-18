@@ -10,6 +10,8 @@ intents:
     pipeline: pipeline_restart_service
     required_params:
       - serviceName
+    examples:
+      - "Restart the billing service"
     allow_dangerous: true
 
   - type: devops.deploy_service

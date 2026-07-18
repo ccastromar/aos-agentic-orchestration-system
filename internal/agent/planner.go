@@ -15,7 +15,6 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type Planner struct {
@@ -24,7 +23,7 @@ type Planner struct {
 	inbox        chan bus.Message
 	llmClient    llm.LLMClient
 	llmMutex     sync.RWMutex
-	uiStore      *ui.UIStore
+	eventBus *bus.Bus
 	stateManager *state.StateManager
 }
 
@@ -40,7 +39,7 @@ func (p *Planner) getLLMClient() llm.LLMClient {
 	return p.llmClient
 }
 
-func NewPlanner(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, ui *ui.UIStore, smOpt ...*state.StateManager) *Planner {
+func NewPlanner(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, eventBus *bus.Bus, smOpt ...*state.StateManager) *Planner {
 	var sm *state.StateManager
 	if len(smOpt) > 0 {
 		sm = smOpt[0]
@@ -53,7 +52,7 @@ func NewPlanner(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, ui *ui.
 		cfg:          cfg,
 		inbox:        make(chan bus.Message, 16),
 		llmClient:    llmClient,
-		uiStore:      ui,
+		eventBus: eventBus,
 		stateManager: sm,
 	}
 }
@@ -204,8 +203,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		if err != nil {
 			logx.Error("Planner", "[%s] ERROR detecting intent/params: %v", id, err)
 			// uiStore might be nil in unit tests; guard to avoid panic so we can store the error
-			if p.uiStore != nil {
-				p.uiStore.AddEvent(
+			if p.eventBus != nil {
+				p.eventBus.PublishEvent(
 					id,
 					"Planner",
 					"failed",
@@ -221,8 +220,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		if len(di.Errors) > 0 {
 			logx.Info("Planner", "[%s] missing params: %v", id, di.Errors)
 
-			if p.uiStore != nil {
-				p.uiStore.AddEvent(
+			if p.eventBus != nil {
+				p.eventBus.PublishEvent(
 					id,
 					"Planner",
 					"await_clarification",
@@ -356,7 +355,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// 6) Log + UI event
 	// ---------------------------------------------------------
 	logx.Info("Planner", "id=%s intent=%s pipeline=%s params=%v", id, detectedType, pipeName, params)
-	p.uiStore.AddEvent(id, "Planner", "intent", detectedType, "")
+	p.eventBus.PublishEvent(id, "Planner", "intent", detectedType, "")
 
 	// ---------------------------------------------------------
 	// 7) Dispatch pipeline to Verifier
@@ -382,6 +381,18 @@ func (p *Planner) storeError(id string, errMsg string) {
 		Status: "error",
 		Err:    errMsg,
 	})
+	
+	taskCtx, _ := GetTaskContext(id)
+	if taskCtx != nil && p.stateManager != nil {
+		st, err := p.stateManager.Load(taskCtx, id)
+		if err == nil {
+			if st == nil {
+				st = &state.ExecutionState{ID: id}
+			}
+			st.Error = errMsg
+			_ = p.stateManager.Save(taskCtx, st)
+		}
+	}
 }
 
 func (p *Planner) handleClarifyIntent(msg bus.Message) {
@@ -443,8 +454,8 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 		st.MissingParams = missing
 		_ = p.stateManager.Save(taskCtx, st)
 
-		if p.uiStore != nil {
-			p.uiStore.AddEvent(id, "Planner", "await_clarification", strings.Join(missing, ", "), "")
+		if p.eventBus != nil {
+			p.eventBus.PublishEvent(id, "Planner", "await_clarification", strings.Join(missing, ", "), "")
 		}
 		p.bus.Send("api", bus.Message{
 			Type: "await_human",
@@ -467,7 +478,7 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 		return
 	}
 
-	p.uiStore.AddEvent(id, "Planner", "intent", st.Intent, "")
+	p.eventBus.PublishEvent(id, "Planner", "intent", st.Intent, "")
 	p.bus.Send("verifier", bus.Message{
 		Type: "run_pipeline",
 		Payload: map[string]any{

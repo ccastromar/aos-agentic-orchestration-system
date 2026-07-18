@@ -12,7 +12,6 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 )
 
@@ -22,7 +21,7 @@ type Verifier struct {
 	llmClient    llm.LLMClient
 	llmMutex     sync.RWMutex
 	inbox        chan bus.Message
-	uiStore      *ui.UIStore
+	eventBus *bus.Bus
 	stateManager *state.StateManager
 }
 
@@ -38,7 +37,7 @@ func (v *Verifier) getLLMClient() llm.LLMClient {
 	return v.llmClient
 }
 
-func NewVerifier(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, ui *ui.UIStore, smOpt ...*state.StateManager) *Verifier {
+func NewVerifier(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, eventBus *bus.Bus, smOpt ...*state.StateManager) *Verifier {
 	var sm *state.StateManager
 	if len(smOpt) > 0 && smOpt[0] != nil {
 		sm = smOpt[0]
@@ -52,7 +51,7 @@ func NewVerifier(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, ui *ui
 		cfg:          cfg,
 		llmClient:    llmClient,
 		inbox:        make(chan bus.Message, 16),
-		uiStore:      ui,
+		eventBus: eventBus,
 		stateManager: sm,
 	}
 }
@@ -257,8 +256,8 @@ func (v *Verifier) storeError(id, errMsg string) {
 		Err:    errMsg,
 	})
 
-	if v.uiStore != nil {
-		v.uiStore.AddEvent(id, "Verifier", "error", errMsg, "")
+	if v.eventBus != nil {
+		v.eventBus.PublishEvent(id, "Verifier", "error", errMsg, "")
 	}
 }
 

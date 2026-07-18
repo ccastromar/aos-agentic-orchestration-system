@@ -82,8 +82,14 @@ func TestE2E_AskForBalance(t *testing.T) {
 
     srv9000 := &http.Server{Addr: "localhost:9000", Handler: mux9000}
     go func() {
-        // Ignore error on close
-        _ = srv9000.ListenAndServe()
+        if err := srv9000.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            panic(err)
+        }
+    }()
+    defer func() {
+        ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+        defer cancel()
+        _ = srv9000.Shutdown(ctx)
     }()
     // Wait until the mock backend is ready to accept connections to avoid race conditions
     {

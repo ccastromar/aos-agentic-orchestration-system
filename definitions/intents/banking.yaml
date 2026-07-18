@@ -5,6 +5,8 @@ intents:
     pipeline: pipeline_get_balance
     required_params:
       - accountId
+    examples:
+      - "What is the balance of my savings account?"
     allow_dangerous: false
     requires_amount: false
     requires_phone: false
@@ -25,6 +27,8 @@ intents:
     pipeline: pipeline_get_movements
     required_params:
       - accountId
+      - from
+      - to
     allow_dangerous: false
     requires_amount: false
     requires_phone: false
@@ -40,6 +44,7 @@ intents:
       - fromPhone
       - toPhone
       - concept
+      - userId
     allow_dangerous: true
     requires_amount: true       # amount
     requires_phone: true        # toPhone
@@ -56,6 +61,11 @@ intents:
       - fromAccount
       - toAccount
       - concept
+      - userId
+      - fromPhone
+      - toPhone
+    examples:
+      - "Transfer 200 euros to Alice for dinner"
     allow_dangerous: true
     requires_amount: true
     requires_currency: true
@@ -72,6 +82,9 @@ intents:
       - fromAddress
       - toAddress
       - concept
+      - userId
+      - fromPhone
+      - toPhone
     allow_dangerous: true
     requires_amount: true       # amount
     requires_address: true        # toPhone

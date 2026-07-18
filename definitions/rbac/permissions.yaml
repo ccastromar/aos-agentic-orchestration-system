@@ -1,11 +1,104 @@
+defaults:
+  unknown_intent: deny
+
 permissions:
-  banking.transfer:
-    - admin
+  # Banking
   banking.get_balance:
     - admin
-  intent_dag_demo:
+    - finance
+    - user
+    - guest
+  banking.get_credit_card_balance:
     - admin
+    - finance
+    - user
+  banking.get_movements:
+    - admin
+    - finance
+    - user
+  banking.send_bizum:
+    - admin
+    - user
+  banking.transfer:
+    - admin
+    - finance
+    - user
+  banking.send_bitcoin:
+    - admin
+    - finance
+    - user
+  economic.transfer:
+    - admin
+    - finance
+
+  # CRM & Sales
+  crm.get_customer_profile:
+    - admin
+    - sales
+  crm.get_customer_interactions:
+    - admin
+    - sales
+  crm.update_lead_status:
+    - admin
+    - sales
+  crm.update_customer:
+    - admin
+    - sales
+
+  # Customer Support & Helpdesk
+  customer-support.return_product:
+    - admin
+    - support
+    - user
+  support.create_ticket:
+    - admin
+    - support
+    - user
+    - guest
+  support.check_ticket_status:
+    - admin
+    - support
+    - user
+    - guest
+  support.append_ticket_note:
+    - admin
+    - support
+    - user
+  support.close_ticket:
+    - admin
+    - support
+
+  # DevOps & Incident Management
+  devops.get_service_status:
+    - admin
+    - sre
+  devops.restart_service:
+    - admin
+    - sre
+  devops.deploy_service:
+    - admin
+    - sre
+  devops.tail_logs:
+    - admin
+    - sre
   incident.resolve_outage:
+    - admin
+    - sre
+
+  # Human Resources
+  human-resources.vacation:
+    - admin
+    - hr
+    - user
+
+  # Logistics
+  logistics.get_shipment_status:
+    - admin
+    - operations
+    - user
+
+  # Demos & Internal
+  intent_dag_demo:
     - admin
   intent_openapi_demo:
     - admin
@@ -15,20 +108,3 @@ permissions:
     - admin
   intent_resiliency_demo:
     - admin
-  economic.transfer:
-    - admin
-    - finance
-
-  devops.restart_service:
-    - sre
-
-  crm.update_customer:
-    - sales
-    - admin
-
-  helpdesk.create_ticket:
-    - support
-    - admin
-
-defaults:
-  unknown_intent: "deny"

@@ -39,3 +39,15 @@ func (m *MemoryStore) Delete(ctx context.Context, key string) error {
 	delete(m.data, key)
 	return nil
 }
+
+func (m *MemoryStore) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var keys []string
+	for k := range m.data {
+		if prefix == "" || len(k) >= len(prefix) && k[:len(prefix)] == prefix {
+			keys = append(keys, k)
+		}
+	}
+	return keys, nil
+}

@@ -34,3 +34,16 @@ func (r *RedisStore) Set(ctx context.Context, key string, val string, ttl time.D
 func (r *RedisStore) Delete(ctx context.Context, key string) error {
 	return r.rdb.Del(ctx, key).Err()
 }
+
+func (r *RedisStore) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	// For production, SCAN is preferred over KEYS
+	var keys []string
+	iter := r.rdb.Scan(ctx, 0, prefix+"*", 0).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}

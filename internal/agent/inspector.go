@@ -6,26 +6,25 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 type Inspector struct {
     bus     *bus.Bus
     inbox   chan bus.Message
-    uiStore *ui.UIStore
+    eventBus *bus.Bus
 }
 
-func NewInspector(b *bus.Bus, uiOpt ...*ui.UIStore) *Inspector {
-    var uiStore *ui.UIStore
+func NewInspector(b *bus.Bus, uiOpt ...*bus.Bus) *Inspector {
+    var eventBus *bus.Bus
     if len(uiOpt) > 0 && uiOpt[0] != nil {
-        uiStore = uiOpt[0]
+        eventBus = uiOpt[0]
     } else {
-        uiStore = ui.NewUIStore()
+        eventBus = bus.New()
     }
     return &Inspector{
         bus:     b,
         inbox:   make(chan bus.Message, 16),
-        uiStore: uiStore,
+        eventBus: eventBus,
     }
 }
 
@@ -67,7 +66,7 @@ func (i *Inspector) dispatch(msg bus.Message) {
 			logx.Error("Inspector", "invalid payload: missing id")
 			return
 		}
-		i.uiStore.AddEvent(id, "Inspector", "started", "Pipeline started", "")
+		i.eventBus.PublishEvent(id, "Inspector", "started", "Pipeline started", "")
 
 		lang, ok := payload.GetString(msg.Payload, "lang")
 		if !ok {

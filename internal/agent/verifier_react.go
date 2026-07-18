@@ -53,7 +53,7 @@ func executeReAct(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, 
 			return
 		}
 
-		v.uiStore.AddEvent(id, "Verifier", "ReAct Thought", step.Thought, "")
+		v.eventBus.PublishEvent(id, "Verifier", "ReAct Thought", step.Thought, "")
 		
 		if step.Action == "FINISH" {
 			// Done
@@ -113,7 +113,7 @@ func executeReAct(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, 
 				return
 			}
 			
-			v.uiStore.AddEvent(id, "Verifier", "await_human", pipelineStep.HumanGate, "")
+			v.eventBus.PublishEvent(id, "Verifier", "await_human", pipelineStep.HumanGate, "")
 
 			v.bus.Send("api", bus.Message{
 				Type: "await_human",
@@ -145,7 +145,7 @@ func executeReAct(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, 
 		} else {
 			outBytes, _ := json.Marshal(out)
 			step.Observation = string(outBytes)
-			v.uiStore.AddEvent(id, "Verifier", "tool "+step.Action, "ok", "")
+			v.eventBus.PublishEvent(id, "Verifier", "tool "+step.Action, "ok", "")
 			stepResults[step.Action] = out
 		}
 

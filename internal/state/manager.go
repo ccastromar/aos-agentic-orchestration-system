@@ -35,6 +35,7 @@ type ExecutionState struct {
 	StepResults   map[string]any    `json:"step_results,omitempty"`
 	ReActHistory  []ReActStep       `json:"react_history,omitempty"`
 	Gate          string            `json:"gate"` // "clarification", "human_approval", etc.
+	Error         string            `json:"error,omitempty"`
 	CreatedAt     time.Time         `json:"created_at"`
 }
 
@@ -42,6 +43,7 @@ type StateStore interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key string, val string, ttl time.Duration) error
 	Delete(ctx context.Context, key string) error
+	ListKeys(ctx context.Context, prefix string) ([]string, error)
 }
 
 type StateManager struct {
@@ -100,11 +102,11 @@ func (m *StateManager) Save(ctx context.Context, st *ExecutionState) error {
 	if err != nil {
 		return err
 	}
-	return m.store.Set(ctx, st.ID, string(b), 0)
+	return m.store.Set(ctx, "task:"+st.ID, string(b), 0)
 }
 
 func (m *StateManager) Load(ctx context.Context, id string) (*ExecutionState, error) {
-	val, err := m.store.Get(ctx, id)
+	val, err := m.store.Get(ctx, "task:"+id)
 	if err != nil {
 		return nil, err
 	}
@@ -119,5 +121,34 @@ func (m *StateManager) Load(ctx context.Context, id string) (*ExecutionState, er
 }
 
 func (m *StateManager) Delete(ctx context.Context, id string) error {
-	return m.store.Delete(ctx, id)
+	return m.store.Delete(ctx, "task:"+id)
+}
+
+func (m *StateManager) ListExecutionStates(ctx context.Context) ([]*ExecutionState, error) {
+	keys, err := m.store.ListKeys(ctx, "task:")
+	if err != nil {
+		return nil, err
+	}
+
+	var states []*ExecutionState
+	for _, key := range keys {
+		val, err := m.store.Get(ctx, key)
+		if err != nil || val == "" {
+			continue
+		}
+		var st ExecutionState
+		if err := json.Unmarshal([]byte(val), &st); err == nil {
+			states = append(states, &st)
+		}
+	}
+
+	for i := 0; i < len(states); i++ {
+		for j := i + 1; j < len(states); j++ {
+			if states[i].CreatedAt.Before(states[j].CreatedAt) {
+				states[i], states[j] = states[j], states[i]
+			}
+		}
+	}
+
+	return states, nil
 }

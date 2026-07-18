@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,7 +18,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 )
 
 type HTTPServer struct {
@@ -35,14 +36,10 @@ func SetHTTPPort(p string) {
 	httpPort = p
 }
 
-func NewHTTPServer(a *App, apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *runtime.Runtime) *HTTPServer {
+func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runtime.Runtime) *HTTPServer {
 	mux := http.NewServeMux()
 
 	apiAgent.RegisterHTTP(mux)
-	mux.HandleFunc("/ui", uiStore.HandleIndex)
-	mux.HandleFunc("/ui/task", uiStore.HandleTask)
-	mux.HandleFunc("/ui/ask", uiStore.HandleAsk)
-	mux.HandleFunc("/ui/task/events", uiStore.HandleTaskStream)
 	
 	// Settings and Pipelines routes
 	mux.HandleFunc("/ui/pipelines", a.HandlePipelines)
@@ -52,21 +49,48 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, uiStore *ui.UIStore, rt *ru
 	mux.HandleFunc("/health/ready", health.ReadyHandler(rt))
 	// Expose Prometheus metrics
 	mux.HandleFunc("/metrics", metrics.ServeHTTP)
-	mux.Handle("/static/",
-		http.StripPrefix("/static/",
-			http.FileServer(http.Dir("web/static")),
-		),
-	)
+	mux.HandleFunc("/api/v1/events/stream", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		ch := make(chan bus.Message)
+		eventBus.Subscribe("system_events", ch)
+		defer eventBus.Unsubscribe("system_events", ch)
+
+		ctx := r.Context()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-ch:
+				data, err := json.Marshal(msg)
+				if err != nil {
+					continue
+				}
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+			}
+		}
+	})
 
 	// Wrap with security and observability middleware
 	authenticator := auth.NewJWTAuthenticator(auth.JWTConfig{})
-	hardened := secureMiddleware(observabilityMiddleware(mux))
-	authenticated := authMiddleware(hardened, authenticator)
+	authenticated := authMiddleware(mux, authenticator)
+	hardened := secureMiddleware(observabilityMiddleware(authenticated))
+	corsHandler := corsMiddleware(hardened)
 
 	return &HTTPServer{
 		srv: &http.Server{
 			Addr:              ":" + httpPort,
-			Handler:           authenticated,
+			Handler:           corsHandler,
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       10 * time.Second,
 			// WriteTimeout:      15 * time.Second, // Removed to support long-lived SSE connections
@@ -139,6 +163,23 @@ func secureMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// corsMiddleware handles CORS preflight requests and headers
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Mock-Role")
+		
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 
 func authMiddleware(next http.Handler, authenticator *auth.JWTAuthenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

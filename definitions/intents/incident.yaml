@@ -1,8 +1,14 @@
 intents:
   - type: incident.resolve_outage
-    description: "Diagnose and resolve a service outage reported by a customer"
+    description: "Resolves an ongoing outage."
     pipeline: pipeline_incident_response
     allow_dangerous: true
     required_params:
       - customerId
       - serviceName
+      - ticketId
+      - reason
+      - lines
+      - subject
+      - description
+      - priority

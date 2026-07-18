@@ -34,7 +34,8 @@ func TestE2E_HumanGateResume(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "risk_level": "low", "balance": 5000})
 	})
 	srv9000 := &http.Server{Addr: "localhost:9000", Handler: mux9000}
-	go func() { _ = srv9000.ListenAndServe() }()
+	go func() { err := srv9000.ListenAndServe(); if err != nil && err != http.ErrServerClosed { panic(err) } }()
+	defer srv9000.Close()
 
 	client := &http.Client{Timeout: 100 * time.Millisecond}
 	ready := false

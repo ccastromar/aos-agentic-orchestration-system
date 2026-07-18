@@ -27,7 +27,8 @@ func TestE2E_IncidentResponse(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "status": "ok", "message": "mocked"})
 	})
 	srv9000 := &http.Server{Addr: "localhost:9000", Handler: mux9000}
-	go func() { _ = srv9000.ListenAndServe() }()
+	go func() { err := srv9000.ListenAndServe(); if err != nil && err != http.ErrServerClosed { panic(err) } }()
+	defer srv9000.Close()
 
 	client := &http.Client{Timeout: 100 * time.Millisecond}
 	ready := false

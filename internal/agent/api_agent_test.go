@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAPIAgent_HandleAsk_AsyncAndTaskFetch(t *testing.T) {
 	// Setup dependencies
 	messageBus := bus.New()
-	uiStore := ui.NewUIStore()
+	uiStore := bus.New()
 	apiAgent := NewAPIAgent(messageBus, uiStore)
 
 	// Subscribe to inspector channel to intercept the message

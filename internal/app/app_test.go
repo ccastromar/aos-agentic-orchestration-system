@@ -52,8 +52,8 @@ func TestNew_ConstructsApp(t *testing.T) {
     if err != nil {
         t.Fatalf("New() returned error: %v", err)
     }
-    if a.cfg == nil || a.bus == nil || a.ui == nil || a.llm == nil || a.http == nil {
-        t.Fatalf("expected non-nil components: cfg=%v bus=%v ui=%v llm=%v http=%v", a.cfg, a.bus, a.ui, a.llm, a.http)
+    if a.cfg == nil || a.bus == nil || a.llm == nil || a.http == nil {
+        t.Fatalf("expected non-nil components: cfg=%v bus=%v llm=%v http=%v", a.cfg, a.bus, a.llm, a.http)
     }
     if len(a.agents) == 0 {
         t.Fatalf("expected at least one agent to be registered")

@@ -9,7 +9,6 @@ import (
 
     "github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
     "github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
-    "github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 // helper to wait for a stored result with timeout
@@ -51,7 +50,7 @@ func TestVerifier_RunPipeline_SendsToAnalyst(t *testing.T) {
     }
 
     b := bus.New()
-    v := NewVerifier(b, cfg, nil, ui.NewUIStore())
+    v := NewVerifier(b, cfg, nil, bus.New())
 
     // Capture message sent to analyst
     analystCh := make(chan bus.Message, 1)
@@ -89,7 +88,7 @@ func TestVerifier_MissingTool_StoresError(t *testing.T) {
     pipe := config.Pipeline{Name: "p2", Steps: []config.PipelineStep{{Tool: "nonexistent"}}}
 
     b := bus.New()
-    v := NewVerifier(b, cfg, nil, ui.NewUIStore())
+    v := NewVerifier(b, cfg, nil, bus.New())
 
     id := "id-err"
     v.dispatch(bus.Message{

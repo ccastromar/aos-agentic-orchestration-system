@@ -29,10 +29,14 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 		if os.Getenv("JWT_SECRET") == "" {
+			mockRole := r.Header.Get("X-Mock-Role")
+			if mockRole == "" {
+				mockRole = "admin"
+			}
 			return &Identity{
 				UserID: "demo-user",
 				Email:  "demo@example.com",
-				Roles:  []string{"admin"},
+				Roles:  []string{mockRole},
 				Source: "mock",
 			}, nil
 		}

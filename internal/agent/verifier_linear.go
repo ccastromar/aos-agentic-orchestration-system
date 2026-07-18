@@ -103,7 +103,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				return
 			}
 
-			v.uiStore.AddEvent(id, "Verifier", "await_human", step.HumanGate, "")
+			v.eventBus.PublishEvent(id, "Verifier", "await_human", step.HumanGate, "")
 
 			v.bus.Send("api", bus.Message{
 				Type: "await_human",
@@ -134,8 +134,8 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				}
 			}
 			stepResults[toolName] = map[string]any{"status": "saved"}
-			if v.uiStore != nil {
-				v.uiStore.AddEvent(id, "Verifier", "tool "+toolName, "ok", "")
+			if v.eventBus != nil {
+				v.eventBus.PublishEvent(id, "Verifier", "tool "+toolName, "ok", "")
 			}
 			continue
 		}
@@ -172,7 +172,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 		}
 
 		stepResults[toolName] = out
-		v.uiStore.AddEvent(id, "Verifier", "tool "+toolName, "ok", "")
+		v.eventBus.PublishEvent(id, "Verifier", "tool "+toolName, "ok", "")
 		for k, val := range out {
 			ctx.Vars[toolName+"."+k] = val
 		}

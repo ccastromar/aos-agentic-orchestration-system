@@ -56,11 +56,21 @@ func sanitizeLLMOutput(raw string) string {
 		raw = strings.TrimSpace(m[1])
 	}
 
-	// General fallback: extract the first {...} JSON object
+	// General fallback: extract the first {...} JSON object properly using bracket matching
 	start := strings.Index(raw, "{")
-	end := strings.LastIndex(raw, "}")
-	if start >= 0 && end > start {
-		raw = raw[start : end+1]
+	if start >= 0 {
+		depth := 0
+		for i := start; i < len(raw); i++ {
+			if raw[i] == '{' {
+				depth++
+			} else if raw[i] == '}' {
+				depth--
+				if depth == 0 {
+					raw = raw[start : i+1]
+					break
+				}
+			}
+		}
 	}
 
 	return strings.TrimSpace(raw)

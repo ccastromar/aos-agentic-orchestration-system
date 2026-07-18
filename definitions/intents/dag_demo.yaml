@@ -7,3 +7,11 @@ intents:
       - amount
       - source
       - target
+      - userId
+      - accountId
+      - fromAccount
+      - toAccount
+      - currency
+      - concept
+      - fromPhone
+      - toPhone

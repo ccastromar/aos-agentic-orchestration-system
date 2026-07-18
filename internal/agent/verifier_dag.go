@@ -70,7 +70,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 
 	importJSON, err := json.Marshal(pipe.Steps)
 	if err == nil {
-		v.uiStore.AddEvent(id, "Verifier", "dag_structure", string(importJSON), "")
+		v.eventBus.PublishEvent(id, "Verifier", "dag_structure", string(importJSON), "")
 	}
 
 	var wg sync.WaitGroup
@@ -169,8 +169,8 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 				if err != nil {
 					logx.Error("Verifier", "failed to marshal ctx.Vars: %v", err)
 				}
-				if v.uiStore != nil {
-					v.uiStore.AddEventWithData(id, "Verifier", "await_human", n.Step.HumanGate, "", string(contextBytes))
+				if v.eventBus != nil {
+					v.eventBus.PublishEventWithData(id, "Verifier", "await_human", n.Step.HumanGate, "", string(contextBytes))
 				}
 				if v.bus != nil {
 					v.bus.Send("api", bus.Message{
@@ -222,8 +222,8 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					}
 				}
 				stepResults[n.Step.Tool] = map[string]any{"status": "saved"}
-				if v.uiStore != nil {
-					v.uiStore.AddEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
+				if v.eventBus != nil {
+					v.eventBus.PublishEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
 				}
 				n.Status = "success"
 				mu.Unlock()
@@ -267,7 +267,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					out["_executedAt"] = time.Now().Format(time.RFC3339)
 				}
 				stepResults[n.Step.Tool] = out
-				v.uiStore.AddEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
+				v.eventBus.PublishEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
 				for k, val := range out {
 					ctx.Vars[n.Step.Tool+"."+k] = val
 				}

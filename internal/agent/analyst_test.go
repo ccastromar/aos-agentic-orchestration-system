@@ -8,7 +8,6 @@ import (
 
     "github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
     "github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
-    "github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
 )
 
 // fakeLLM implements llm.LLMClient for testing Analyst
@@ -28,7 +27,7 @@ var _ llm.LLMClient = (*fakeLLM)(nil)
 
 func TestAnalyst_HandleSummarize_InvalidRawStoresError(t *testing.T) {
     b := bus.New()
-    uiStore := ui.NewUIStore()
+    uiStore := bus.New()
     a := NewAnalyst(b, &fakeLLM{}, uiStore, state.NewStateManager(state.NewMemoryStore()))
 
     id := "task-analyst-1"
@@ -61,7 +60,7 @@ func TestAnalyst_HandleSummarize_InvalidRawStoresError(t *testing.T) {
 
 func TestAnalyst_HandleSummarize_LLMError_DegradesToRaw(t *testing.T) {
     b := bus.New()
-    uiStore := ui.NewUIStore()
+    uiStore := bus.New()
     a := NewAnalyst(b, &fakeLLM{err: errors.New("down")}, uiStore, state.NewStateManager(state.NewMemoryStore()))
 
     id := "task-analyst-2"
@@ -100,7 +99,7 @@ func TestAnalyst_HandleSummarize_LLMError_DegradesToRaw(t *testing.T) {
 
 func TestAnalyst_HandleSummarize_SuccessStoresSummary(t *testing.T) {
     b := bus.New()
-    uiStore := ui.NewUIStore()
+    uiStore := bus.New()
     sm := state.NewStateManager(state.NewMemoryStore())
     a := NewAnalyst(b, &fakeLLM{out: "Resumen breve"}, uiStore, sm)
 

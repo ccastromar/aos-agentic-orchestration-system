@@ -16,14 +16,15 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/ui"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 )
 
 type APIAgent struct {
 	bus     *bus.Bus
 	cfg     *config.Config
+	state   *state.StateManager
 	inbox   chan bus.Message
-	uiStore *ui.UIStore // <-- nuevo
+	eventBus *bus.Bus // <-- nuevo
 	// minimal auth and rate limiting
 	apiKey    string
 	authChain *auth.Chain
@@ -37,33 +38,37 @@ type APIAgent struct {
 }
 
 // NewAPIAgent creates the API agent. Backward-compatible signature:
-// - NewAPIAgent(b, env, uiStore, cfg)
+// - NewAPIAgent(b, env, uiStore, cfg, stateManager)
 // - NewAPIAgent(b, uiStore)
 func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 	var (
 		env *config.EnvVars
-		uiS *ui.UIStore
+		uiS *bus.Bus
 		cfg *config.Config
+		sm  *state.StateManager
 	)
 	for _, arg := range args {
 		switch v := arg.(type) {
 		case *config.EnvVars:
 			env = v
-		case *ui.UIStore:
+		case *bus.Bus:
 			uiS = v
 		case *config.Config:
 			cfg = v
+		case *state.StateManager:
+			sm = v
 		}
 	}
 	if uiS == nil {
-		uiS = ui.NewUIStore()
+		uiS = bus.New()
 	}
 
 	a := &APIAgent{
 		bus:     b,
 		cfg:     cfg,
+		state:   sm,
 		inbox:   make(chan bus.Message, 16),
-		uiStore: uiS,
+		eventBus: uiS,
 		apiKey:  strings.TrimSpace(os.Getenv("API_KEY")),
 	}
 
@@ -206,7 +211,7 @@ func (a *APIAgent) dispatch(msg bus.Message) {
 			return
 		}
 		logx.Info("API", "task %s awaiting human review [%s]", id, gate)
-		// Verifier already emitted the await_human event with context vars to uiStore.
+		// Verifier already emitted the await_human event with context vars to eventBus.
 		// We do not emit it again here to avoid overwriting the context.
 
 		// If sync request is waiting, release it
@@ -233,7 +238,7 @@ type askResponse struct {
 	Error  string      `json:"error,omitempty"`
 }
 
-// RegisterHTTP registra endpoints HTTP
+// RegisterHTTP adds routes for this agent's API
 func (a *APIAgent) RegisterHTTP(mux *http.ServeMux) {
 	mux.HandleFunc("/ask", a.handleAsk)             // async NLP-like mode (message)
 	mux.HandleFunc("/ask_structured", a.handleAsk2) // sync: operation + params
@@ -242,6 +247,7 @@ func (a *APIAgent) RegisterHTTP(mux *http.ServeMux) {
 	mux.HandleFunc("/task/reject", a.handleHumanReject)
 	mux.HandleFunc("/task/reply", a.handleClarifyReply)
 	mux.HandleFunc("/intents", a.handleIntents)
+	mux.HandleFunc("/api/v1/tasks", a.HandleListTasks)
 }
 
 func (a *APIAgent) handleIntents(w http.ResponseWriter, r *http.Request) {
@@ -253,13 +259,19 @@ func (a *APIAgent) handleIntents(w http.ResponseWriter, r *http.Request) {
 	type IntentExample struct {
 		Type        string `json:"type"`
 		Description string `json:"description"`
+		Example     string `json:"example,omitempty"`
 	}
 	var examples []IntentExample
 
 	for _, it := range a.cfg.Intents {
+		ex := ""
+		if len(it.Examples) > 0 {
+			ex = it.Examples[0]
+		}
 		examples = append(examples, IntentExample{
 			Type:        it.Type,
 			Description: it.Description,
+			Example:     ex,
 		})
 	}
 
@@ -320,7 +332,7 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	id := randomID()
 
 	logx.Info("Api", "new request lang=%s session=%s id=%s message='%s'", req.Lang, req.SessionID, id, req.Message)
-	a.uiStore.AddEvent(id, "Api", "request", req.Message, "")
+	a.eventBus.PublishEvent(id, "Api", "request", req.Message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
 	logx.Debug("Api", "Created NEW TaskContext for %s", id)
@@ -345,6 +357,27 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		"session_id": req.SessionID,
 		"status":     "accepted",
 	})
+}
+
+// HandleListTasks returns a list of execution states (historical tasks)
+func (a *APIAgent) HandleListTasks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	states, err := a.state.ListExecutionStates(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Optionally trim large fields like ReActHistory if the list gets too large
+	// but for now we can just return the states directly.
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(states); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // /ask → operation + params
@@ -460,6 +493,47 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fallback to StateManager for historical tasks
+	if a.state != nil {
+		st, err := a.state.Load(r.Context(), id)
+		if err == nil && st != nil {
+			status := "pending"
+			var finalData any
+			var errStr string
+
+			if st.Error != "" {
+				status = "error"
+				errStr = st.Error
+			} else if len(st.StepResults) > 0 {
+				status = "success"
+				finalData = st.StepResults
+			} else if st.Gate != "" {
+				status = "await_" + st.Gate
+				if st.Gate == "clarification" {
+					status = "await_clarification"
+				} else {
+					status = "await_human"
+				}
+			} else if len(st.CompletedSteps) > 0 {
+				// Fallback for older tasks that didn't save StepResults
+				status = "success"
+				finalData = map[string]any{"info": "Task completed (no step results saved)"}
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":              id,
+				"status":          status,
+				"data":            finalData,
+				"error":           errStr,
+				"react_history":   st.ReActHistory,
+				"completed_steps": st.CompletedSteps,
+				"pipeline":        st.Pipeline,
+			})
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id":     id,
@@ -471,7 +545,7 @@ func (a *APIAgent) handleHumanApprove(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	gate := r.URL.Query().Get("gate")
 
-	a.uiStore.AddEvent(id, "UI", "human_decision", "approved", gate)
+	a.eventBus.PublishEvent(id, "UI", "human_decision", "approved", gate)
 
 	a.bus.Send("verifier", bus.Message{
 		Type: "human_decision",
@@ -490,7 +564,7 @@ func (a *APIAgent) handleHumanReject(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	gate := r.URL.Query().Get("gate")
 
-	a.uiStore.AddEvent(id, "UI", "human_decision", "rejected", gate)
+	a.eventBus.PublishEvent(id, "UI", "human_decision", "rejected", gate)
 
 	a.bus.Send("verifier", bus.Message{
 		Type: "human_decision",
@@ -513,7 +587,7 @@ func (a *APIAgent) DispatchAskInternal(message string, lang string) (string, err
 	id := randomID()
 
 	logx.Info("Api", "internal UI request id=%s message='%s'", id, message)
-	a.uiStore.AddEvent(id, "UI", "request", message, "")
+	a.eventBus.PublishEvent(id, "UI", "request", message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
 
@@ -565,7 +639,7 @@ func (a *APIAgent) handleClarifyReply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logx.Info("Api", "clarification reply for id=%s message='%s'", id, req.Message)
-	a.uiStore.AddEvent(id, "Api", "reply", req.Message, "")
+	a.eventBus.PublishEvent(id, "Api", "reply", req.Message, "")
 
 	a.bus.Send("planner", bus.Message{
 		Type: "clarify_intent",
