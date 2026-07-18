@@ -1,20 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const AOS_BACKEND_URL = process.env.AOS_BACKEND_URL || 'http://localhost:8080';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/auth': 'http://localhost:8080',
-      '/ask': 'http://localhost:8080',
-      '/task': 'http://localhost:8080',
-      '/api': 'http://localhost:8080',
-      '/human_approve': 'http://localhost:8080',
-      '/human_reject': 'http://localhost:8080',
-      '/intents': 'http://localhost:8080',
-      '/ui/pipelines': 'http://localhost:8080',
-      '/ui/settings': 'http://localhost:8080',
+      '/auth': AOS_BACKEND_URL,
+      '/ask': AOS_BACKEND_URL,
+      '/task': AOS_BACKEND_URL,
+      '/api': AOS_BACKEND_URL,
+      '/human_approve': AOS_BACKEND_URL,
+      '/human_reject': AOS_BACKEND_URL,
+      '/intents': AOS_BACKEND_URL,
+      '/ui/pipelines': AOS_BACKEND_URL,
+      '/ui/settings': AOS_BACKEND_URL,
     }
   }
 })
