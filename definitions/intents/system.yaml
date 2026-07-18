@@ -1,0 +1,13 @@
+intents:
+  - type: system.recall_history
+    description: "Answer questions about what the user has already done in this session: executed operations, their results and outcomes"
+    pipeline: pipeline_recall_history
+    examples:
+      - "What operations have I done today?"
+      - "¿Qué operaciones he hecho hoy?"
+      - "¿Qué me devolvió la última consulta?"
+      - "What was the result of my previous request?"
+      - "Resume lo que hemos hecho en esta sesión"
+    allow_dangerous: false
+    requires_amount: false
+    requires_phone: false

@@ -140,6 +140,15 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 			continue
 		}
 
+		if toolName == "system.recall" {
+			logx.Info("Verifier", "executing internal tool=%s id=%s", toolName, id)
+			stepResults[toolName] = buildRecallResult(context.Background(), v.stateManager, sessionID, id)
+			if v.eventBus != nil {
+				v.eventBus.PublishEvent(id, "Verifier", "tool "+toolName, "ok", "")
+			}
+			continue
+		}
+
 		t, ok := v.cfg.Tools[toolName]
 		if !ok {
 			storeResult(id, Result{

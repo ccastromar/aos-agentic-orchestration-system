@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"fmt"
@@ -168,9 +169,11 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 		}
 	}
 
-	// Vector Memory (Long-Term Storage)
+	// Vector Memory (Long-Term Storage). System intents (recall, etc.) are
+	// meta-operations: remembering them would pollute memory with copies of
+	// what it already contains.
 	sessionID, _ := payload.GetString(msg.Payload, "session_id")
-	if sessionID != "" {
+	if sessionID != "" && !strings.HasPrefix(intentType, "system.") {
 		if vs := a.stateManager.Vector(); vs != nil && a.getLLMClient() != nil {
 			facts := extractFacts(raw)
 			textToEmbed := fmt.Sprintf("Intent: %s\nPipeline: %s\nAction Summary: %s", intentType, pipelineName, summary)

@@ -108,3 +108,15 @@ permissions:
     - admin
   intent_resiliency_demo:
     - admin
+
+  # System (session-scoped, read-only)
+  system.recall_history:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest

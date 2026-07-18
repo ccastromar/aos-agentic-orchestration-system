@@ -1,0 +1,7 @@
+pipelines:
+  - name: pipeline_recall_history
+    mode: linear
+    description: "Recall the recent operations executed in this session and summarize them"
+    steps:
+      - tool: system.recall
+      - analyst: true

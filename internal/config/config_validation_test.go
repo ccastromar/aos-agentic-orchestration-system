@@ -57,7 +57,10 @@ func TestYAMLDefinitionsIntegrity(t *testing.T) {
 					if step.Tool == "" {
 						continue // It might be an analyst step or human gate
 					}
-					
+					if strings.HasPrefix(step.Tool, "system.") {
+						continue // Internal tools are handled by the Verifier, not the tools registry
+					}
+
 					tl, ok := toolsMap[step.Tool]
 					if !ok {
 						t.Errorf("Pipeline %s (Step %d) references non-existent tool: %s", pipeline.Name, i, step.Tool)
@@ -72,7 +75,10 @@ func TestYAMLDefinitionsIntegrity(t *testing.T) {
 					if step.Tool == "" {
 						continue
 					}
-					
+					if strings.HasPrefix(step.Tool, "system.") {
+						continue // Internal tools are handled by the Verifier, not the tools registry
+					}
+
 					tl, ok := toolsMap[step.Tool]
 					if !ok {
 						t.Errorf("DAG Pipeline %s references non-existent tool: %s", pipeline.Name, step.Tool)
