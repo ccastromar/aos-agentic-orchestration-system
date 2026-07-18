@@ -183,8 +183,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler, authenticator *auth.JWTAuthenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for /ui, /health, /metrics
-		if strings.HasPrefix(r.URL.Path, "/ui") || strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" {
+		// Skip auth for /ui, /health, /metrics and the login endpoint itself
+		if strings.HasPrefix(r.URL.Path, "/ui") || strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" || r.URL.Path == "/auth/login" {
 			next.ServeHTTP(w, r)
 			return
 		}

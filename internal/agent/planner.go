@@ -142,6 +142,17 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	var detectedType string
 	var params map[string]string
 
+	// Identity travels with the task from the APIAgent; extract it up front so
+	// clarification saves and RBAC both see the same user.
+	var userID string
+	var userRoles []string
+	if idVal, ok := msg.Payload["identity"]; ok && idVal != nil {
+		if identity, ok := idVal.(*auth.Identity); ok {
+			userID = identity.UserID
+			userRoles = identity.Roles
+		}
+	}
+
 	// ---------------------------------------------------------
 	// 1) STRUCTURED PATH (operation provided)
 	// ---------------------------------------------------------
@@ -233,6 +244,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			st := &state.ExecutionState{
 				ID:            id,
 				SessionID:     sessionID,
+				UserID:        userID,
 				Intent:        di.Type,
 				Params:        di.Params,
 				MissingParams: di.Errors,
@@ -281,17 +293,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	}
 
 	// ---------------------------------------------------------
-	// 4) Extract Identity & Enforce RBAC
+	// 4) Enforce RBAC (identity extracted at the top)
 	// ---------------------------------------------------------
-	var userID string
-	var userRoles []string
-	if idVal, ok := msg.Payload["identity"]; ok && idVal != nil {
-		if identity, ok := idVal.(*auth.Identity); ok {
-			userID = identity.UserID
-			userRoles = identity.Roles
-		}
-	}
-
 	var rbacDenied bool
 	if p.cfg.RBAC != nil {
 		allowed, _ := p.cfg.RBAC.IsAllowed(detectedType, userRoles)
@@ -361,6 +364,20 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// 7) Dispatch pipeline to Verifier
 	// ---------------------------------------------------------
 	timer2 := logx.Start(id, "Planner", "DispatchPipeline")
+
+	// Persist the execution before dispatching so it is visible (with its
+	// user) from the start; the Analyst completes it with the final results.
+	if p.stateManager != nil {
+		_ = p.stateManager.Save(taskCtx, &state.ExecutionState{
+			ID:        id,
+			SessionID: sessionID,
+			UserID:    userID,
+			Intent:    detectedType,
+			Pipeline:  pipeName,
+			Params:    params,
+		})
+	}
+
 	p.bus.Send("verifier", bus.Message{
 		Type: "run_pipeline",
 		Payload: map[string]any{

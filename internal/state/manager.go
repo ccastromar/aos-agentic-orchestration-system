@@ -27,6 +27,7 @@ type ReActStep struct {
 type ExecutionState struct {
 	ID            string            `json:"id"`
 	SessionID     string            `json:"session_id"`
+	UserID        string            `json:"user_id,omitempty"`
 	Intent        string            `json:"intent"`
 	Pipeline      string            `json:"pipeline"`
 	CompletedSteps []string          `json:"completed_steps,omitempty"` // IDs of completed steps

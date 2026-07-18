@@ -143,7 +143,13 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 
 		if toolName == "system.recall" {
 			logx.Info("Verifier", "executing internal tool=%s id=%s", toolName, id)
-			stepResults[toolName] = buildRecallResult(context.Background(), v.stateManager, sessionID, id)
+			// The Planner persists the execution (with its user) before
+			// dispatching, so the state loaded at the top carries the UserID.
+			recallUserID := ""
+			if execState != nil {
+				recallUserID = execState.UserID
+			}
+			stepResults[toolName] = buildRecallResult(context.Background(), v.stateManager, recallUserID, sessionID, id)
 			if v.eventBus != nil {
 				v.eventBus.PublishEvent(id, "Verifier", "tool "+toolName, "ok", "")
 			}

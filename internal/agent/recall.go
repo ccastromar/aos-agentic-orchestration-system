@@ -12,11 +12,12 @@ import (
 // when answering a recall question.
 const maxRecallExecutions = 10
 
-// buildRecallResult collects the recent executions of a session so the
-// Analyst can answer questions like "what have I done today?". The current
-// execution (the recall pipeline itself) is excluded. Executions come back
-// newest first.
-func buildRecallResult(ctx context.Context, sm *state.StateManager, sessionID, currentID string) map[string]any {
+// buildRecallResult collects the recent executions so the Analyst can answer
+// questions like "what have I done today?". When userID is known the scope is
+// the user (across sessions); otherwise it falls back to the session. The
+// current execution (the recall pipeline itself) is excluded. Executions come
+// back newest first.
+func buildRecallResult(ctx context.Context, sm *state.StateManager, userID, sessionID, currentID string) map[string]any {
 	executions := []map[string]any{}
 	if sm == nil {
 		return map[string]any{"executions": executions, "count": 0}
@@ -28,7 +29,14 @@ func buildRecallResult(ctx context.Context, sm *state.StateManager, sessionID, c
 	}
 
 	for _, st := range states {
-		if st.SessionID != sessionID || st.ID == currentID {
+		if userID != "" {
+			if st.UserID != userID {
+				continue
+			}
+		} else if st.SessionID != sessionID {
+			continue
+		}
+		if st.ID == currentID {
 			continue
 		}
 		// System intents (past recalls, preference saves) are meta-operations,
@@ -39,6 +47,7 @@ func buildRecallResult(ctx context.Context, sm *state.StateManager, sessionID, c
 		record := map[string]any{
 			"intent":     st.Intent,
 			"pipeline":   st.Pipeline,
+			"session_id": st.SessionID,
 			"created_at": st.CreatedAt.Format(time.RFC3339),
 		}
 		// _pipeline holds the Analyst wrap-up; the rest are per-tool results

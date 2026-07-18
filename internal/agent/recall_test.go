@@ -41,7 +41,7 @@ func TestBuildRecallResult_FiltersSessionAndExcludesCurrent(t *testing.T) {
 	// A past recall in the same session must also be excluded (system.* filter)
 	seedExecution(t, sm, "ex-old-recall", "sess-A", "system.recall_history", "pipeline_recall_history", now.Add(-30*time.Minute), nil)
 
-	res := buildRecallResult(context.Background(), sm, "sess-A", "ex-current")
+	res := buildRecallResult(context.Background(), sm, "", "sess-A", "ex-current")
 
 	if res["count"] != 2 {
 		t.Fatalf("expected 2 executions, got %v: %#v", res["count"], res)
@@ -67,18 +67,51 @@ func TestBuildRecallResult_FiltersSessionAndExcludesCurrent(t *testing.T) {
 	}
 }
 
+func TestBuildRecallResult_UserScopeCrossesSessions(t *testing.T) {
+	sm := state.NewStateManager(state.NewMemoryStore())
+	now := time.Now()
+
+	save := func(id, session, user, intent string, age time.Duration) {
+		t.Helper()
+		if err := sm.Save(context.Background(), &state.ExecutionState{
+			ID: id, SessionID: session, UserID: user, Intent: intent, Pipeline: "p", CreatedAt: now.Add(-age),
+		}); err != nil {
+			t.Fatalf("seeding %s: %v", id, err)
+		}
+	}
+	save("u1-s1", "sess-1", "carlos", "banking.get_balance", 2*time.Hour)
+	save("u1-s2", "sess-2", "carlos", "helpdesk.create_ticket", 1*time.Hour)
+	save("u2-s3", "sess-3", "ana", "crm.get_customer_profile", 30*time.Minute)
+
+	// User scope: both of carlos' executions, across different sessions
+	res := buildRecallResult(context.Background(), sm, "carlos", "sess-2", "none")
+	if res["count"] != 2 {
+		t.Fatalf("expected 2 executions for user scope, got %v", res["count"])
+	}
+	execs := res["executions"].([]map[string]any)
+	if execs[0]["intent"] != "helpdesk.create_ticket" || execs[1]["intent"] != "banking.get_balance" {
+		t.Fatalf("unexpected user-scoped results: %#v", execs)
+	}
+
+	// No user: falls back to session scope
+	res = buildRecallResult(context.Background(), sm, "", "sess-1", "none")
+	if res["count"] != 1 {
+		t.Fatalf("expected 1 execution for session fallback, got %v", res["count"])
+	}
+}
+
 func TestBuildRecallResult_CapsAndNilManager(t *testing.T) {
 	sm := state.NewStateManager(state.NewMemoryStore())
 	now := time.Now()
 	for i := 0; i < maxRecallExecutions+5; i++ {
 		seedExecution(t, sm, "ex-"+string(rune('a'+i)), "sess-C", "x", "p", now.Add(time.Duration(-i)*time.Minute), nil)
 	}
-	res := buildRecallResult(context.Background(), sm, "sess-C", "none")
+	res := buildRecallResult(context.Background(), sm, "", "sess-C", "none")
 	if res["count"] != maxRecallExecutions {
 		t.Fatalf("expected cap at %d, got %v", maxRecallExecutions, res["count"])
 	}
 
-	nilRes := buildRecallResult(context.Background(), nil, "sess-C", "none")
+	nilRes := buildRecallResult(context.Background(), nil, "", "sess-C", "none")
 	if nilRes["count"] != 0 {
 		t.Fatalf("expected 0 for nil manager, got %v", nilRes["count"])
 	}
@@ -115,7 +148,7 @@ func TestAnalyst_HandleSummarize_CreatesMissingExecutionState(t *testing.T) {
 	}
 
 	// And recall must now see it
-	res := buildRecallResult(context.Background(), sm, "sess-happy", "other-id")
+	res := buildRecallResult(context.Background(), sm, "", "sess-happy", "other-id")
 	if res["count"] != 1 {
 		t.Fatalf("expected recall to see the created state, got %v", res["count"])
 	}

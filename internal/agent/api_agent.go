@@ -106,6 +106,47 @@ func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 // Max request size for POST /ask to protect the server (1MB)
 const maxAskBodyBytes int64 = 1 << 20
 
+// handleLogin issues a development JWT. Credentials are NOT validated yet:
+// this is a stub to exercise user-scoped flows until authentication is
+// delegated to Keycloak (AOS_JWK_URL / AOS_JWT_ISSUER). The optional roles
+// field is honored for local RBAC testing only.
+func (a *APIAgent) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Username string   `json:"username"`
+		Password string   `json:"password"` // ignored by the dev stub
+		Roles    []string `json:"roles,omitempty"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
+		http.Error(w, "username is required", http.StatusBadRequest)
+		return
+	}
+
+	const ttl = 8 * time.Hour
+	token, err := auth.IssueToken(req.Username, req.Roles, ttl)
+	if err != nil {
+		http.Error(w, "cannot issue token", http.StatusInternalServerError)
+		return
+	}
+
+	roles := req.Roles
+	if len(roles) == 0 {
+		roles = []string{"user"}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"token":      token,
+		"token_type": "Bearer",
+		"user_id":    req.Username,
+		"roles":      roles,
+		"expires_in": int(ttl.Seconds()),
+	})
+}
+
 // rateBucket tracks hits in a fixed window
 type rateBucket struct {
 	start time.Time
@@ -240,6 +281,7 @@ type askResponse struct {
 
 // RegisterHTTP adds routes for this agent's API
 func (a *APIAgent) RegisterHTTP(mux *http.ServeMux) {
+	mux.HandleFunc("/auth/login", a.handleLogin)    // dev login: issues a JWT (no credential validation yet)
 	mux.HandleFunc("/ask", a.handleAsk)             // async NLP-like mode (message)
 	mux.HandleFunc("/ask_structured", a.handleAsk2) // sync: operation + params
 	mux.HandleFunc("/task", a.handleTask)           // fetch task status/result

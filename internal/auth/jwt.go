@@ -79,10 +79,26 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	}, nil
 }
 
-// verifyAndParseJWT validates the JWT signature and extracts claims.
+// verifyAndParseJWT validates the JWT signature and extracts claims. Tokens
+// are verified against JWT_SECRET, or the dev secret when it is unset (so
+// /auth/login tokens work locally without configuration). In dev mode an
+// unverifiable token still degrades to the legacy mock identity.
 func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{}, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the signing method is HMAC
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return signingSecret(), nil
+	})
+
+	if err == nil && token.Valid {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			return claims, nil
+		}
+	}
+
+	if os.Getenv("JWT_SECRET") == "" {
 		// Mock fallback for local dev if no secret is configured
 		return map[string]interface{}{
 			"sub":   "demo-user",
@@ -92,21 +108,8 @@ func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{
 		}, nil
 	}
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the signing method is HMAC
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(secret), nil
-	})
-
 	if err != nil {
 		return nil, err
 	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims, nil
-	}
-
 	return nil, fmt.Errorf("invalid token")
 }
