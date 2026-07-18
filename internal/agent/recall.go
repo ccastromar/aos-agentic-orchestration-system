@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
@@ -28,6 +29,11 @@ func buildRecallResult(ctx context.Context, sm *state.StateManager, sessionID, c
 
 	for _, st := range states {
 		if st.SessionID != sessionID || st.ID == currentID {
+			continue
+		}
+		// System intents (past recalls, preference saves) are meta-operations,
+		// not something the user "did".
+		if strings.HasPrefix(st.Intent, "system.") {
 			continue
 		}
 		record := map[string]any{

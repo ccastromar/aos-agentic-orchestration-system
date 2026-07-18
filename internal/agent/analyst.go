@@ -153,10 +153,25 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	a.eventBus.PublishEvent(id, "Analyst", "completed", "Pipeline completed", "")
 
 	// Update persistent state with final results
-	var pipelineName string
+	sessionID, _ := payload.GetString(msg.Payload, "session_id")
+	pipelineName, _ := payload.GetString(msg.Payload, "pipeline")
 	if a.stateManager != nil {
 		st, err := a.stateManager.Load(taskCtx, id)
-		if err == nil && st != nil {
+		if err == nil {
+			if st == nil {
+				// Happy-path executions never hit a gate, so no state was
+				// persisted during the run; create it here or the execution
+				// stays invisible to recall.
+				st = &state.ExecutionState{
+					ID:        id,
+					SessionID: sessionID,
+					Intent:    intentType,
+					Pipeline:  pipelineName,
+				}
+			}
+			if st.Pipeline == "" {
+				st.Pipeline = pipelineName
+			}
 			pipelineName = st.Pipeline
 			if st.StepResults == nil {
 				st.StepResults = make(map[string]any)
@@ -172,7 +187,6 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	// Vector Memory (Long-Term Storage). System intents (recall, etc.) are
 	// meta-operations: remembering them would pollute memory with copies of
 	// what it already contains.
-	sessionID, _ := payload.GetString(msg.Payload, "session_id")
 	if sessionID != "" && !strings.HasPrefix(intentType, "system.") {
 		if vs := a.stateManager.Vector(); vs != nil && a.getLLMClient() != nil {
 			facts := extractFacts(raw)

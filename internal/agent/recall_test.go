@@ -38,6 +38,8 @@ func TestBuildRecallResult_FiltersSessionAndExcludesCurrent(t *testing.T) {
 	})
 	seedExecution(t, sm, "ex-other", "sess-B", "crm.get_customer_profile", "pipeline_crm", now, nil)
 	seedExecution(t, sm, "ex-current", "sess-A", "system.recall_history", "pipeline_recall_history", now, nil)
+	// A past recall in the same session must also be excluded (system.* filter)
+	seedExecution(t, sm, "ex-old-recall", "sess-A", "system.recall_history", "pipeline_recall_history", now.Add(-30*time.Minute), nil)
 
 	res := buildRecallResult(context.Background(), sm, "sess-A", "ex-current")
 
@@ -79,6 +81,43 @@ func TestBuildRecallResult_CapsAndNilManager(t *testing.T) {
 	nilRes := buildRecallResult(context.Background(), nil, "sess-C", "none")
 	if nilRes["count"] != 0 {
 		t.Fatalf("expected 0 for nil manager, got %v", nilRes["count"])
+	}
+}
+
+func TestAnalyst_HandleSummarize_CreatesMissingExecutionState(t *testing.T) {
+	sm := state.NewStateManager(state.NewMemoryStore())
+	a := NewAnalyst(bus.New(), &fakeLLM{out: "resumen"}, bus.New(), sm)
+
+	id := "task-no-prior-state"
+	a.dispatch(bus.Message{
+		Type: "summarize",
+		Payload: map[string]any{
+			"id":         id,
+			"intent":     "helpdesk.create_ticket",
+			"pipeline":   "pipeline_support_create",
+			"session_id": "sess-happy",
+			"rawResult":  map[string]any{"create_ticket": map[string]any{"ticketId": "T-9"}},
+		},
+	})
+
+	st, err := sm.Load(context.Background(), id)
+	if err != nil || st == nil {
+		t.Fatalf("expected execution state to be created, got st=%v err=%v", st, err)
+	}
+	if st.SessionID != "sess-happy" || st.Intent != "helpdesk.create_ticket" || st.Pipeline != "pipeline_support_create" {
+		t.Fatalf("state missing identity fields: %#v", st)
+	}
+	if st.CreatedAt.IsZero() {
+		t.Fatalf("expected CreatedAt to be set on save")
+	}
+	if _, ok := st.StepResults["_pipeline"]; !ok {
+		t.Fatalf("expected _pipeline wrap-up in step results: %#v", st.StepResults)
+	}
+
+	// And recall must now see it
+	res := buildRecallResult(context.Background(), sm, "sess-happy", "other-id")
+	if res["count"] != 1 {
+		t.Fatalf("expected recall to see the created state, got %v", res["count"])
 	}
 }
 
