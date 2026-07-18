@@ -1,5 +1,8 @@
 export const getApiUrl = () => {
-  return localStorage.getItem('aosApiUrl') || 'http://localhost:8080';
+  // Empty string = same origin: requests stay relative and the Vite dev
+  // proxy forwards them to the backend (AOS_BACKEND_URL in vite.config.js).
+  // Set aosApiUrl in Settings only to bypass the proxy with an absolute URL.
+  return localStorage.getItem('aosApiUrl') || '';
 };
 
 // --- Auth (dev login against POST /auth/login) ---
