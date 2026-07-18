@@ -1,7 +1,7 @@
 tools:
   - name: banking.flaky_tool
     description: "Flaky tool for testing retries"
-    url: "http://localhost:9000/mock/flaky"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/flaky"
     method: "POST"
     parameters:
       - name: "param1"
@@ -9,7 +9,7 @@ tools:
 
   - name: banking.slow_tool
     description: "Slow tool for testing timeouts"
-    url: "http://localhost:9000/mock/slow"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/slow"
     method: "POST"
     parameters:
       - name: "param1"

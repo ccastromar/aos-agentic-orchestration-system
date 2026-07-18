@@ -150,9 +150,9 @@ Note: Some routes may enforce auth if configured. APIAgent supports JWT/API-Key 
 
 ## Using mock services and examples
 
-The repository includes mock handlers under internal/mocks/* and example domain definitions under definitions/. You can:
+The repository includes mock handlers under mocks/* (a dev harness, not part of the runtime) and example domain definitions under definitions/. Tool URLs in definitions/tools/*.yaml default to the mock server via `${AOS_MOCK_BASE_URL:-http://localhost:9000}`; set `AOS_MOCK_BASE_URL` to point the same definitions at another backend. You can:
 - Start the orchestrator (see Running)
-- Start the mocks api (listens on port 9000):
+- Start the mocks api (listens on port 9000, override with `AOS_MOCK_PORT`):
 ```bash
 go run ./cmd/mocks
 ```

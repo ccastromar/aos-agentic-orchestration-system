@@ -2,21 +2,21 @@ tools:
   - name: crm.get_profile
     type: http
     method: GET
-    url: "http://localhost:9000/mock/crm/customer?customerId={{ .customerId }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/crm/customer?customerId={{ .customerId }}"
     mode: read
     timeout: 3000
 
   - name: crm.get_interactions
     type: http
     method: GET
-    url: "http://localhost:9000/mock/crm/interactions?customerId={{ .customerId }}&days={{ .days }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/crm/interactions?customerId={{ .customerId }}&days={{ .days }}"
     mode: read
     timeout: 4000
 
   - name: crm.create_ticket
     type: http
     method: POST
-    url: "http://localhost:9000/mock/crm/ticket"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/crm/ticket"
     mode: write
     timeout: 4000
     body:
@@ -28,7 +28,7 @@ tools:
   - name: crm.update_lead_status
     type: http
     method: POST
-    url: "http://localhost:9000/mock/crm/lead/status"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/crm/lead/status"
     mode: write
     timeout: 3000
     body:

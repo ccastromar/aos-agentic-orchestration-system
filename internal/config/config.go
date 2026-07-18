@@ -48,6 +48,7 @@ type Intent struct {
 	Description    string   `yaml:"description"`
 	Pipeline       string   `yaml:"pipeline"`
 	RequiredParams []string `yaml:"required_params"`
+	Examples       []string `yaml:"examples,omitempty" json:"examples,omitempty"`
 	// ----- Guard-Rails -----
 	AllowDangerous bool    `yaml:"allow_dangerous"`
 	RequiresAmount bool    `yaml:"requires_amount"`
@@ -124,6 +125,7 @@ func loadToolsDir(dir string, cfg *Config) error {
 		if err != nil {
 			return err
 		}
+		data = []byte(expandEnvRefs(string(data)))
 		var raw struct {
 			Tools []Tool `yaml:"tools"`
 		}

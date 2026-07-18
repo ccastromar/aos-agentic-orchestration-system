@@ -2,7 +2,7 @@ tools:
   - name: customer_support.get_purchase
     type: http
     method: GET
-    url: "http://localhost:9000/mock/customer-support/purchase?purchaseId={{ .purchaseId }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/purchase?purchaseId={{ .purchaseId }}"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: read
@@ -11,7 +11,7 @@ tools:
   - name: customer_support.product_return
     type: http
     method: GET
-    url: "http://localhost:9000/mock/customer-support/return?purchaseId={{ .purchaseId }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/return?purchaseId={{ .purchaseId }}"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: read

@@ -2,7 +2,7 @@ tools:
   - name: helpdesk.support_create_ticket
     type: http
     method: POST
-    url: "http://localhost:9000/mock/support/ticket"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/support/ticket"
     mode: write
     timeout: 5000
     body:
@@ -13,14 +13,14 @@ tools:
   - name: helpdesk.support_get_ticket
     type: http
     method: GET
-    url: "http://localhost:9000/mock/support/ticket?ticketId={{ .ticketId }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/support/ticket?ticketId={{ .ticketId }}"
     mode: read
     timeout: 3000
 
   - name: helpdesk.support_add_note
     type: http
     method: POST
-    url: "http://localhost:9000/mock/support/ticket/note"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/support/ticket/note"
     mode: write
     timeout: 4000
     body:
@@ -30,7 +30,7 @@ tools:
   - name: helpdesk.support_close_ticket
     type: http
     method: POST
-    url: "http://localhost:9000/mock/support/ticket/close"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/support/ticket/close"
     mode: write
     timeout: 4000
     body:

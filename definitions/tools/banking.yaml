@@ -2,7 +2,7 @@ tools:
   - name: banking.core_get_balance
     type: http
     method: GET
-    url: "http://localhost:9000/mock/core/balance?accountId={{ .accountId }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/core/balance?accountId={{ .accountId }}"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: read
@@ -11,7 +11,7 @@ tools:
   - name: banking.core_get_credit_card_balance
     type: http
     method: GET
-    url: "http://localhost:9000/mock/core/creditcard?cardId={{ .cardId }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/core/creditcard?cardId={{ .cardId }}"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: read
@@ -20,7 +20,7 @@ tools:
   - name: banking.core_get_movements
     type: http
     method: GET
-    url: "http://localhost:9000/mock/core/movements?accountId={{ .accountId }}&from={{ .from }}&to={{ .to }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/core/movements?accountId={{ .accountId }}&from={{ .from }}&to={{ .to }}"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: read
@@ -29,7 +29,7 @@ tools:
   - name: banking.aml_risk_check
     type: http
     method: POST
-    url: "http://localhost:9000/mock/aml/check"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/aml/check"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: read
@@ -41,7 +41,7 @@ tools:
   - name: banking.payments_bizum_send
     type: http
     method: POST
-    url: "http://localhost:9000/mock/payments/bizum"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/payments/bizum"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: dangerous
@@ -55,7 +55,7 @@ tools:
   - name: banking.payments_transfer
     type: http
     method: POST
-    url: "http://localhost:9000/mock/payments/transfer"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/payments/transfer"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: dangerous
@@ -70,7 +70,7 @@ tools:
   - name: banking.payments_bitcoin_send
     type: http
     method: POST
-    url: "http://localhost:9000/mock/payments/bitcoin"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/payments/bitcoin"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: dangerous
@@ -83,7 +83,7 @@ tools:
   - name: banking.send_notification
     type: http
     method: POST
-    url: "http://localhost:9000/mock/notifications/send"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/notifications/send"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
     mode: write

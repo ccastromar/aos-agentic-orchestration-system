@@ -3,15 +3,16 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
-	mockBanking "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/banking"
-	mockCRM "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/crm"
-	mockCustomerSupport "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/customer-support"
-	mockDevops "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/devops"
-	mockHelpdesk "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/helpdesk"
-	mockHumanResources "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/human-resources"
-	mockLogistics "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/logistics"
-	mockOpenAPI "github.com/ccastromar/aos-agentic-orchestration-system/internal/mocks/openapi"
+	mockBanking "github.com/ccastromar/aos-agentic-orchestration-system/mocks/banking"
+	mockCRM "github.com/ccastromar/aos-agentic-orchestration-system/mocks/crm"
+	mockCustomerSupport "github.com/ccastromar/aos-agentic-orchestration-system/mocks/customer-support"
+	mockDevops "github.com/ccastromar/aos-agentic-orchestration-system/mocks/devops"
+	mockHelpdesk "github.com/ccastromar/aos-agentic-orchestration-system/mocks/helpdesk"
+	mockHumanResources "github.com/ccastromar/aos-agentic-orchestration-system/mocks/human-resources"
+	mockLogistics "github.com/ccastromar/aos-agentic-orchestration-system/mocks/logistics"
+	mockOpenAPI "github.com/ccastromar/aos-agentic-orchestration-system/mocks/openapi"
 )
 
 var listenAndServe = http.ListenAndServe
@@ -31,9 +32,13 @@ func buildMux() *http.ServeMux {
 }
 
 func main() {
+	port := os.Getenv("AOS_MOCK_PORT")
+	if port == "" {
+		port = "9000"
+	}
 	mux := buildMux()
-	log.Println("[MOCK SERVER] listening on :9000")
-	err := listenAndServe(":9000", mux)
+	log.Printf("[MOCK SERVER] listening on :%s", port)
+	err := listenAndServe(":"+port, mux)
 	if err != nil {
 		return
 	}
