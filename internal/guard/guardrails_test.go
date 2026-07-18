@@ -31,6 +31,20 @@ func TestValidateIntentPermissions_DangerousAllowed(t *testing.T) {
     }
 }
 
+func TestValidateIntentPermissions_InternalToolsSkipped(t *testing.T) {
+    // system.* tools live in the Verifier, not in the tools registry
+    tools := map[string]config.Tool{}
+    pipeline := config.Pipeline{Steps: []config.PipelineStep{{Tool: "system.recall"}}}
+    intent := config.Intent{Type: "system.recall_history"}
+
+    if err := ValidateIntentPermissions(intent, pipeline, tools); err != nil {
+        t.Fatalf("unexpected error for internal tool: %v", err)
+    }
+    if err := ValidateDangerousChain(pipeline, tools); err != nil {
+        t.Fatalf("unexpected chain error for internal tool: %v", err)
+    }
+}
+
 func TestValidateDangerousParams(t *testing.T) {
     t.Run("no check when not dangerous", func(t *testing.T) {
         intent := config.Intent{AllowDangerous: false}

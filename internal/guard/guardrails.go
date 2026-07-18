@@ -5,9 +5,17 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 )
+
+// isInternalTool reports whether a step references a Verifier-internal tool
+// (system.recall, system.save_preference, ...). These are compiled into the
+// binary, never reach the HTTP executor and are not in the tools registry.
+func isInternalTool(name string) bool {
+	return strings.HasPrefix(name, "system.")
+}
 
 func isValidPhoneNumber(s string) bool {
 	re := regexp.MustCompile(`^[0-9+][0-9]{5,14}$`)
@@ -17,7 +25,7 @@ func isValidPhoneNumber(s string) bool {
 func ValidateIntentPermissions(intent config.Intent, pipeline config.Pipeline, tools map[string]config.Tool) error {
 	for _, step := range pipeline.Steps {
 
-		if step.Tool == "" {
+		if step.Tool == "" || isInternalTool(step.Tool) {
 			continue
 		}
 
@@ -74,7 +82,7 @@ func ValidateDangerousChain(pipeline config.Pipeline, tools map[string]config.To
 
 	for _, step := range pipeline.Steps {
 
-		if step.Tool == "" {
+		if step.Tool == "" || isInternalTool(step.Tool) {
 			continue
 		}
 
