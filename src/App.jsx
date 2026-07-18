@@ -5,14 +5,30 @@ import Timeline from './components/Timeline';
 import HumanApprovalModal from './components/HumanApprovalModal';
 import ClarificationModal from './components/ClarificationModal';
 import Settings from './components/Settings';
-import { Bot, Settings as SettingsIcon, MessageSquare, Sun, Moon } from 'lucide-react';
+import HistoryPanel from './components/HistoryPanel';
+import Logo from './components/Logo';
+import LoginModal from './components/LoginModal';
+import { getAuth, clearAuth } from './utils/api';
+import { Bot, Settings as SettingsIcon, MessageSquare, Sun, Moon, Clock, LogIn, LogOut, UserRound } from 'lucide-react';
 import './index.css';
 
 function App() {
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
-  const [view, setView] = useState('chat'); // 'chat' | 'settings'
+  const [view, setView] = useState('chat'); // 'chat' | 'settings' | 'history'
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  const [auth, setAuth] = useState(() => getAuth());
+  const [showLogin, setShowLogin] = useState(false);
+
+  const handleLoggedIn = (newAuth) => {
+    setAuth(newAuth);
+    setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    setAuth(null);
+  };
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
@@ -22,6 +38,16 @@ function App() {
       document.body.classList.remove('theme-light');
     }
   }, [theme]);
+
+  // Handle URL query param for taskId to support direct linking from History
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskId = urlParams.get('taskId');
+    if (taskId) {
+      setActiveTaskId(taskId);
+      setView('chat');
+    }
+  }, []);
 
   const handleTaskCreated = (taskId) => {
     setActiveTaskId(taskId);
@@ -41,15 +67,47 @@ function App() {
     setPendingApproval(null);
   };
 
+  const handleSelectHistoryTask = (taskId) => {
+    setActiveTaskId(taskId);
+    setView('chat');
+  };
+
   return (
     <div className="app-container">
-      <header className="header" style={{ position: 'relative' }}>
-        <Bot size={48} className="mx-auto text-blue-500 mb-2" style={{ color: 'var(--primary)' }} />
-        <h1>Augmented Orchestration System</h1>
-        <p>AOS Web UI - Watch your workflows execute in real-time</p>
+      <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <Logo size={64} />
+          <div>
+            <h1 style={{ margin: 0, fontSize: '2.2rem', lineHeight: '1.2' }}>Agentic Orchestration System</h1>
+            <p style={{ margin: 0, marginTop: '0.25rem' }}>AOS Web UI - Watch your workflows execute in real-time</p>
+          </div>
+        </div>
         
-        <div style={{ position: 'absolute', top: '1rem', right: '2rem', display: 'flex', gap: '1rem' }}>
-          <button 
+        <div style={{ display: 'flex', gap: '1rem', flexShrink: 0, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }} title={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous dev identity'}>
+            <UserRound size={16} />
+            <span>{auth ? auth.userId : 'demo-user'}</span>
+          </div>
+          {auth ? (
+            <button
+              className="btn btn-secondary"
+              onClick={handleLogout}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+              title="Sign out"
+            >
+              <LogOut size={18} /> Logout
+            </button>
+          ) : (
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowLogin(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+              title="Sign in"
+            >
+              <LogIn size={18} /> Login
+            </button>
+          )}
+          <button
             className="btn btn-secondary"
             onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', borderRadius: '50%' }}
@@ -66,6 +124,13 @@ function App() {
             <MessageSquare size={18} /> Chat
           </button>
           <button 
+            className={`btn ${view === 'history' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setView('history')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+          >
+            <Clock size={18} /> History
+          </button>
+          <button 
             className={`btn ${view === 'settings' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setView('settings')}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
@@ -76,7 +141,7 @@ function App() {
       </header>
 
       <AnimatePresence mode="wait">
-        {view === 'chat' ? (
+        {view === 'chat' && (
           <motion.main 
             key="chat-view"
             className="main-content"
@@ -108,7 +173,23 @@ function App() {
               )}
             </section>
           </motion.main>
-        ) : (
+        )}
+        
+        {view === 'history' && (
+          <motion.main 
+            key="history-view"
+            className="main-content" 
+            style={{ gridTemplateColumns: '1fr', maxWidth: '1000px', margin: '0 auto' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <HistoryPanel onSelectTask={handleSelectHistoryTask} />
+          </motion.main>
+        )}
+
+        {view === 'settings' && (
           <motion.main 
             key="settings-view"
             className="main-content" 
@@ -124,6 +205,13 @@ function App() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showLogin && (
+          <LoginModal
+            onLoggedIn={handleLoggedIn}
+            onCancel={() => setShowLogin(false)}
+          />
+        )}
+
         {pendingApproval && pendingApproval.gate === 'clarification' && (
           <ClarificationModal 
             taskId={pendingApproval.id} 
