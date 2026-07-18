@@ -151,29 +151,12 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	a.eventBus.PublishEvent(id, "Analyst", "summary", summary, "")
 	a.eventBus.PublishEvent(id, "Analyst", "completed", "Pipeline completed", "")
 
-	// Vector Memory (Long-Term Storage)
-	sessionID, _ := payload.GetString(msg.Payload, "session_id")
-	if sessionID != "" {
-		if vs := a.stateManager.Vector(); vs != nil && a.getLLMClient() != nil {
-			textToEmbed := fmt.Sprintf("Intent: %s\nAction Summary: %s", intentType, summary)
-			embedding, err := a.getLLMClient().Embed(taskCtx, textToEmbed)
-			if err == nil {
-				mem := state.Memory{
-					ID:        randomID(),
-					SessionID: sessionID,
-					Text:      textToEmbed,
-					Embedding: embedding,
-					Timestamp: time.Now(),
-				}
-				_ = vs.AddMemory(taskCtx, mem)
-			}
-		}
-	}
-
 	// Update persistent state with final results
+	var pipelineName string
 	if a.stateManager != nil {
 		st, err := a.stateManager.Load(taskCtx, id)
 		if err == nil && st != nil {
+			pipelineName = st.Pipeline
 			if st.StepResults == nil {
 				st.StepResults = make(map[string]any)
 			}
@@ -182,6 +165,35 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 				"summary": summary,
 			}
 			_ = a.stateManager.Save(taskCtx, st)
+		}
+	}
+
+	// Vector Memory (Long-Term Storage)
+	sessionID, _ := payload.GetString(msg.Payload, "session_id")
+	if sessionID != "" {
+		if vs := a.stateManager.Vector(); vs != nil && a.getLLMClient() != nil {
+			facts := extractFacts(raw)
+			textToEmbed := fmt.Sprintf("Intent: %s\nPipeline: %s\nAction Summary: %s", intentType, pipelineName, summary)
+			if ft := factsText(facts); ft != "" {
+				textToEmbed += "\nFacts:\n" + ft
+			}
+			embedding, err := a.getLLMClient().Embed(taskCtx, textToEmbed)
+			if err == nil {
+				mem := state.Memory{
+					ID:        randomID(),
+					SessionID: sessionID,
+					Text:      textToEmbed,
+					Embedding: embedding,
+					Metadata: map[string]any{
+						"execution_id": id,
+						"intent":       intentType,
+						"pipeline":     pipelineName,
+						"facts":        facts,
+					},
+					Timestamp: time.Now(),
+				}
+				_ = vs.AddMemory(taskCtx, mem)
+			}
 		}
 	}
 
