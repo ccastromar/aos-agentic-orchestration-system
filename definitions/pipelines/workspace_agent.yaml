@@ -1,0 +1,16 @@
+pipelines:
+  - name: pipeline_workspace_agent_code
+    mode: react
+    llm_model: qwen3:4b
+    skip_summary: true
+    max_iterations: 20
+    description: "Agente de código iterativo con exploración, edición, tests y revisión de diff"
+    steps:
+      - tool: workspace.inspect_project
+      - tool: workspace.tree
+      - tool: workspace.search
+      - tool: workspace.read_file
+      - tool: workspace.write_file
+      - tool: workspace.replace_in_file
+      - tool: workspace.run_tests
+      - tool: workspace.git_diff

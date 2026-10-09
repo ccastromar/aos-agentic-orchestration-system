@@ -46,6 +46,12 @@ func ExecuteTool(t config.Tool, params map[string]string) (map[string]any, error
 }
 
 func ExecuteToolCtx(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
+	if t.Type == "local" {
+		return executeLocalFileTool(ctx, t, params)
+	}
+	if t.Type == "mcp" || t.Type == "a2a" || t.Type == "grpc" {
+		return ExecuteProtocolTool(ctx, t, params)
+	}
 
 	// render URL
 	finalURL, err := RenderTemplateString(t.URL, params)

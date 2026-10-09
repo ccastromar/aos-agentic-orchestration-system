@@ -31,6 +31,28 @@ permissions:
     - admin
     - finance
 
+  # Custody
+  custody.transfer_async:
+    - admin
+    - finance
+    - operations
+  custody.transfer_with_compliance:
+    - admin
+    - finance
+    - operations
+
+  # Local workspace automation
+  workspace.update_readme:
+    - admin
+  workspace.create_code:
+    - admin
+  workspace.generate_code:
+    - admin
+  workspace.agent_code:
+    - admin
+  agent.delegate_claude_code:
+    - admin
+
   # CRM & Sales
   crm.get_customer_profile:
     - admin
@@ -110,7 +132,68 @@ permissions:
     - admin
 
   # System (session-scoped, read-only)
+  general.update_preference:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest
   system.recall_history:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest
+
+  system.fallback:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest
+  memory.add:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest
+  memory.list:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest
+  memory.delete:
+    - admin
+    - finance
+    - sales
+    - support
+    - hr
+    - operations
+    - sre
+    - user
+    - guest
+  memory.clear:
     - admin
     - finance
     - sales

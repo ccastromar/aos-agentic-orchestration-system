@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
@@ -50,11 +52,32 @@ func main() {
 	// CLI flags
 	port := flag.String("port", "", "HTTP port to listen on")
 	vFlag := flag.Bool("version", false, "Print version information")
+	verifyAudit := flag.String("verify-audit", "", "Verify a JSONL audit chain and exit")
+	verifyTrace := flag.String("verify-trace", "", "Verify one execution's pipeline manifest and step evidence (requires -verify-audit)")
 	flag.Parse()
 
 	if *vFlag {
 		fmt.Printf("AOS Engine v%s\nCommit: %s\nBuilt: %s\n", version, commit, date)
 		os.Exit(0)
+	}
+	if *verifyAudit != "" {
+		if *verifyTrace != "" {
+			verification, err := audit.VerifyExecutionFile(*verifyAudit, *verifyTrace)
+			if err != nil {
+				log.Fatalf("execution verification failed: %v", err)
+			}
+			_ = json.NewEncoder(os.Stdout).Encode(verification)
+			return
+		}
+		verification, err := audit.VerifyFile(*verifyAudit)
+		if err != nil {
+			log.Fatalf("audit verification failed: %v", err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(verification)
+		return
+	}
+	if *verifyTrace != "" {
+		log.Fatal("-verify-trace requires -verify-audit <journal.jsonl>")
 	}
 
 	env, err := config.LoadEnv()

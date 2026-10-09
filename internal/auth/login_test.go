@@ -17,7 +17,7 @@ func TestIssueToken_RoundTripsThroughAuthenticate(t *testing.T) {
 	r := httptest.NewRequest("POST", "/ask", nil)
 	r.Header.Set("Authorization", "Bearer "+token)
 
-	id, err := NewJWTAuthenticator(JWTConfig{}).Authenticate(r)
+	id, err := NewJWTAuthenticator(JWTConfig{AllowDevFallback: true}).Authenticate(r)
 	if err != nil {
 		t.Fatalf("authenticating issued token: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestIssueToken_DefaultRoleAndSecretEnv(t *testing.T) {
 	r := httptest.NewRequest("POST", "/ask", nil)
 	r.Header.Set("Authorization", "Bearer "+token)
 
-	id, err := NewJWTAuthenticator(JWTConfig{}).Authenticate(r)
+	id, err := NewJWTAuthenticator(JWTConfig{AllowDevFallback: true}).Authenticate(r)
 	if err != nil {
 		t.Fatalf("authenticating issued token: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestAuthenticate_GarbageTokenFallsBackToMockInDev(t *testing.T) {
 	r := httptest.NewRequest("POST", "/ask", nil)
 	r.Header.Set("Authorization", "Bearer e2e-key")
 
-	id, err := NewJWTAuthenticator(JWTConfig{}).Authenticate(r)
+	id, err := NewJWTAuthenticator(JWTConfig{AllowDevFallback: true}).Authenticate(r)
 	if err != nil {
 		t.Fatalf("expected dev fallback, got error: %v", err)
 	}
@@ -72,5 +72,30 @@ func TestAuthenticate_GarbageTokenRejectedWithSecret(t *testing.T) {
 
 	if _, err := NewJWTAuthenticator(JWTConfig{}).Authenticate(r); err == nil {
 		t.Fatalf("expected rejection of garbage token when JWT_SECRET is set")
+	}
+}
+
+func TestAuthenticate_RejectsMockIdentityOutsideDevelopment(t *testing.T) {
+	t.Setenv("JWT_SECRET", "")
+	r := httptest.NewRequest("GET", "/api/v1/tasks", nil)
+	if _, err := NewJWTAuthenticator(JWTConfig{}).Authenticate(r); err == nil {
+		t.Fatal("expected missing JWT_SECRET to be rejected without dev fallback")
+	}
+	r.Header.Set("Authorization", "Bearer garbage")
+	if _, err := NewJWTAuthenticator(JWTConfig{}).Authenticate(r); err == nil {
+		t.Fatal("expected invalid token to be rejected without dev fallback")
+	}
+}
+
+func TestIsDevelopmentEnvironment(t *testing.T) {
+	for _, env := range []string{"dev", "Development", "local", "test"} {
+		if !IsDevelopmentEnvironment(env) {
+			t.Errorf("%q should allow development fallback", env)
+		}
+	}
+	for _, env := range []string{"prod", "production", "staging", ""} {
+		if IsDevelopmentEnvironment(env) {
+			t.Errorf("%q must not allow development fallback", env)
+		}
 	}
 }

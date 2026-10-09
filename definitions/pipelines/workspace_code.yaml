@@ -1,0 +1,17 @@
+pipelines:
+  - name: pipeline_workspace_create_code
+    mode: linear
+    skip_summary: true
+    description: "Lee el archivo objetivo, escribe código, ejecuta tests y devuelve el diff"
+    steps:
+      - id: write_code
+        tool: workspace.write_file
+        with_params:
+          path: "{{ .path }}"
+          content: "{{ .content }}"
+      - id: run_tests
+        tool: workspace.run_tests
+      - id: inspect_diff
+        tool: workspace.git_diff
+        with_params:
+          path: "{{ .path }}"

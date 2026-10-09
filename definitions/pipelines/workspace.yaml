@@ -1,0 +1,22 @@
+pipelines:
+  - name: pipeline_workspace_update_readme
+    mode: linear
+    description: "Lista el workspace, lee README.md, añade una nota y vuelve a leerlo"
+    steps:
+      - id: list_workspace
+        tool: workspace.tree
+      - id: read_readme_before
+        tool: workspace.read_file
+        with_params:
+          path: "README.md"
+      - id: append_readme
+        tool: workspace.append_file
+        with_params:
+          path: "README.md"
+          text: "\n\n{{ .text }}\n"
+      - id: read_readme_after
+        tool: workspace.read_file
+        with_params:
+          path: "README.md"
+      - id: summarize_workspace_change
+        analyst: true

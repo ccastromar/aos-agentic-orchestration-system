@@ -4,6 +4,6 @@ pipelines:
     description: "Stores a user preference."
     steps:
       - tool: system.save_preference
-        with:
+        with_params:
           preference: "{{.preference}}"
       - analyst: true

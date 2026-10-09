@@ -1,0 +1,10 @@
+intents:
+  - type: agent.delegate_claude_code
+    description: "Run a task through the locally installed Claude Code agent inside the current workspace"
+    pipeline: pipeline_agent_claude_code
+    required_params:
+      - request
+    examples:
+      - "Usa Claude Code para analizar este proyecto y corregir los tests"
+      - "Delegate this code change to Claude Code and report its result"
+    allow_dangerous: true

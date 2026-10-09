@@ -8,6 +8,12 @@ intents:
       - "¿Qué me devolvió la última consulta?"
       - "What was the result of my previous request?"
       - "Resume lo que hemos hecho en esta sesión"
+      - "show me the historic of requests"
+      - "show me my request history"
     allow_dangerous: false
     requires_amount: false
     requires_phone: false
+
+  - type: system.fallback
+    description: "Fallback intent used when no specific action matches. Uses contextual chat and vector memory to answer the user."
+    pipeline: pipeline_system_fallback

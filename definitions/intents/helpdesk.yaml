@@ -3,18 +3,31 @@ intents:
     description: "Create a ticket"
     pipeline: pipeline_support_create
     required_params: ["subject", "description", "priority"]
+    examples:
+      - "I need to open a new support ticket"
+      - "Create a ticket for the IT department"
 
   - type: support.check_ticket_status
     description: "Query ticket status"
     pipeline: pipeline_support_status
     required_params: ["ticketId"]
+    examples:
+      - "query ticket status"
+      - "what is the status of ticket INC-123"
+      - "check my ticket"
 
   - type: support.append_ticket_note
     description: "Add a note to a ticket"
     pipeline: pipeline_support_add_note
     required_params: ["ticketId", "note"]
+    examples:
+      - "add a note to ticket 456"
+      - "update my ticket with this information"
 
   - type: support.close_ticket
     description: "Close a ticket"
     pipeline: pipeline_support_close
     required_params: ["ticketId", "reason"]
+    examples:
+      - "close ticket 789"
+      - "my issue is resolved, please close the ticket"

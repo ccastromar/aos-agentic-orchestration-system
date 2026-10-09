@@ -1,0 +1,15 @@
+pipelines:
+  - name: pipeline_agent_claude_code
+    mode: linear
+    skip_summary: true
+    description: "Delegates one bounded task to Claude Code and returns its streamed events and final result"
+    steps:
+      - id: claude_code
+        agent: claude_code
+        timeout_ms: 1800000
+        with_params:
+          task: "{{ .request }}"
+          cwd: "."
+          permission_mode: "acceptEdits"
+          allowed_tools: "Read,Edit,Bash(go test *),Bash(git diff *),Bash(git status *)"
+          max_turns: "20"

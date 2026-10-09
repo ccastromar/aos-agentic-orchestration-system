@@ -1,0 +1,4 @@
+tools:
+  - name: system.rag_query
+    type: custom
+    description: "Answers user queries based on context and vector memory"

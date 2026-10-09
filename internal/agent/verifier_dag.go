@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/engine"
@@ -15,15 +16,15 @@ import (
 )
 
 type dagNode struct {
-	Step      config.PipelineStep
-	Index     int
-	Status    string // pending, running, success, failed, skipped, paused, cascaded_skip, cascaded_pause
-	DoneCh    chan struct{}
+	Step   config.PipelineStep
+	Index  int
+	Status string // pending, running, success, failed, skipped, paused, cascaded_skip, cascaded_pause
+	DoneCh chan struct{}
 }
 
 func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, language string, taskCtx context.Context, stepResults map[string]any, baseParams map[string]any) {
 	ctx := engine.NewPipelineContext(baseParams)
-	
+
 	execState, _ := v.stateManager.Load(context.Background(), id)
 	var params map[string]string
 	if execState != nil {
@@ -42,14 +43,18 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			}
 		}
 	}
-	
+
 	var mu sync.Mutex
 
 	nodes := make(map[string]*dagNode)
 	for i, step := range pipe.Steps {
 		stepID := step.ID
 		if stepID == "" {
-			stepID = step.Tool
+			if step.Agent != "" {
+				stepID = "agent." + step.Agent
+			} else {
+				stepID = step.Tool
+			}
 		}
 		nodes[stepID] = &dagNode{
 			Step:   step,
@@ -58,7 +63,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			DoneCh: make(chan struct{}),
 		}
 	}
-	
+
 	if execState != nil && len(execState.CompletedSteps) > 0 {
 		for _, stepID := range execState.CompletedSteps {
 			if node, ok := nodes[stepID]; ok {
@@ -79,7 +84,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 		wg.Add(1)
 		go func(nID string, n *dagNode) {
 			defer wg.Done()
-			
+
 			for _, dep := range n.Step.DependsOn {
 				depNode, ok := nodes[dep]
 				if ok {
@@ -100,26 +105,37 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					}
 				}
 			}
-			
+
 			mu.Lock()
 			if n.Status == "success" {
 				mu.Unlock()
 				return
 			}
 			n.Status = "running"
-			
+
 			ctx.Vars = engine.AutoCastVars(ctx.Vars)
-			
+
 			if !engine.StepShouldRun(n.Step, ctx) {
 				if n.Step.HumanGate != "" {
 					logx.Debug("Verifier", "human gate '%s' skipped by condition", n.Step.HumanGate)
 				} else {
 					logx.Debug("Verifier", "skipping step=%s id=%s due to condition", n.Step.Tool, id)
-					stepResults[n.Step.Tool] = map[string]any{
+					resultKey := n.Step.Tool
+					if n.Step.Agent != "" {
+						resultKey = "agent." + n.Step.Agent
+					}
+					stepResults[resultKey] = map[string]any{
 						"status":   "skipped",
 						"effect":   "not_executed",
 						"executed": false,
 						"reason":   "when=false",
+					}
+					if err := v.logLifecycleAudit(execState, "step.decision", "skipped", map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "agent": n.Step.Agent, "when": n.Step.When, "decision": "skip"}); err != nil {
+						v.failAuditExecution(execState, id, err)
+						n.Status = "failed"
+						mu.Unlock()
+						close(n.DoneCh)
+						return
 					}
 				}
 				n.Status = "skipped"
@@ -128,6 +144,57 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 				return
 			}
 			mu.Unlock()
+
+			if n.Step.Agent != "" {
+				agentDef, exists := v.cfg.Agents[n.Step.Agent]
+				if !exists {
+					mu.Lock()
+					n.Status = "failed"
+					storeResult(id, Result{Status: "error", Err: fmt.Sprintf("agent %s not found", n.Step.Agent)})
+					mu.Unlock()
+					close(n.DoneCh)
+					return
+				}
+				mu.Lock()
+				callParams := convertVarsToStringMap(buildCallParams(ctx.Vars, n.Step.WithParams))
+				mu.Unlock()
+				if err := v.logLifecycleAudit(execState, "tool.started", "pending", map[string]any{"step": n.Step.ID, "agent": n.Step.Agent, "when": n.Step.When, "decision": "invoke", "input_digest": audit.Digest(audit.SanitizeMap(stringMapToAny(callParams))), "inputs": audit.SanitizeMap(stringMapToAny(callParams))}); err != nil {
+					v.failAuditExecution(execState, id, err)
+					mu.Lock()
+					n.Status = "failed"
+					mu.Unlock()
+					close(n.DoneCh)
+					return
+				}
+				timer := logx.Start(id, "Verifier", "agent_"+n.Step.Agent)
+				out, err := v.runAgentStep(taskCtx, id, agentDef, callParams, n.Step)
+				timer.End()
+				mu.Lock()
+				if err != nil {
+					if auditErr := v.logLifecycleAudit(execState, "tool.failed", "error", map[string]any{"step": n.Step.ID, "agent": n.Step.Agent, "error": err.Error()}); auditErr != nil {
+						v.failAuditExecution(execState, id, auditErr)
+					}
+					n.Status = "failed"
+					v.publishAgentFailure(id, n.Step.Agent, err)
+					storeResult(id, Result{Status: "error", Err: fmt.Sprintf("agent %s failed: %v", n.Step.Agent, err), Data: map[string]any{"agent." + n.Step.Agent: out}})
+				} else {
+					safeOutput := auditSafeToolResult(out)
+					if auditErr := v.logLifecycleAudit(execState, "tool.completed", "success", map[string]any{"step": n.Step.ID, "agent": n.Step.Agent, "result": safeOutput, "output_digest": audit.Digest(safeOutput)}); auditErr != nil {
+						v.failAuditExecution(execState, id, auditErr)
+						n.Status = "failed"
+					} else {
+						resultKey := "agent." + n.Step.Agent
+						stepResults[resultKey] = out
+						for key, value := range out {
+							ctx.Vars[resultKey+"."+key] = value
+						}
+						n.Status = "success"
+					}
+				}
+				mu.Unlock()
+				close(n.DoneCh)
+				return
+			}
 
 			if n.Step.HumanGate != "" {
 				mu.Lock()
@@ -143,7 +210,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 				n.Status = "paused"
 				ctx.Vars[n.Step.HumanGate+"_executed"] = true
 				ctx.Vars[n.Step.HumanGate+"_decision"] = "pending"
-				
+
 				var completed []string
 				for id, nd := range nodes {
 					if nd.Status == "success" {
@@ -162,8 +229,24 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					Gate:           n.Step.HumanGate,
 				}
 
+				if execState != nil {
+					nextState.UserID = execState.UserID
+					nextState.CreatedAt = execState.CreatedAt
+					copyExecutionManifest(nextState, execState)
+				}
 				if err := v.stateManager.Save(context.Background(), nextState); err != nil {
 					v.storeError(id, "cannot persist execution state")
+					n.Status = "failed"
+					mu.Unlock()
+					close(n.DoneCh)
+					return
+				}
+				if err := v.logLifecycleAudit(nextState, "human.approval_requested", "pending", map[string]any{"gate": n.Step.HumanGate, "step": n.Step.ID}); err != nil {
+					v.failAuditExecution(nextState, id, err)
+					n.Status = "failed"
+					mu.Unlock()
+					close(n.DoneCh)
+					return
 				}
 				contextBytes, err := json.Marshal(ctx.Vars)
 				if err != nil {
@@ -195,6 +278,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 						"session_id": sessionID,
 						"intent":     intentType,
 						"pipeline":   pipe.Name,
+						"llm_model":  pipe.LLMModel,
 						"rawResult":  cloneMap(stepResults),
 						"language":   language,
 					},
@@ -243,10 +327,18 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			}
 
 			logx.Info("Verifier", "executing dag tool=%s id=%s", n.Step.Tool, id)
-			
+
 			mu.Lock()
 			callParams := buildCallParams(ctx.Vars, n.Step.WithParams)
 			mu.Unlock()
+			if err := v.logLifecycleAudit(execState, "tool.started", "pending", map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "when": n.Step.When, "decision": "invoke", "input_digest": audit.Digest(audit.SanitizeMap(callParams)), "inputs": audit.SanitizeMap(callParams)}); err != nil {
+				v.failAuditExecution(execState, id, err)
+				mu.Lock()
+				n.Status = "failed"
+				mu.Unlock()
+				close(n.DoneCh)
+				return
+			}
 
 			timer := logx.Start(id, "Verifier", "tool_"+t.Name)
 			out, err := executeToolWithResiliency(taskCtx, t, convertVarsToStringMap(callParams), n.Step)
@@ -255,6 +347,9 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			mu.Lock()
 			if err != nil {
 				logx.Error("Verifier", "tool %s failed: %v", n.Step.Tool, err)
+				if auditErr := v.logLifecycleAudit(execState, "tool.failed", "error", map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "error": err.Error()}); auditErr != nil {
+					v.failAuditExecution(execState, id, auditErr)
+				}
 				storeResult(id, Result{
 					Status: "error",
 					Err:    fmt.Sprintf("tool error: %v", err),
@@ -267,12 +362,17 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					}
 					out["_executedAt"] = time.Now().Format(time.RFC3339)
 				}
-				stepResults[n.Step.Tool] = out
-				v.eventBus.PublishEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
-				for k, val := range out {
-					ctx.Vars[n.Step.Tool+"."+k] = val
+				if auditErr := v.logLifecycleAudit(execState, "tool.completed", "success", map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "result": auditSafeToolResult(out), "output_digest": audit.Digest(auditSafeToolResult(out))}); auditErr != nil {
+					v.failAuditExecution(execState, id, auditErr)
+					n.Status = "failed"
+				} else {
+					stepResults[n.Step.Tool] = out
+					v.eventBus.PublishEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
+					for k, val := range out {
+						ctx.Vars[n.Step.Tool+"."+k] = val
+					}
+					n.Status = "success"
 				}
-				n.Status = "success"
 			}
 			mu.Unlock()
 			close(n.DoneCh)
@@ -281,7 +381,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 	}
 
 	wg.Wait()
-	
+
 	paused := false
 	failed := false
 	for _, n := range nodes {
@@ -297,11 +397,12 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 	}
 
 	stepResults["_pipeline"] = map[string]any{
-		"pipeline": pipe.Name,
-		"intent":   intentType,
-		"status":   "success",
-		"steps":    len(pipe.Steps),
-		"endedAt":  time.Now().Format(time.RFC3339),
+		"pipeline":         pipe.Name,
+		"pipeline_version": executionPipelineVersion(execState),
+		"intent":           intentType,
+		"status":           "success",
+		"steps":            len(pipe.Steps),
+		"endedAt":          time.Now().Format(time.RFC3339),
 	}
 
 	logx.Debug("Verifier", "[%s] Final Vars: %#v", id, ctx.Vars)
@@ -314,6 +415,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			"session_id": sessionID,
 			"intent":     intentType,
 			"pipeline":   pipe.Name,
+			"llm_model":  pipe.LLMModel,
 			"rawResult":  cloneMap(stepResults),
 			"language":   language,
 		},

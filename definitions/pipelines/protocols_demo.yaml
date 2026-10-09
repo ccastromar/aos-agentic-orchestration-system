@@ -1,0 +1,19 @@
+pipelines:
+  - name: pipeline_protocols_demo
+    mode: linear
+    description: "Demonstrates MCP, gRPC and A2A protocol steps"
+    steps:
+      - id: crm_lookup
+        tool: crm.mcp_lookup
+        with_params:
+          id: "{{.intent.customerId}}"
+      - id: risk_score
+        tool: risk.grpc_score
+        depends_on: [crm_lookup]
+        with_params:
+          customerId: "{{.intent.customerId}}"
+      - id: compliance_review
+        tool: compliance.a2a_review
+        depends_on: [risk_score]
+        with_params:
+          message: "Review customer {{.intent.customerId}}"

@@ -1,0 +1,3 @@
+agents:
+  - name: claude_code
+    runtime: claude_code_cli

@@ -1,0 +1,26 @@
+tools:
+  - name: crm.mcp_lookup
+    type: mcp
+    target: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/mcp"
+    operation: "tools/call"
+    description: "Call the CRM MCP server"
+    mode: read
+    timeout: 10000
+
+  - name: risk.grpc_score
+    type: grpc
+    target: "localhost:9002"
+    service: "risk.RiskService"
+    method: "Score"
+    description: "Score a case through the internal risk service"
+    mode: read
+    timeout: 3000
+
+  - name: compliance.a2a_review
+    type: a2a
+    target: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/a2a/message:send"
+    operation: "message/send"
+    agent: "compliance-agent"
+    description: "Delegate a review task to a remote A2A agent"
+    mode: write
+    timeout: 30000

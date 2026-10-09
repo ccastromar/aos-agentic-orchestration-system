@@ -1,0 +1,10 @@
+intents:
+  - type: workspace.create_code
+    description: "Crea o reemplaza un archivo de código, ejecuta los tests y muestra el diff"
+    pipeline: pipeline_workspace_create_code
+    allow_dangerous: true
+    required_params:
+      - path
+      - content
+    examples:
+      - "Crea el archivo internal/example.go con este código: package example"

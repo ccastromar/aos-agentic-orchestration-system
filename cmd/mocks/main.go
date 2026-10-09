@@ -5,13 +5,17 @@ import (
 	"net/http"
 	"os"
 
+	mockA2A "github.com/ccastromar/aos-agentic-orchestration-system/mocks/a2a"
 	mockBanking "github.com/ccastromar/aos-agentic-orchestration-system/mocks/banking"
+	mockBlockchain "github.com/ccastromar/aos-agentic-orchestration-system/mocks/blockchain"
 	mockCRM "github.com/ccastromar/aos-agentic-orchestration-system/mocks/crm"
+	mockCustody "github.com/ccastromar/aos-agentic-orchestration-system/mocks/custody"
 	mockCustomerSupport "github.com/ccastromar/aos-agentic-orchestration-system/mocks/customer-support"
 	mockDevops "github.com/ccastromar/aos-agentic-orchestration-system/mocks/devops"
 	mockHelpdesk "github.com/ccastromar/aos-agentic-orchestration-system/mocks/helpdesk"
 	mockHumanResources "github.com/ccastromar/aos-agentic-orchestration-system/mocks/human-resources"
 	mockLogistics "github.com/ccastromar/aos-agentic-orchestration-system/mocks/logistics"
+	mockMCP "github.com/ccastromar/aos-agentic-orchestration-system/mocks/mcp"
 	mockOpenAPI "github.com/ccastromar/aos-agentic-orchestration-system/mocks/openapi"
 )
 
@@ -28,6 +32,10 @@ func buildMux() *http.ServeMux {
 	mockHumanResources.RegisterHandlers(mux)
 	mockCustomerSupport.RegisterHandlers(mux)
 	mockOpenAPI.RegisterHandlers(mux)
+	mockMCP.RegisterHandlers(mux)
+	mockA2A.RegisterHandlers(mux)
+	mockCustody.RegisterHandlers(mux)
+	mockBlockchain.RegisterHandlers(mux)
 	return mux
 }
 

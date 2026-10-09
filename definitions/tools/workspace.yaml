@@ -1,0 +1,41 @@
+tools:
+  - name: workspace.inspect_project
+    description: "Inspect the project root and return build system, manifest, language/framework versions, dependencies and test runner. Params: path, normally '.'. Use this before generic search."
+    type: local
+    mode: read
+  - name: workspace.generate_code
+    description: "Generate source code. Params: language, path, request."
+    type: local
+    mode: write
+  - name: workspace.tree
+    description: "List the workspace file tree. Params: path is optional."
+    type: local
+    mode: read
+  - name: workspace.read_file
+    description: "Read a UTF-8 text file. Params: path."
+    type: local
+    mode: read
+  - name: workspace.search
+    description: "Search text across workspace files. Params: query. Returns file, line and matching text."
+    type: local
+    mode: read
+  - name: workspace.append_file
+    description: "Append text to a file. Params: path, text."
+    type: local
+    mode: write
+  - name: workspace.write_file
+    description: "Create or fully replace a source file. Params: path, content. Content must be plain source without Markdown fences."
+    type: local
+    mode: write
+  - name: workspace.replace_in_file
+    description: "Replace one unique exact text fragment. Params: path, old, new. Read the file first."
+    type: local
+    mode: write
+  - name: workspace.git_diff
+    description: "Show the Git diff for one file. Params: path."
+    type: local
+    mode: read
+  - name: workspace.run_tests
+    description: "Validate a file or project. Params: path and optional language. For a directory, detects pom.xml, Gradle, go.mod or pyproject.toml and runs the matching test command."
+    type: local
+    mode: read

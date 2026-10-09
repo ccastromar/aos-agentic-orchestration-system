@@ -2,11 +2,13 @@ package agent
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 )
 
 func TestHandleLogin_IssuesToken(t *testing.T) {
@@ -45,5 +47,15 @@ func TestHandleLogin_RequiresUsernameAndPost(t *testing.T) {
 	a.handleLogin(rec, httptest.NewRequest("GET", "/auth/login", nil))
 	if rec.Code != 405 {
 		t.Fatalf("expected 405 for GET, got %d", rec.Code)
+	}
+}
+
+func TestHandleLogin_DisabledOutsideDevelopment(t *testing.T) {
+	a := NewAPIAgent(bus.New(), &config.EnvVars{AppEnv: "production"})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/auth/login", strings.NewReader(`{"username":"attacker"}`))
+	a.handleLogin(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("production dev-login status = %d, want 404", rec.Code)
 	}
 }

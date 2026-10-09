@@ -11,14 +11,10 @@ import (
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestE2EResiliency(t *testing.T) {
 	chdirToRepoRoot(t)
-	application, err := app.New()
-	assert.NoError(t, err)
-
 	var flakyHits int32
 
 	// Fake backend
@@ -39,30 +35,14 @@ func TestE2EResiliency(t *testing.T) {
 		w.WriteHeader(200)
 	})
 
-	srv9000 := &http.Server{Addr: "localhost:9000", Handler: mux9000}
-	go func() { err := srv9000.ListenAndServe(); if err != nil && err != http.ErrServerClosed { panic(err) } }()
-	defer srv9000.Close()
+	mockServer := httptest.NewServer(mux9000)
+	defer mockServer.Close()
+	t.Setenv("AOS_MOCK_BASE_URL", mockServer.URL)
 
-	client := &http.Client{Timeout: 100 * time.Millisecond}
-	ready := false
-	for i := 0; i < 50; i++ { // ~5s max
-		resp, err := client.Get("http://localhost:9000/mock/ping")
-		if err == nil {
-			resp.Body.Close()
-			ready = true
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
+	application, err := app.New()
+	if err != nil {
+		t.Fatalf("initialize app: %v", err)
 	}
-	if !ready {
-		t.Fatalf("mock backend on :9000 not ready in time")
-	}
-
-	defer func() {
-		ctx2, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancel()
-		_ = srv9000.Shutdown(ctx2)
-	}()
 
 	// Iniciar agentes en background
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,20 +55,30 @@ func TestE2EResiliency(t *testing.T) {
 	// Disparar el pipeline que tiene retries y timeouts
 	reqBody := `{"operation": "intent_resiliency_demo", "lang": "es", "params": {"param1": "test"}}`
 	resp, err := http.Post(ts.URL+"/ask_structured", "application/json", strings.NewReader(reqBody))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("post /ask_structured: %v", err)
+	}
+	defer resp.Body.Close()
 
 	// El pipeline deberia fallar por el timeout del paso slow (300ms > 100ms)
-	assert.Equal(t, 500, resp.StatusCode)
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", resp.StatusCode)
+	}
 
 	var res map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
 
 	// Verificamos que el error reportado contenga "context deadline exceeded" (timeout)
 	errStr, ok := res["error"].(string)
-	assert.True(t, ok)
-	assert.Contains(t, errStr, "context deadline exceeded")
+	if !ok || !strings.Contains(errStr, "context deadline exceeded") {
+		t.Fatalf("expected timeout error, got %#v", res["error"])
+	}
 
 	// Además flaky tool debio haber sido llamado 3 veces (1 original + 2 retries)
-	assert.Equal(t, int32(3), atomic.LoadInt32(&flakyHits))
+	if got := atomic.LoadInt32(&flakyHits); got != 3 {
+		t.Fatalf("flaky tool called %d times, want 3 (one initial call and two retries)", got)
+	}
 }

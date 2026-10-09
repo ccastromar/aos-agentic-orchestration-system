@@ -1,0 +1,17 @@
+pipelines:
+  - name: pipeline_callback_demo
+    mode: linear
+    description: "Starts an async external operation and waits for its callback"
+    steps:
+      - id: submit_custody_operation
+        tool: custody.submit_operation
+        with_params:
+          callbackUrl: "{{ .callback_url }}"
+          callbackToken: "{{ .callback_token }}"
+      - id: wait_custody_result
+        type: await_callback
+        timeout_ms: 30000
+      - id: notify_custody_result
+        tool: notifications.send
+        with_params:
+          status: "{{ index . \"wait_custody_result.status\" }}"

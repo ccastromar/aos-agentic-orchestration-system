@@ -1,0 +1,23 @@
+intents:
+  - type: custody.transfer_async
+    description: "Inicia una transferencia de custodia y espera el callback del custodio"
+    pipeline: pipeline_custody_transfer_async
+    allow_dangerous: true
+    required_params:
+      - assetId
+      - destination
+      - amount
+    examples:
+      - "Inicia una transferencia de custodia del activo BTC-001 al destino wallet-demo por 0.5"
+      - "Ejecuta la operación de custodia para asset ETH-001, destino vault-02 y cantidad 10"
+
+  - type: custody.transfer_with_compliance
+    description: "Revisa con compliance y después inicia una transferencia de custodia asíncrona"
+    pipeline: pipeline_custody_transfer_with_compliance
+    allow_dangerous: true
+    required_params:
+      - assetId
+      - destination
+      - amount
+    examples:
+      - "Revisa con compliance y ejecuta la transferencia de custodia de BTC-001 a wallet-demo por 0.5"

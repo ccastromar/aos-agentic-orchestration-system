@@ -1,0 +1,56 @@
+pipelines:
+  - name: pipeline_custody_transfer_async
+    mode: linear
+    description: "Envía una operación al custodio y continúa al recibir su callback"
+    steps:
+      - id: submit_custody_operation
+        tool: custody.submit_operation
+        with_params:
+          assetId: "{{ .assetId }}"
+          destination: "{{ .destination }}"
+          amount: "{{ .amount }}"
+          callbackUrl: "{{ .callback_url }}"
+          callbackToken: "{{ .callback_token }}"
+      - id: wait_custody_result
+        type: await_callback
+        timeout_ms: 86400000
+      - id: anchor_custody_audit
+        tool: blockchain.anchor_audit
+        when: 'audit_hash != ""'
+        with_params:
+          traceId: "{{ .trace_id }}"
+          auditHash: "{{ .audit_hash }}"
+          operationId: '{{ index . "wait_custody_result.operationId" }}'
+          custodyTxHash: '{{ index . "wait_custody_result.txHash" }}'
+      - id: summarize_custody_result
+        analyst: true
+
+  - name: pipeline_custody_transfer_with_compliance
+    mode: linear
+    description: "Solicita revisión A2A antes de enviar la operación al custodio"
+    steps:
+      - id: compliance_review
+        tool: compliance.a2a_review
+        with_params:
+          message: "Review custody transfer for asset {{ .assetId }} to {{ .destination }} amount {{ .amount }}"
+      - id: submit_custody_operation
+        tool: custody.submit_operation
+        with_params:
+          assetId: "{{ .assetId }}"
+          destination: "{{ .destination }}"
+          amount: "{{ .amount }}"
+          callbackUrl: "{{ .callback_url }}"
+          callbackToken: "{{ .callback_token }}"
+      - id: wait_custody_result
+        type: await_callback
+        timeout_ms: 86400000
+      - id: anchor_custody_audit
+        tool: blockchain.anchor_audit
+        when: 'audit_hash != ""'
+        with_params:
+          traceId: "{{ .trace_id }}"
+          auditHash: "{{ .audit_hash }}"
+          operationId: '{{ index . "wait_custody_result.operationId" }}'
+          custodyTxHash: '{{ index . "wait_custody_result.txHash" }}'
+      - id: summarize_custody_result
+        analyst: true

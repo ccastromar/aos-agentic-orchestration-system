@@ -24,14 +24,24 @@ type EnvVars struct {
 	LLMTimeout time.Duration `envconfig:"LLM_TIMEOUT" default:"10s"`
 
 	// Ollama (local LLM) configuration
-	OllamaBaseURL    string `envconfig:"OLLAMA_BASE_URL" default:"http://localhost:11434"`
-	OllamaModel      string `envconfig:"OLLAMA_MODEL" default:"qwen3:0.6b"`
-	OllamaEmbedModel string `envconfig:"OLLAMA_EMBED_MODEL" default:"nomic-embed-text"`
+	OllamaBaseURL         string `envconfig:"OLLAMA_BASE_URL" default:"http://localhost:11434"`
+	OllamaModel           string `envconfig:"OLLAMA_MODEL" default:"qwen3:0.6b"`
+	OllamaIntentModel     string `envconfig:"OLLAMA_INTENT_MODEL" default:""`
+	OllamaEmbedModel      string `envconfig:"OLLAMA_EMBED_MODEL" default:"nomic-embed-text"`
+	OllamaNumCtx          int    `envconfig:"OLLAMA_NUM_CTX" default:"8192"`
+	OllamaReactNumPredict int    `envconfig:"OLLAMA_REACT_NUM_PREDICT" default:"4096"`
 
-	RedisAddr     string `envconfig:"REDIS_ADDR"`
-	RedisPassword string `envconfig:"REDIS_PASSWORD"`
-	
-	QdrantURL     string `envconfig:"QDRANT_URL" default:"http://localhost:6333"`
+	RedisAddr                string        `envconfig:"REDIS_ADDR"`
+	RedisPassword            string        `envconfig:"REDIS_PASSWORD"`
+	StateStore               string        `envconfig:"AOS_STATE_STORE" default:""` // memory, sqlite, redis; empty preserves legacy auto-selection
+	SQLitePath               string        `envconfig:"AOS_SQLITE_PATH" default:"./data/aos-state.db"`
+	AuditLogPath             string        `envconfig:"AUDIT_LOG_PATH" default:""`
+	ErnestIngestorURL        string        `envconfig:"ERNEST_INGESTOR_URL" default:""`
+	ErnestIngestorAPIKey     string        `envconfig:"ERNEST_INGESTOR_API_KEY" default:""`
+	ErnestIngestorHMACSecret string        `envconfig:"ERNEST_INGESTOR_HMAC_SECRET" default:""`
+	ErnestIngestorTimeout    time.Duration `envconfig:"ERNEST_INGESTOR_TIMEOUT" default:"5s"`
+
+	QdrantURL string `envconfig:"QDRANT_URL" default:"http://localhost:6333"`
 
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 	// ---------- AUTH / IDENTITY CONFIG (NEW) ----------

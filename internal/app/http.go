@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,11 +13,11 @@ import (
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/health"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 )
 
 type HTTPServer struct {
@@ -40,7 +39,7 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 	mux := http.NewServeMux()
 
 	apiAgent.RegisterHTTP(mux)
-	
+
 	// Settings and Pipelines routes
 	mux.HandleFunc("/ui/pipelines", a.HandlePipelines)
 	mux.HandleFunc("/ui/settings/llm", a.HandleSettingsLLM)
@@ -49,40 +48,9 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 	mux.HandleFunc("/health/ready", health.ReadyHandler(rt))
 	// Expose Prometheus metrics
 	mux.HandleFunc("/metrics", metrics.ServeHTTP)
-	mux.HandleFunc("/api/v1/events/stream", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-			return
-		}
-
-		ch := make(chan bus.Message)
-		eventBus.Subscribe("system_events", ch)
-		defer eventBus.Unsubscribe("system_events", ch)
-
-		ctx := r.Context()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case msg := <-ch:
-				data, err := json.Marshal(msg)
-				if err != nil {
-					continue
-				}
-				fmt.Fprintf(w, "data: %s\n\n", data)
-				flusher.Flush()
-			}
-		}
-	})
-
 	// Wrap with security and observability middleware
-	authenticator := auth.NewJWTAuthenticator(auth.JWTConfig{})
+	allowDevFallback := a.env != nil && auth.IsDevelopmentEnvironment(a.env.AppEnv)
+	authenticator := auth.NewJWTAuthenticator(auth.JWTConfig{AllowDevFallback: allowDevFallback})
 	authenticated := authMiddleware(mux, authenticator)
 	hardened := secureMiddleware(observabilityMiddleware(authenticated))
 	corsHandler := corsMiddleware(hardened)
@@ -94,8 +62,8 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       10 * time.Second,
 			// WriteTimeout:      15 * time.Second, // Removed to support long-lived SSE connections
-			IdleTimeout:       60 * time.Second,
-			MaxHeaderBytes:    1 << 20, // 1MB
+			IdleTimeout:    60 * time.Second,
+			MaxHeaderBytes: 1 << 20, // 1MB
 		},
 	}
 }
@@ -170,7 +138,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Mock-Role")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -180,11 +148,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-
 func authMiddleware(next http.Handler, authenticator *auth.JWTAuthenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for /ui, /health, /metrics and the login endpoint itself
-		if strings.HasPrefix(r.URL.Path, "/ui") || strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" || r.URL.Path == "/auth/login" {
+		// Skip auth for browser-facing UI endpoints, health, metrics, dev login,
+		// and capability-token callbacks. The authenticated SSE stream is protected
+		// here and checks ownership again in its handler.
+		if strings.HasPrefix(r.URL.Path, "/ui") || strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" || r.URL.Path == "/auth/login" || strings.HasPrefix(r.URL.Path, "/api/v1/callbacks/") {
 			next.ServeHTTP(w, r)
 			return
 		}

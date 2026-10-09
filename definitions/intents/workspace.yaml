@@ -1,0 +1,9 @@
+intents:
+  - type: workspace.update_readme
+    description: "Inspecciona el árbol local, lee README.md, añade texto y verifica el resultado"
+    pipeline: pipeline_workspace_update_readme
+    allow_dangerous: true
+    required_params:
+      - text
+    examples:
+      - "Lee el README y añade esta nota: El proyecto soporta callbacks asíncronos"

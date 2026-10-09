@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,64 +16,71 @@ import (
 func TestE2EReAct(t *testing.T) {
 	chdirToRepoRoot(t)
 
-	var chatCalls int
+	var reactCalls int
 	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
-		
+
 		bodyBytes, _ := io.ReadAll(r.Body)
-		fmt.Printf("OLLAMA MOCK REQ path=%s body=%s\n", r.URL.Path, string(bodyBytes))
-		
+		var request struct {
+			Tools json.RawMessage `json:"tools"`
+		}
+		_ = json.Unmarshal(bodyBytes, &request)
+
 		if r.URL.Path == "/api/embeddings" {
 			_ = enc.Encode(map[string]any{
 				"embedding": []float32{0.1, 0.2, 0.3},
 			})
 			return
 		}
-		
-		chatCalls++
-		if chatCalls == 1 {
+
+		if len(request.Tools) == 0 {
 			// Intent Detection
 			_ = enc.Encode(map[string]any{
 				"message": map[string]any{
-					"role": "assistant",
+					"role":    "assistant",
 					"content": "```json\n{\n  \"intent\": \"intent_react_demo\",\n  \"confidence\": 0.9,\n  \"language\": \"es\",\n  \"parameters\": {\"accountId\": \"555\"},\n  \"errors\": []\n}\n```",
 				},
 			})
-		} else if chatCalls == 2 {
-			// ReAct Step 1: Call check risk
+			return
+		}
+
+		reactCalls++
+		if reactCalls == 1 {
+			// Ollama-native function call: check risk.
 			_ = enc.Encode(map[string]any{
 				"message": map[string]any{
 					"role": "assistant",
-					"content": `{"thought": "I need to check the risk first.", "action": "banking.aml_risk_check", "action_input": "{\"userId\":\"555\"}"}`,
+					"tool_calls": []any{map[string]any{"function": map[string]any{
+						"name": "banking.aml_risk_check", "arguments": map[string]any{"userId": "555"},
+					}}},
 				},
 			})
-		} else if chatCalls == 3 {
-			// ReAct Step 2: Call core get balance
+		} else if reactCalls == 2 {
+			// Ollama-native function call: get balance.
 			_ = enc.Encode(map[string]any{
 				"message": map[string]any{
 					"role": "assistant",
-					"content": `{"thought": "Risk is low. Now get balance.", "action": "banking.core_get_balance", "action_input": "{\"accountId\":\"555\"}"}`,
+					"tool_calls": []any{map[string]any{"function": map[string]any{
+						"name": "banking.core_get_balance", "arguments": map[string]any{"accountId": "555"},
+					}}},
 				},
 			})
 		} else {
-			// ReAct Step 3: FINISH
+			// Ollama returns plain assistant content when the agent is done.
 			_ = enc.Encode(map[string]any{
 				"message": map[string]any{
-					"role": "assistant",
-					"content": `{"thought": "I have the balance.", "action": "FINISH", "action_input": "Balance is 1000"}`,
+					"role":    "assistant",
+					"content": "Balance is 1000",
 				},
 			})
 		}
 	}))
 	defer ollama.Close()
 
-	// Mock target services
-	listener, err := net.Listen("tcp", "127.0.0.1:19001")
-	if err != nil {
-		t.Fatalf("Failed to listen on port 19001: %v", err)
-	}
-	targetMock := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Mock target services on an ephemeral port and point the loaded tool
+	// definitions at it. Fixed ports can collide with a developer's local mocks.
+	targetMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/mock/aml/check" {
 			w.Write([]byte(`{"risk_score": 10, "status": "APPROVED"}`))
@@ -83,14 +88,12 @@ func TestE2EReAct(t *testing.T) {
 			w.Write([]byte(`{"balance": 1000, "currency": "EUR"}`))
 		}
 	}))
-	targetMock.Listener.Close()
-	targetMock.Listener = listener
-	targetMock.Start()
 	defer targetMock.Close()
 
 	t.Setenv("OLLAMA_BASE_URL", ollama.URL)
 	t.Setenv("OLLAMA_MODEL", "test-model")
 	t.Setenv("LLM_ENGINE", "ollama")
+	t.Setenv("AOS_MOCK_BASE_URL", targetMock.URL)
 
 	a, err := app.New()
 	if err != nil {
@@ -99,7 +102,7 @@ func TestE2EReAct(t *testing.T) {
 
 	stopAgents := a.StartAgents(context.Background())
 	defer stopAgents()
-	
+
 	ts := httptest.NewServer(a.Handler())
 	defer ts.Close()
 

@@ -1,0 +1,13 @@
+tools:
+  - name: custody.submit_operation
+    type: http
+    method: POST
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/custody/operations"
+    mode: dangerous
+    timeout: 5000
+    body:
+      assetId: "{{ .assetId }}"
+      destination: "{{ .destination }}"
+      amount: "{{ .amount }}"
+      callbackUrl: "{{ .callbackUrl }}"
+      callbackToken: "{{ .callbackToken }}"

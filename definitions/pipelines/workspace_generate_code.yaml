@@ -1,0 +1,26 @@
+pipelines:
+  - name: pipeline_workspace_generate_code
+    mode: linear
+    skip_summary: true
+    description: "Genera código con el LLM, lo guarda, ejecuta tests y muestra el diff"
+    steps:
+      - id: generate_code
+        tool: workspace.generate_code
+        with_params:
+          language: "{{ .language }}"
+          path: "{{ .path }}"
+          request: "{{ .request }}"
+      - id: write_generated_code
+        tool: workspace.write_file
+        with_params:
+          path: "{{ .path }}"
+          content: "{{ index . \"workspace.generate_code.content\" }}"
+      - id: run_tests
+        tool: workspace.run_tests
+        with_params:
+          language: "{{ .language }}"
+          path: "{{ .path }}"
+      - id: inspect_diff
+        tool: workspace.git_diff
+        with_params:
+          path: "{{ .path }}"

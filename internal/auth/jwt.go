@@ -14,6 +14,18 @@ type JWTConfig struct {
 	Issuer   string
 	Audience string
 	JWKURL   string // OIDC
+	// AllowDevFallback enables the mock identity and signing key for local tests.
+	AllowDevFallback bool
+}
+
+// IsDevelopmentEnvironment reports whether mock authentication is acceptable.
+func IsDevelopmentEnvironment(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "dev", "development", "local", "test":
+		return true
+	default:
+		return false
+	}
 }
 
 type JWTAuthenticator struct {
@@ -28,7 +40,7 @@ func NewJWTAuthenticator(cfg JWTConfig) *JWTAuthenticator {
 func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		if os.Getenv("JWT_SECRET") == "" {
+		if os.Getenv("JWT_SECRET") == "" && a.cfg.AllowDevFallback {
 			mockRole := r.Header.Get("X-Mock-Role")
 			if mockRole == "" {
 				mockRole = "admin"
@@ -39,6 +51,9 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 				Roles:  []string{mockRole},
 				Source: "mock",
 			}, nil
+		}
+		if os.Getenv("JWT_SECRET") == "" {
+			return nil, &AuthError{Code: http.StatusUnauthorized, Message: "JWT_SECRET is required outside development mode"}
 		}
 		return nil, &AuthError{Code: http.StatusUnauthorized, Message: "missing bearer token"}
 	}
@@ -79,10 +94,8 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	}, nil
 }
 
-// verifyAndParseJWT validates the JWT signature and extracts claims. Tokens
-// are verified against JWT_SECRET, or the dev secret when it is unset (so
-// /auth/login tokens work locally without configuration). In dev mode an
-// unverifiable token still degrades to the legacy mock identity.
+// verifyAndParseJWT validates the JWT signature and extracts claims. Local
+// mock-token fallback is enabled only when explicitly configured.
 func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{}, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Ensure the signing method is HMAC
@@ -98,7 +111,7 @@ func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{
 		}
 	}
 
-	if os.Getenv("JWT_SECRET") == "" {
+	if os.Getenv("JWT_SECRET") == "" && cfg.AllowDevFallback {
 		// Mock fallback for local dev if no secret is configured
 		return map[string]interface{}{
 			"sub":   "demo-user",
@@ -106,6 +119,9 @@ func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{
 			"roles": []interface{}{"admin"},
 			"exp":   time.Now().Add(1 * time.Hour).Unix(),
 		}, nil
+	}
+	if os.Getenv("JWT_SECRET") == "" {
+		return nil, fmt.Errorf("JWT_SECRET is required outside development mode")
 	}
 
 	if err != nil {

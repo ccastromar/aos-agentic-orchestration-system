@@ -1,0 +1,11 @@
+intents:
+  - type: workspace.agent_code
+    description: "Agente para cambios en un proyecto existente: explora su estructura y estilo, modifica archivos, añade tests, ejecuta las pruebas y corrige errores"
+    pipeline: pipeline_workspace_agent_code
+    allow_dangerous: true
+    required_params:
+      - request
+    examples:
+      - "Agente de código: añade validación de email al proyecto, ejecuta los tests y corrige los errores"
+      - "Investiga el proyecto y crea una API Python de tareas; prueba el código hasta que compile"
+      - "Añade un endpoint al proyecto siguiendo su estilo, crea un test de controller y ejecuta los tests"

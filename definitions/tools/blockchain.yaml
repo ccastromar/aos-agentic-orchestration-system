@@ -1,0 +1,13 @@
+tools:
+  - name: blockchain.anchor_audit
+    description: Anchors the current AOS audit hash in the configured blockchain adapter
+    type: http
+    method: POST
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/blockchain/anchors"
+    mode: write
+    timeout: 5000
+    body:
+      traceId: "{{ .traceId }}"
+      auditHash: "{{ .auditHash }}"
+      operationId: "{{ .operationId }}"
+      custodyTxHash: "{{ .custodyTxHash }}"

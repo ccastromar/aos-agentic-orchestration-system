@@ -1,0 +1,41 @@
+intents:
+  - type: memory.add
+    description: "Explicitly ask the system to remember, memorize, or save a new fact about the user. Only use this if the user is explicitly telling you to 'remember', 'memorize', 'save', or 'keep in mind' a fact."
+    pipeline: pipeline_memory_add
+    required_params: ["fact"]
+    examples:
+      - "Remember that my dog's name is Rex"
+      - "Keep in mind that I prefer emails over calls"
+      - "Memorize my address: 123 Main St"
+      - "Save my IP allowance: 10.1.13.3"
+    allow_dangerous: false
+
+  - type: memory.list
+    description: "Ask the system to show, list, or recall what it currently remembers or knows about the user."
+    pipeline: pipeline_memory_list
+    required_params: []
+    examples:
+      - "What do you know about me?"
+      - "List all the facts you remember"
+      - "Show my memory"
+    allow_dangerous: false
+
+  - type: memory.forget
+    description: "Ask the system to forget a specific fact or detail about the user."
+    pipeline: pipeline_memory_forget
+    required_params: ["fact_to_forget"]
+    examples:
+      - "Forget my dog's name"
+      - "Delete the fact about my address"
+      - "Erase what you know about my preferences"
+    allow_dangerous: false
+
+  - type: memory.clear
+    description: "Ask the system to clear, delete, or erase ALL memories and facts it has stored about the user."
+    pipeline: pipeline_memory_clear
+    required_params: []
+    examples:
+      - "Clear my memory completely"
+      - "Forget everything you know about me"
+      - "Wipe my data"
+    allow_dangerous: false

@@ -27,6 +27,10 @@ const intentSchemaJSON = `
     "errors": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "new_facts": {
+      "type": "array",
+      "items": { "type": "string" }
     }
   }
 }

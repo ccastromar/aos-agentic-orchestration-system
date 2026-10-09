@@ -1,69 +1,48 @@
-# ✅ **AOS — Feature List (Simple Version)**
+# AOS roadmap
 
-### **1. Memory**
+Updated 2026-10-03. AOS remains a learning proof of concept.
 
-* Short-term memory per task
-* Long-term memory per agent
+## Implemented
 
-### **2. Guardrails** *(Done)*
+- YAML-driven linear, DAG and ReAct execution; conditions, retries, per-step timeouts and human gates.
+- Missing-parameter clarification and intent confidence extraction.
+- JWT with a development login, RBAC and audit events.
+- Structured logs, tracing and Prometheus metrics.
+- OpenAPI tool loading from local plugin definitions.
+- Session context, execution recall and vector memory with Qdrant or an in-memory development store.
+- React dashboard, chat, events, settings, execution history and memory management.
+- Tamper-evident local audit journal with optional hash-only event export to Ernest.
 
-* Parameter validation
-* Intent-level policies
-* Dangerous action limits
-* Security filters (JWT, RBAC)
+## Memory and history closure — codex/close-memory-history
 
-### **3. Multi-Agent**
+- [x] Fix missing-identity panic in `/ask`.
+- [x] Scope authenticated conversation and memory context to the user, ignoring caller-supplied session IDs.
+- [x] Filter execution history by authenticated owner and protect persisted task details.
+- [x] Scope Qdrant deletion to both memory ID and owner; wait for mutations to complete.
+- [x] Synchronize the in-memory vector store and test concurrent operations.
+- [x] Follow Qdrant list pagination and restore memory timestamps.
+- [x] Propagate memory operation errors; delete by ID or exact text instead of broad substring matches.
+- [x] Avoid duplicate implicit extraction for explicit memory operations.
+- [x] Reject model-generated personal facts absent from the user message.
+- [x] Keep memory-operation summaries out of the vector store and render memory replies directly from confirmed tool results.
+- [x] Allow unknown intents to reach the declared fallback pipeline instead of requesting `invalid_intent` as a parameter.
+- [x] Re-run history entries through `/ask_structured`, with a fresh task and normal RBAC, guards and approval gates.
+- [x] Generic `await_callback` step with authenticated callback webhook and persisted resume state.
+- [x] Reset visible task/chat state when switching users.
 
-* Risk agent
-* Compliance agent
-* ReAct agent (step-by-step reasoning)
+## Remaining follow-up
 
-### **4. Clarification Layer**
+- Validate against a real Qdrant instance and configured embedding model (collection dimensions are currently fixed at 768).
+- Add end-to-end coverage using a real LLM; current automated tests use controlled doubles.
+- Introduce explicit persisted execution status instead of inferring completion from step results.
+- Decide whether to support separate conversations per user; current memory/context scope is one per authenticated user.
+- Review and commit the carried-over local work together with these fixes in both repositories.
 
-* User clarification questions when information is missing
-* Intent confidence scoring
-* Automated “need more data” handling
+## Future capabilities
 
-### **5. Advanced Pipelines**
-
-* Conditions (if / else)
-* Branching
-* Retries
-* Per-step timeouts
-* Parallel execution (DAG)
-
-### **6. Observability** *(Done)*
-
-* Tracing
-* Enriched structured logs
-* Prometheus metrics
-
-### **7. Plugins / Tool Discovery**
-
-* External tool registry
-* Domain-specific plugins
-* Dynamic remote tools
-
-### **8. Immutable Context**
-
-* Versioned task context
-* Versioned pipelines
-* Reproducible execution
-
-### **9. Domain SDKs**
-
-* AOS Banking
-* AOS Crypto
-* AOS AI Ops
-* AOS DevOps
-
-### **10. LLM Supervisor**
-
-* Coherence verification
-* Agent monitoring
-* Meta-reasoning
-* Self-diagnostics
-
-### **UI** *(Done)*
-
-* Complete Dashboard (React Flow, Chat Widget, Server-Sent Events, Prometheus Metrics)
+- Immutable snapshots of external context and provider/runtime versions; pipeline, referenced tool, and agent definition snapshots with digests are now captured per execution.
+- Dedicated risk/compliance agents (current banking checks are tools).
+- Remote dynamic tool discovery beyond local OpenAPI definitions.
+- Domain SDKs for banking, crypto, AI operations and DevOps.
+- LLM supervisor for coherence checks, monitoring and diagnostics.
+- End-to-end AOS + Ernest evidence-verification demo, including Ernest queue processing and an independently verifiable anchor.

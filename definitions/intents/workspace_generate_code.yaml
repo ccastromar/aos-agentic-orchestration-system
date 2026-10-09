@@ -1,0 +1,12 @@
+intents:
+  - type: workspace.generate_code
+    description: "Genera un único archivo fuente independiente (no cambios a un proyecto existente); solo si el usuario indica explícitamente el lenguaje y la ruta de destino del archivo"
+    pipeline: pipeline_workspace_generate_code
+    allow_dangerous: true
+    required_params:
+      - language
+      - path
+      - request
+    examples:
+      - "Genera un archivo Python independiente en scratch/server.py con un servidor HTTP que exponga /health"
+      - "Crea un archivo fuente Go independiente en scratch/example.go con una función que valide emails"

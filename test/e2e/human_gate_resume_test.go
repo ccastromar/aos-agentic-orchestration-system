@@ -17,11 +17,8 @@ import (
 func TestE2E_HumanGateResume(t *testing.T) {
 	chdirToRepoRoot(t)
 
-	// 1. Start App
-	application, err := app.New()
-	assert.NoError(t, err)
-
-	// 2. Fake backend
+	// Fake backend on an ephemeral port so the test cannot accidentally use a
+	// developer's service already listening on localhost:9000.
 	mux9000 := http.NewServeMux()
 	var callCount int
 	var mu sync.Mutex
@@ -33,30 +30,16 @@ func TestE2E_HumanGateResume(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "risk_level": "low", "balance": 5000})
 	})
-	srv9000 := &http.Server{Addr: "localhost:9000", Handler: mux9000}
-	go func() { err := srv9000.ListenAndServe(); if err != nil && err != http.ErrServerClosed { panic(err) } }()
-	defer srv9000.Close()
+	mockServer := httptest.NewServer(mux9000)
+	defer mockServer.Close()
+	t.Setenv("AOS_MOCK_BASE_URL", mockServer.URL)
 
-	client := &http.Client{Timeout: 100 * time.Millisecond}
-	ready := false
-	for i := 0; i < 50; i++ {
-		resp, err := client.Get("http://localhost:9000/mock/ping")
-		if err == nil {
-			resp.Body.Close()
-			ready = true
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
+	// Initialize only after setting the mock URL because tool definitions are
+	// expanded when the app loads its configuration.
+	application, err := app.New()
+	if err != nil {
+		t.Fatalf("initialize app: %v", err)
 	}
-	if !ready {
-		t.Fatalf("mock backend on :9000 not ready in time")
-	}
-
-	defer func() {
-		ctx2, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancel()
-		_ = srv9000.Shutdown(ctx2)
-	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -83,9 +66,12 @@ func TestE2E_HumanGateResume(t *testing.T) {
 	json.NewDecoder(resp2.Body).Decode(&taskRes)
 
 	assert.Equal(t, "await_human", taskRes["status"])
-	
+
 	// Ensure that initial steps ran exactly once (check_risk, check_balance)
-	assert.Equal(t, 2, callCount, "Expected exactly 2 mock API calls before gate")
+	mu.Lock()
+	callsBeforeApproval := callCount
+	mu.Unlock()
+	assert.Equal(t, 2, callsBeforeApproval, "Expected exactly 2 mock API calls before gate")
 
 	// 5. Approve the gate
 	gate := "manager_review"
@@ -101,10 +87,13 @@ func TestE2E_HumanGateResume(t *testing.T) {
 	json.NewDecoder(resp3.Body).Decode(&taskResFinal)
 
 	assert.Equal(t, "ok", taskResFinal["status"], "Pipeline should complete with status ok")
-	
+
 	// 7. Verify that tools BEFORE the gate were NOT executed again, but tools AFTER the gate were.
 	// Initial tools: check_risk, check_balance (2 calls)
 	// Post-gate tools: execute_transfer, notify (2 calls)
 	// Total expected mock API calls = 4
-	assert.Equal(t, 4, callCount, "Expected exactly 4 total mock API calls (2 before gate, 2 after gate)")
+	mu.Lock()
+	totalCalls := callCount
+	mu.Unlock()
+	assert.Equal(t, 4, totalCalls, "Expected exactly 4 total mock API calls (2 before gate, 2 after gate)")
 }

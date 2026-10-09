@@ -23,6 +23,13 @@ type OpenAIClient struct {
 
 // Compile-time interface conformance
 var _ LLMClient = (*OpenAIClient)(nil)
+var _ ModelRoutableClient = (*OpenAIClient)(nil)
+
+func (c *OpenAIClient) WithModel(model string) LLMClient {
+	copy := *c
+	copy.Model = strings.TrimSpace(model)
+	return &copy
+}
 
 func NewOpenAIClient(baseURL, apiKey, model string) *OpenAIClient {
 	if baseURL == "" {

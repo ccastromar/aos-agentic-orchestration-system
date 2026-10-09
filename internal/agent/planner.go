@@ -15,6 +15,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
+	"github.com/google/uuid"
 )
 
 type Planner struct {
@@ -23,8 +24,9 @@ type Planner struct {
 	inbox        chan bus.Message
 	llmClient    llm.LLMClient
 	llmMutex     sync.RWMutex
-	eventBus *bus.Bus
+	eventBus     *bus.Bus
 	stateManager *state.StateManager
+	auditLogger  audit.Logger
 }
 
 func (p *Planner) SetLLMClient(c llm.LLMClient) {
@@ -52,8 +54,15 @@ func NewPlanner(b *bus.Bus, cfg *config.Config, llmClient llm.LLMClient, eventBu
 		cfg:          cfg,
 		inbox:        make(chan bus.Message, 16),
 		llmClient:    llmClient,
-		eventBus: eventBus,
+		eventBus:     eventBus,
 		stateManager: sm,
+		auditLogger:  audit.StdLogger{},
+	}
+}
+
+func (p *Planner) SetAuditLogger(logger audit.Logger) {
+	if logger != nil {
+		p.auditLogger = logger
 	}
 }
 
@@ -153,6 +162,14 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		}
 	}
 
+	// Preserve ownership before detection so errors are visible to the same user.
+	if p.stateManager != nil {
+		if err := p.stateManager.Save(taskCtx, &state.ExecutionState{ID: id, SessionID: sessionID, UserID: userID}); err != nil {
+			p.storeError(id, "cannot persist task owner")
+			return
+		}
+	}
+
 	// ---------------------------------------------------------
 	// 1) STRUCTURED PATH (operation provided)
 	// ---------------------------------------------------------
@@ -227,6 +244,18 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			return
 		}
 
+		// No declared intent matched: fallback to generic RAG chat
+		if di.Type == "" {
+			logx.Info("Planner", "[%s] no declared intent matches the message, falling back to system.fallback", id)
+			di.Type = "system.fallback"
+			di.Errors = nil
+			if di.Params == nil {
+				di.Params = make(map[string]string)
+			}
+			di.Params["query"] = userMsg
+			di.Params["context"] = sessionContextStr
+		}
+
 		// functional errors
 		if len(di.Errors) > 0 {
 			logx.Info("Planner", "[%s] missing params: %v", id, di.Errors)
@@ -274,6 +303,30 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 
 		logx.Debug("Planner", "LLM returned intent='%s' params=%v errors=%v", di.Type, di.Params, di.Errors)
 
+		if len(di.NewFacts) > 0 && !strings.HasPrefix(di.Type, "memory.") && p.getLLMClient() != nil && p.stateManager != nil && p.stateManager.Vector() != nil {
+			go func(facts []string, sID string) {
+				for _, fact := range facts {
+					emb, err := p.getLLMClient().Embed(context.Background(), fact)
+					if err != nil {
+						logx.Error("Planner", "failed to embed new fact: %v", err)
+						continue
+					}
+					mem := state.Memory{
+						ID:        uuid.NewString(),
+						SessionID: sID,
+						Text:      fact,
+						Embedding: emb,
+						Timestamp: time.Now(),
+					}
+					if err := p.stateManager.Vector().AddMemory(context.Background(), mem); err != nil {
+						logx.Error("Planner", "failed to save new fact to vector store: %v", err)
+					} else {
+						logx.Info("Planner", "Implicitly saved new fact: %s", fact)
+					}
+				}
+			}(di.NewFacts, sessionID)
+		}
+
 		// Intent returned by LLM
 		detectedType = di.Type
 		params = di.Params
@@ -309,8 +362,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	for k, v := range params {
 		auditParams[k] = v
 	}
+	auditParams = audit.RedactParams(auditParams)
 
-	auditLogger := audit.StdLogger{}
 	auditEvent := audit.Event{
 		Timestamp: time.Now(),
 		UserID:    userID,
@@ -323,14 +376,19 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 
 	if rbacDenied {
 		auditEvent.Result = "denied"
+		auditEvent.Phase = "intent.denied"
 		auditEvent.Error = "RBAC policy denied access"
-		auditLogger.Log(auditEvent)
+		_ = audit.LogChecked(p.auditLogger, auditEvent)
 		p.storeError(id, "access denied by rbac")
 		return
 	}
 
 	auditEvent.Result = "success"
-	auditLogger.Log(auditEvent)
+	auditEvent.Phase = "intent.rbac_allowed"
+	if err := audit.LogChecked(p.auditLogger, auditEvent); err != nil {
+		p.storeError(id, "audit journal unavailable: "+err.Error())
+		return
+	}
 
 	// ---------------------------------------------------------
 	// 5) Resolve pipeline
@@ -398,7 +456,7 @@ func (p *Planner) storeError(id string, errMsg string) {
 		Status: "error",
 		Err:    errMsg,
 	})
-	
+
 	taskCtx, _ := GetTaskContext(id)
 	if taskCtx != nil && p.stateManager != nil {
 		st, err := p.stateManager.Load(taskCtx, id)
@@ -475,7 +533,7 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 			p.eventBus.PublishEvent(id, "Planner", "await_clarification", strings.Join(missing, ", "), "")
 		}
 		p.bus.Send("api", bus.Message{
-			Type: "await_human",
+			Type:    "await_human",
 			Payload: map[string]any{"id": id, "gate": "clarification"},
 		})
 		storeResult(id, Result{

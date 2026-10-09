@@ -14,6 +14,15 @@ type GeminiClient struct {
 	model  string
 }
 
+var _ LLMClient = (*GeminiClient)(nil)
+var _ ModelRoutableClient = (*GeminiClient)(nil)
+
+func (g *GeminiClient) WithModel(model string) LLMClient {
+	copy := *g
+	copy.model = strings.TrimSpace(model)
+	return &copy
+}
+
 func NewGeminiClient(ctx context.Context, model string) (*GeminiClient, error) {
 	apiKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
 	if apiKey == "" {

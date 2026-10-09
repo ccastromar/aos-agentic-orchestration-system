@@ -9,11 +9,10 @@ import (
 
 type RedisStore struct {
 	rdb *redis.Client
-	ttl time.Duration
 }
 
-func NewRedisStore(rdb *redis.Client, ttl time.Duration) *RedisStore {
-	return &RedisStore{rdb: rdb, ttl: ttl}
+func NewRedisStore(rdb *redis.Client, _ time.Duration) *RedisStore {
+	return &RedisStore{rdb: rdb}
 }
 
 func (r *RedisStore) Get(ctx context.Context, key string) (string, error) {
@@ -25,10 +24,13 @@ func (r *RedisStore) Get(ctx context.Context, key string) (string, error) {
 }
 
 func (r *RedisStore) Set(ctx context.Context, key string, val string, ttl time.Duration) error {
-	if ttl == 0 {
-		ttl = r.ttl
-	}
 	return r.rdb.Set(ctx, key, val, ttl).Err()
+}
+
+// SetPersistent writes execution state without an expiration. Session state
+// continues to use Set with the configured TTL.
+func (r *RedisStore) SetPersistent(ctx context.Context, key, val string) error {
+	return r.rdb.Set(ctx, key, val, 0).Err()
 }
 
 func (r *RedisStore) Delete(ctx context.Context, key string) error {

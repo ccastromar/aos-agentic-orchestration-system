@@ -5,3 +5,10 @@ pipelines:
     steps:
       - tool: system.recall
       - analyst: true
+
+  - name: pipeline_system_fallback
+    mode: linear
+    description: "General chat answering queries using context and RAG memory"
+    steps:
+      - tool: system.rag_query
+      - analyst: true

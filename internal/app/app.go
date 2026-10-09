@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
@@ -15,18 +17,21 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
 )
 
 type App struct {
-	cfg    *config.Config
-	env    *config.EnvVars
-	bus    *bus.Bus
-	eventBus *bus.Bus
-	agents []agent.Agent
-	llm    llm.LLMClient
-	http   *HTTPServer
+	cfg         *config.Config
+	env         *config.EnvVars
+	bus         *bus.Bus
+	eventBus    *bus.Bus
+	agents      []agent.Agent
+	llm         llm.LLMClient
+	http        *HTTPServer
+	auditCloser interface{ Close() error }
+	stateCloser interface{ Close() error }
 }
 
 // New loads environment variables if available and delegates to NewWithEnv.
@@ -51,21 +56,10 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 
 	messageBus := bus.New()
 
-	var stateStore state.StateStore
-	if env.RedisAddr != "" {
-		rdb := redis.NewClient(&redis.Options{
-			Addr:     env.RedisAddr,
-			Password: env.RedisPassword,
-			DB:       0,
-		})
-		if err := rdb.Ping(context.Background()).Err(); err != nil {
-			return nil, fmt.Errorf("redis connection failed: %w", err)
-		}
-		stateStore = state.NewRedisStore(rdb, 24*time.Hour)
-	} else {
-		stateStore = state.NewMemoryStore()
+	stateStore, stateCloser, err := newStateStore(env)
+	if err != nil {
+		return nil, err
 	}
-
 	var vectorStore state.VectorStore
 	if env.QdrantURL == "memory" || env.QdrantURL == "" {
 		vectorStore = state.NewMemoryVectorStore()
@@ -73,6 +67,13 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		vectorStore = state.NewQdrantVectorStore(env.QdrantURL)
 	}
 	stateManager := state.NewStateManager(stateStore, vectorStore)
+	auditLogger, auditCloser, err := newAuditLogger(env)
+	if err != nil {
+		if stateCloser != nil {
+			_ = stateCloser.Close()
+		}
+		return nil, err
+	}
 
 	// Select an LLM client based on env. Ensure we always return a non-nil client for tests.
 	var llmClient llm.LLMClient
@@ -80,6 +81,12 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	if env.LLMEngine == "gemini" {
 		llmClient, err = llm.NewGeminiClient(context.Background(), env.LLMModel)
 		if err != nil {
+			if stateCloser != nil {
+				_ = stateCloser.Close()
+			}
+			if auditCloser != nil {
+				_ = auditCloser.Close()
+			}
 			return nil, err
 		}
 	} else if env.LLMEngine == "ollama" {
@@ -103,8 +110,9 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	inspector := agent.NewInspector(messageBus, messageBus)
 	planner := agent.NewPlanner(messageBus, cfg, llmClient, messageBus, stateManager)
 	verifier := agent.NewVerifier(messageBus, cfg, llmClient, messageBus, stateManager)
+	planner.SetAuditLogger(auditLogger)
+	verifier.SetAuditLogger(auditLogger)
 	analyst := agent.NewAnalyst(messageBus, llmClient, messageBus, stateManager)
-
 
 	messageBus.Subscribe("api", apiAgent.Inbox())
 	messageBus.Subscribe("inspector", inspector.Inbox())
@@ -113,11 +121,13 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	messageBus.Subscribe("analyst", analyst.Inbox())
 
 	app := &App{
-		cfg:    cfg,
-		env:    env,
-		bus:    messageBus,
-		agents: []agent.Agent{apiAgent, inspector, planner, verifier, analyst},
-		llm:    llmClient,
+		cfg:         cfg,
+		env:         env,
+		bus:         messageBus,
+		agents:      []agent.Agent{apiAgent, inspector, planner, verifier, analyst},
+		llm:         llmClient,
+		auditCloser: auditCloser,
+		stateCloser: stateCloser,
 	}
 
 	httpServer := NewHTTPServer(app, apiAgent, messageBus, r)
@@ -126,7 +136,87 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	return app, nil
 }
 
+func newAuditLogger(env *config.EnvVars) (audit.Logger, interface{ Close() error }, error) {
+	var sinks []audit.Logger
+	if env.AuditLogPath != "" {
+		chain, err := audit.NewFileChain(env.AuditLogPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("initialize audit chain: %w", err)
+		}
+		sinks = append(sinks, chain)
+	}
+	if strings.TrimSpace(env.ErnestIngestorURL) != "" {
+		if strings.TrimSpace(env.ErnestIngestorAPIKey) == "" && !auth.IsDevelopmentEnvironment(env.AppEnv) {
+			for _, sink := range sinks {
+				if closer, ok := sink.(interface{ Close() error }); ok {
+					_ = closer.Close()
+				}
+			}
+			return nil, nil, fmt.Errorf("ERNEST_INGESTOR_API_KEY is required outside development mode")
+		}
+		remote, err := audit.NewErnestLogger(env.ErnestIngestorURL, env.ErnestIngestorAPIKey, env.ErnestIngestorHMACSecret, env.ErnestIngestorTimeout)
+		if err != nil {
+			for _, sink := range sinks {
+				if closer, ok := sink.(interface{ Close() error }); ok {
+					_ = closer.Close()
+				}
+			}
+			return nil, nil, fmt.Errorf("initialize Ernest audit integration: %w", err)
+		}
+		sinks = append(sinks, remote)
+	}
+	if len(sinks) == 0 {
+		return audit.StdLogger{}, nil, nil
+	}
+	combined := audit.NewMultiLogger(sinks...)
+	return combined, combined, nil
+}
+
+func newStateStore(env *config.EnvVars) (state.StateStore, interface{ Close() error }, error) {
+	backend := strings.ToLower(strings.TrimSpace(env.StateStore))
+	if backend == "" {
+		if env.RedisAddr != "" {
+			backend = "redis" // preserve the existing REDIS_ADDR opt-in behavior
+		} else {
+			backend = "memory"
+		}
+	}
+	switch backend {
+	case "memory":
+		return state.NewMemoryStore(), nil, nil
+	case "sqlite":
+		store, err := state.NewSQLiteStore(env.SQLitePath)
+		if err != nil {
+			return nil, nil, err
+		}
+		return store, store, nil
+	case "redis":
+		if env.RedisAddr == "" {
+			return nil, nil, fmt.Errorf("REDIS_ADDR is required when AOS_STATE_STORE=redis")
+		}
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     env.RedisAddr,
+			Password: env.RedisPassword,
+			DB:       0,
+		})
+		if err := rdb.Ping(context.Background()).Err(); err != nil {
+			_ = rdb.Close()
+			return nil, nil, fmt.Errorf("redis connection failed: %w", err)
+		}
+		store := state.NewRedisStore(rdb, 24*time.Hour)
+		return store, rdb, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported AOS_STATE_STORE %q (expected memory, sqlite, or redis)", backend)
+	}
+}
+
 func (a *App) Run(ctx context.Context) error {
+	if a.stateCloser != nil {
+		defer a.stateCloser.Close()
+	}
+	if a.auditCloser != nil {
+		defer a.auditCloser.Close()
+	}
 	g, gctx := errgroup.WithContext(ctx)
 
 	// start agents

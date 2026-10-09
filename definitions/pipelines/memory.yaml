@@ -1,0 +1,28 @@
+pipelines:
+  - name: pipeline_memory_add
+    type: linear
+    description: "Explicitly remembers a fact about the user"
+    steps:
+      - tool: system.memory.add
+        with_params:
+          fact: "{{.intent.fact}}"
+
+  - name: pipeline_memory_list
+    type: linear
+    description: "Lists all facts the system knows about the user"
+    steps:
+      - tool: system.memory.list
+
+  - name: pipeline_memory_forget
+    type: linear
+    description: "Forgets a specific fact about the user"
+    steps:
+      - tool: system.memory.delete
+        with_params:
+          fact_to_forget: "{{.intent.fact_to_forget}}"
+
+  - name: pipeline_memory_clear
+    type: linear
+    description: "Clears all memories about the user"
+    steps:
+      - tool: system.memory.clear
