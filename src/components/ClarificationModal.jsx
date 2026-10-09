@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, Send, Loader2 } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const ClarificationModal = ({ taskId, missingParamsMessage, onResolved }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +14,7 @@ const ClarificationModal = ({ taskId, missingParamsMessage, onResolved }) => {
     setIsLoading(true);
     
     try {
-      const response = await fetch(`/task/reply?id=${taskId}`, {
+      const response = await apiFetch(`/task/reply?id=${taskId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: reply })

@@ -584,6 +584,57 @@
     line-height: 1.7;
   }
 
+  /* Ollama runtime metrics */
+  .llm-stats-card {
+    display: flex;
+    gap: 1rem;
+    padding-bottom: 1.25rem;
+    position: relative;
+  }
+
+  .llm-stats-icon {
+    position: absolute;
+    left: -2.8rem;
+    top: 0.15rem;
+    background: color-mix(in srgb, var(--primary) 75%, black);
+    color: white;
+    border-radius: 50%;
+    padding: 5px;
+    border: 4px solid var(--bg-base);
+    z-index: 2;
+  }
+
+  .llm-stats-content {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--primary-glow) 18%, transparent);
+  }
+
+  .llm-stats-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .llm-stats-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 1.25rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+
+  .llm-stats-grid b {
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
   /* Tool Execution Cards */
   .tool-card {
     display: flex;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Check, X, Loader2 } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +14,7 @@ const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
     try {
       const endpoint = approved ? 'task/approve' : 'task/reject';
       // URL: POST /task/approve?id=...&gate=...
-      const response = await fetch(`/${endpoint}?id=${taskId}&gate=${gate}`, {
+      const response = await apiFetch(`/${endpoint}?id=${taskId}&gate=${gate}`, {
         method: 'POST'
       });
 

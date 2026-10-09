@@ -21,12 +21,16 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
 
   const handleLoggedIn = (newAuth) => {
+    setActiveTaskId(null);
+    setPendingApproval(null);
     setAuth(newAuth);
     setShowLogin(false);
   };
 
   const handleLogout = () => {
     clearAuth();
+    setActiveTaskId(null);
+    setPendingApproval(null);
     setAuth(null);
   };
 
@@ -69,6 +73,7 @@ function App() {
 
   const handleSelectHistoryTask = (taskId) => {
     setActiveTaskId(taskId);
+    setPendingApproval(null);
     setView('chat');
   };
 
@@ -151,7 +156,7 @@ function App() {
             transition={{ duration: 0.3 }}
           >
             <section className="glass-panel chat-panel">
-              <ChatPanel onTaskCreated={handleTaskCreated} />
+              <ChatPanel key={auth?.userId || "demo-user"} onTaskCreated={handleTaskCreated} />
             </section>
 
             <section className="glass-panel timeline-container">
@@ -185,7 +190,7 @@ function App() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <HistoryPanel onSelectTask={handleSelectHistoryTask} />
+            <HistoryPanel key={auth?.userId || "demo-user"} onSelectTask={handleSelectHistoryTask} />
           </motion.main>
         )}
 
@@ -199,7 +204,7 @@ function App() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Settings />
+            <Settings key={auth?.userId || "demo-user"} />
           </motion.main>
         )}
       </AnimatePresence>

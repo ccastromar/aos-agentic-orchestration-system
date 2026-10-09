@@ -1,18 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from '../utils/api';
 
 const ChatPanel = ({ onTaskCreated }) => {
   const [messages, setMessages] = useState([
-    { id: 1, text: "Welcome to AOS! I'm ready to orchestrate your tasks. Try saying: 'Transfer 20 to John' or 'Deploy the catalog service'", sender: 'system' }
+    { id: 1, text: "Welcome to AOS! I'm ready to orchestrate your tasks. Try saying: 'Transfer 20 to John', 'Deploy the catalog service', or type '/help' to see more examples.", sender: 'system' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  // History state for Arrow Up/Down navigation
-  const [history, setHistory] = useState([]);
+
+  // Keep the last ten prompts across reloads so ↑/↓ is useful between sessions.
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('aosChatHistory') || '[]');
+      return Array.isArray(saved) ? saved.filter(Boolean).slice(-10) : [];
+    } catch {
+      return [];
+    }
+  });
   const [historyIndex, setHistoryIndex] = useState(-1);
-  
+
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -23,25 +31,32 @@ const ChatPanel = ({ onTaskCreated }) => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    localStorage.setItem('aosChatHistory', JSON.stringify(history.slice(-10)));
+  }, [history]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMsg = input.trim();
-    
+
     // Update history
-    setHistory(prev => [...prev, userMsg]);
+    setHistory(prev => [...prev.filter(msg => msg !== userMsg), userMsg].slice(-10));
     setHistoryIndex(-1);
-    
+
     setInput('');
     setMessages(prev => [...prev, { id: Date.now(), text: userMsg, sender: 'user' }]);
 
     if (userMsg.toLowerCase() === '/help') {
       try {
-        const res = await fetch('/intents');
+        const res = await apiFetch('/intents');
         const data = await res.json();
         if (data && data.length > 0) {
-          const examplesText = data.map(i => `• ${i.description}`).join('\n');
+          const examplesText = data.map(i => {
+            if (i.example) return `• "${i.example}"`;
+            return `• ${i.description.trim()}`;
+          }).join('\n');
           setMessages(prev => [...prev, {
             id: Date.now() + 1,
             text: `Here are some things you can ask me:\n${examplesText}`,
@@ -57,22 +72,22 @@ const ChatPanel = ({ onTaskCreated }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/ask', {
+      const response = await apiFetch('/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg, lang: 'en' })
       });
-      
+
       if (!response.ok) throw new Error('API Error');
       const data = await response.json();
-      
+
       onTaskCreated(data.id);
-      
-      setMessages(prev => [...prev, { 
-        id: Date.now(), 
-        text: `Task dispatched! Watch the timeline to see agents thinking.`, 
+
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        text: `Task dispatched! Watch the timeline to see agents thinking.`,
         taskId: data.id,
-        sender: 'system' 
+        sender: 'system'
       }]);
     } catch (err) {
       setMessages(prev => [...prev, { id: Date.now(), text: `Error: ${err.message}`, sender: 'system', isError: true }]);
@@ -82,7 +97,7 @@ const ChatPanel = ({ onTaskCreated }) => {
   };
 
   const handleKeyDown = (e) => {
-    if (history.length === 0) return;
+    if (history.length === 0 || isLoading) return;
 
     if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -109,8 +124,8 @@ const ChatPanel = ({ onTaskCreated }) => {
       <div className="chat-messages">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
-              <motion.div 
-                key={msg.id} 
+              <motion.div
+                key={msg.id}
                 initial={{ opacity: 0, scale: 0.8, y: 20, originX: msg.sender === 'user' ? 1 : 0 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -130,7 +145,7 @@ const ChatPanel = ({ onTaskCreated }) => {
                 }}>
                 {msg.text}
                 {msg.taskId && (
-                  <div 
+                  <div
                     onClick={() => onTaskCreated(msg.taskId)}
                     style={{
                       marginTop: '0.75rem',
@@ -154,7 +169,7 @@ const ChatPanel = ({ onTaskCreated }) => {
                       e.currentTarget.style.borderColor = 'var(--border-light)';
                     }}
                   >
-                    <span style={{ fontWeight: '600', color: 'var(--primary)' }}>Task ID:</span> 
+                    <span style={{ fontWeight: '600', color: 'var(--primary)' }}>Task ID:</span>
                     <span style={{ fontFamily: 'monospace' }}>{msg.taskId.substring(0,8)}</span>
                     <span style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.8 }}>View Timeline ➔</span>
                   </div>
@@ -165,23 +180,54 @@ const ChatPanel = ({ onTaskCreated }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="chat-input-area">
-        <input 
-          type="text" 
-          className="input-base" 
-          placeholder="Ask something..." 
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            // Reset history index if user types manually
-            if (historyIndex !== -1) setHistoryIndex(-1);
-          }}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-        />
-        <button type="submit" className="btn-primary" disabled={isLoading || !input.trim()}>
-          {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-        </button>
+      <form onSubmit={handleSubmit} className="chat-input-form">
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Simulate Role:</span>
+          <select
+            value={localStorage.getItem('aosMockRole') || 'admin'}
+            onChange={(e) => {
+              localStorage.setItem('aosMockRole', e.target.value);
+              // Force re-render to update the select value visually
+              setHistory(prev => [...prev]);
+            }}
+            style={{
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '0.2rem 0.5rem',
+              fontSize: '0.8rem'
+            }}
+          >
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+            <option value="guest">Guest</option>
+            <option value="finance">Finance</option>
+            <option value="sales">Sales</option>
+            <option value="support">Support</option>
+            <option value="sre">SRE / DevOps</option>
+            <option value="hr">Human Resources</option>
+            <option value="operations">Operations</option>
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your request here (↑/↓ history, e.g. 'Deploy catalog service')..."
+            className="input-base"
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isLoading || !input.trim()}
+          >
+            {isLoading ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
+          </button>
+        </div>
       </form>
     </>
   );

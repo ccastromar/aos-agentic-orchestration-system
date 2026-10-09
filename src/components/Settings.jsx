@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Server, Settings as SettingsIcon } from 'lucide-react';
-import { getApiUrl, apiFetch } from '../utils/api';
+import { Save, Server } from 'lucide-react';
+import { getApiUrl } from '../utils/api';
+import MemorySettings from './MemorySettings';
 
 export default function Settings() {
   const [apiUrl, setApiUrl] = useState('');
@@ -56,6 +57,9 @@ export default function Settings() {
           </div>
         </form>
       </section>
+
+      {/* Memory Management */}
+      <MemorySettings />
 
     </div>
   );
