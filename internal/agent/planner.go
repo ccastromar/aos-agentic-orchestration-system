@@ -417,10 +417,9 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// ---------------------------------------------------------
 	// 5b) Governance gate (Prudence PDP). Runs only for pipelines that declare
 	// ai_system, and only when PRUDENCE_PDP_URL is set; fail-closed otherwise.
+	// APPROVAL_REQUIRED routes into the human-approval gate instead of failing.
 	// ---------------------------------------------------------
-	if err := governance.Check(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), userID, pipeName, pipe.AiSystem, "run"); err != nil {
-		logx.L(id, "Governance", "%v", err)
-		storeResult(id, Result{Status: "error", Err: err.Error()})
+	if !p.governanceAllows(taskCtx, id, sessionID, userID, detectedType, pipeName, pipe, params) {
 		return
 	}
 
@@ -461,6 +460,61 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		},
 	})
 	timer2.End()
+}
+
+// governanceAllows runs the Prudence pipeline-entry gate (ADR-000, PDP/PEP). Returns true
+// to proceed. On DENY or a fail-closed transport error it stores an error and returns
+// false. On APPROVAL_REQUIRED it pauses into AOS's existing human-approval gate (saving a
+// "governance_approval" gate state that resumes via the normal human_decision path) and
+// returns false. Ungoverned pipelines (no ai_system / no PRUDENCE_PDP_URL) always proceed.
+func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) bool {
+	dec, err := governance.Evaluate(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), userID, pipeName, pipe.AiSystem, "run")
+	if err != nil {
+		logx.L(id, "Governance", "%v", err)
+		storeResult(id, Result{Status: "error", Err: err.Error()})
+		return false
+	}
+
+	switch dec.Status {
+	case governance.Allow:
+		return true
+
+	case governance.ApprovalRequired:
+		// Route into the human-approval gate: save a governance gate state and signal the
+		// API, exactly like a mid-pipeline human gate. An approval (human_decision) resumes
+		// the pipeline via the verifier; a rejection stops it.
+		st := &state.ExecutionState{
+			ID:       id,
+			SessionID: sessionID,
+			UserID:   userID,
+			Intent:   intentType,
+			Pipeline: pipeName,
+			Params:   params,
+			Gate:     "governance_approval",
+			Status:   "await_human",
+		}
+		_ = p.stateManager.Save(taskCtx, st)
+		p.bus.Send("api", bus.Message{
+			Type: "await_human",
+			Payload: map[string]any{
+				"id":       id,
+				"gate":     "governance_approval",
+				"approver": dec.Approver,
+				"reason":   dec.Reason,
+			},
+		})
+		logx.L(id, "Governance", "approval required (approver=%s): %s", dec.Approver, dec.Reason)
+		storeResult(id, Result{
+			Status: "await_approval",
+			Data:   map[string]any{"gate": "governance_approval", "approver": dec.Approver, "reason": dec.Reason, "pipeline": pipeName},
+		})
+		return false
+
+	default: // Deny or anything unexpected
+		logx.L(id, "Governance", "denied running %q: %s", pipeName, dec.Reason)
+		storeResult(id, Result{Status: "error", Err: "governance: denied running " + pipeName + ": " + dec.Reason})
+		return false
+	}
 }
 
 func (p *Planner) storeError(id string, errMsg string) {
@@ -566,9 +620,7 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 	}
 
 	// Governance gate (Prudence PDP) on the resume-after-clarification path too.
-	if err := governance.Check(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), st.UserID, pipe.Name, pipe.AiSystem, "run"); err != nil {
-		logx.L(id, "Governance", "%v", err)
-		storeResult(id, Result{Status: "error", Err: err.Error()})
+	if !p.governanceAllows(taskCtx, id, st.SessionID, st.UserID, st.Intent, pipe.Name, pipe, st.Params) {
 		return
 	}
 

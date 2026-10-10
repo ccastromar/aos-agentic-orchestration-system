@@ -4,8 +4,9 @@
 // lives in Prudence, not here.
 //
 // Opt-in and additive: the gate runs only when a pipeline declares `ai_system` AND a PDP
-// URL is configured (PRUDENCE_PDP_URL). When it runs, it is fail-closed — an unreachable or
-// non-allowing PDP blocks the run.
+// URL is configured (PRUDENCE_PDP_URL). When it runs, it is fail-closed — an unreachable
+// PDP yields a transport error the caller must treat as a denial. An APPROVAL_REQUIRED
+// verdict is routed into AOS's existing human-approval gate rather than failing outright.
 package governance
 
 import (
@@ -17,6 +18,20 @@ import (
 	"time"
 )
 
+// Verdict kinds returned by the Prudence PDP.
+const (
+	Allow            = "ALLOW"
+	Deny             = "DENY"
+	ApprovalRequired = "APPROVAL_REQUIRED"
+)
+
+// Decision is the PDP verdict for a pipeline-entry check.
+type Decision struct {
+	Status   string // Allow | Deny | ApprovalRequired
+	Reason   string
+	Approver string
+}
+
 type decisionRequest struct {
 	Subject    string `json:"subject"`
 	Pipeline   string `json:"pipeline"`
@@ -25,16 +40,17 @@ type decisionRequest struct {
 }
 
 type decisionResponse struct {
-	Decision string `json:"decision"` // ALLOW | DENY | APPROVAL_REQUIRED
+	Decision string `json:"decision"`
 	Reason   string `json:"reason"`
 	Approver string `json:"approver"`
 }
 
-// Check consults the Prudence PDP at pdpURL and returns nil only when the decision is ALLOW.
-// It is a no-op (returns nil) when the pipeline is not governed: pdpURL or aiSystem empty.
-func Check(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action string) error {
+// Evaluate consults the Prudence PDP at pdpURL. A pipeline that is not governed (pdpURL or
+// aiSystem empty) is an implicit Allow. A transport error is returned so the caller can
+// fail closed. A valid PDP response maps to a Decision.
+func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action string) (Decision, error) {
 	if pdpURL == "" || aiSystem == "" {
-		return nil // pipeline not governed; nothing to enforce
+		return Decision{Status: Allow}, nil // not governed
 	}
 	if action == "" {
 		action = "run"
@@ -45,30 +61,24 @@ func Check(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action stri
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, pdpURL+"/api/policy/decisions", bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("governance: cannot build PDP request: %w", err)
+		return Decision{}, fmt.Errorf("governance: cannot build PDP request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// Fail-closed: a governed pipeline must not run when the PDP is unreachable.
-		return fmt.Errorf("governance: PDP unreachable, denying (fail-closed): %w", err)
+		return Decision{}, fmt.Errorf("governance: PDP unreachable (fail-closed): %w", err)
 	}
 	defer resp.Body.Close()
 
 	var dr decisionResponse
 	if decErr := json.NewDecoder(resp.Body).Decode(&dr); decErr != nil {
-		return fmt.Errorf("governance: unreadable PDP response (status %d), denying", resp.StatusCode)
+		return Decision{}, fmt.Errorf("governance: unreadable PDP response (status %d)", resp.StatusCode)
 	}
-
 	switch dr.Decision {
-	case "ALLOW":
-		return nil
-	case "APPROVAL_REQUIRED":
-		return fmt.Errorf("governance: approval required before running %q (approver: %s): %s", pipeline, dr.Approver, dr.Reason)
-	case "DENY":
-		return fmt.Errorf("governance: denied running %q: %s", pipeline, dr.Reason)
+	case Allow, Deny, ApprovalRequired:
+		return Decision{Status: dr.Decision, Reason: dr.Reason, Approver: dr.Approver}, nil
 	default:
-		return fmt.Errorf("governance: unexpected PDP decision %q for %q, denying", dr.Decision, pipeline)
+		return Decision{}, fmt.Errorf("governance: unexpected PDP decision %q", dr.Decision)
 	}
 }
