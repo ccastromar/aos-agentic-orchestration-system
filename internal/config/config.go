@@ -57,6 +57,8 @@ type Pipeline struct {
 	LLMModel      string         `yaml:"llm_model,omitempty" json:"llm_model,omitempty"`
 	SkipSummary   bool           `yaml:"skip_summary,omitempty"`
 	MaxIterations int            `yaml:"max_iterations,omitempty"`
+	AiSystem      string         `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
+
 	Steps         []PipelineStep `yaml:"steps"`
 }
 

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/governance"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/guard"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
@@ -413,6 +415,16 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	}
 
 	// ---------------------------------------------------------
+	// 5b) Governance gate (Prudence PDP). Runs only for pipelines that declare
+	// ai_system, and only when PRUDENCE_PDP_URL is set; fail-closed otherwise.
+	// ---------------------------------------------------------
+	if err := governance.Check(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), userID, pipeName, pipe.AiSystem, "run"); err != nil {
+		logx.L(id, "Governance", "%v", err)
+		storeResult(id, Result{Status: "error", Err: err.Error()})
+		return
+	}
+
+	// ---------------------------------------------------------
 	// 6) Log + UI event
 	// ---------------------------------------------------------
 	logx.Info("Planner", "id=%s intent=%s pipeline=%s params=%v", id, detectedType, pipeName, params)
@@ -549,6 +561,13 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 	_ = p.stateManager.Save(taskCtx, st)
 
 	if err := guard.ValidateAll(intentCfg, pipe, st.Params, p.cfg.Tools); err != nil {
+		storeResult(id, Result{Status: "error", Err: err.Error()})
+		return
+	}
+
+	// Governance gate (Prudence PDP) on the resume-after-clarification path too.
+	if err := governance.Check(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), st.UserID, pipe.Name, pipe.AiSystem, "run"); err != nil {
+		logx.L(id, "Governance", "%v", err)
 		storeResult(id, Result{Status: "error", Err: err.Error()})
 		return
 	}
