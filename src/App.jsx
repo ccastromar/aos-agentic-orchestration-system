@@ -89,6 +89,24 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', flexShrink: 0, alignItems: 'center' }}>
+          {/* Trio app-switcher — one platform, three modules (AOS is the "operate" vertex). */}
+          <nav style={{ display: 'flex', gap: '4px', padding: '4px', border: '1px solid var(--border-highlight)', borderRadius: '9999px' }} aria-label="Trio apps">
+            {[
+              { label: 'AOS',      vertex: 'operate', accent: '#2563eb', url: import.meta.env.VITE_AOS_URL      || 'http://localhost:5173' },
+              { label: 'Prudence', vertex: 'govern',  accent: '#d97706', url: import.meta.env.VITE_PRUDENCE_URL || 'http://localhost:5200' },
+              { label: 'Ernest',   vertex: 'assure',  accent: '#0d9488', url: import.meta.env.VITE_ERNEST_URL   || 'http://localhost:5174' },
+            ].map((a) => {
+              const here = a.vertex === 'operate';
+              return (
+                <a key={a.label} href={a.url} title={`${a.label} — ${a.vertex}`}
+                   style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase',
+                            textDecoration: 'none', padding: '4px 12px', borderRadius: '9999px',
+                            color: here ? '#fff' : 'var(--text-secondary)', background: here ? a.accent : 'transparent' }}>
+                  {a.label}
+                </a>
+              );
+            })}
+          </nav>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }} title={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous dev identity'}>
             <UserRound size={16} />
             <span>{auth ? auth.userId : 'demo-user'}</span>
