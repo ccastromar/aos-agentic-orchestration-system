@@ -13,7 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// OIDC JWKS verification for the shared trio IdP (Keycloak). When JWTConfig.JWKURL is set,
+// OIDC JWKS verification for the shared Chestertown IdP (Keycloak). When JWTConfig.JWKURL is set,
 // AOS validates RS256 tokens against the realm's published keys instead of the local HMAC
 // secret — converging AOS onto the same identity provider as Ernest and Prudence. No extra
 // dependency: JWKS is fetched and RSA public keys are reconstructed from n/e.

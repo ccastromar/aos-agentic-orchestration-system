@@ -97,7 +97,7 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 // verifyAndParseJWT validates the JWT signature and extracts claims. Local
 // mock-token fallback is enabled only when explicitly configured.
 func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{}, error) {
-	// OIDC path (shared trio IdP): when a JWKS URL is configured, validate RS256 against the
+	// OIDC path (shared Chestertown IdP): when a JWKS URL is configured, validate RS256 against the
 	// realm's published keys and the expected issuer. Keycloak tokens carry sub/email/roles.
 	if cfg.JWKURL != "" {
 		opts := []jwt.ParserOption{jwt.WithValidMethods([]string{"RS256"})}
