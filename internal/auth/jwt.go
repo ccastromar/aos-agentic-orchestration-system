@@ -97,6 +97,23 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 // verifyAndParseJWT validates the JWT signature and extracts claims. Local
 // mock-token fallback is enabled only when explicitly configured.
 func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{}, error) {
+	// OIDC path (shared trio IdP): when a JWKS URL is configured, validate RS256 against the
+	// realm's published keys and the expected issuer. Keycloak tokens carry sub/email/roles.
+	if cfg.JWKURL != "" {
+		opts := []jwt.ParserOption{jwt.WithValidMethods([]string{"RS256"})}
+		if cfg.Issuer != "" {
+			opts = append(opts, jwt.WithIssuer(cfg.Issuer))
+		}
+		oidcToken, err := jwt.Parse(tokenString, rsaKeyfunc(cfg.JWKURL), opts...)
+		if err != nil {
+			return nil, fmt.Errorf("invalid oidc token: %w", err)
+		}
+		if claims, ok := oidcToken.Claims.(jwt.MapClaims); ok && oidcToken.Valid {
+			return claims, nil
+		}
+		return nil, fmt.Errorf("invalid oidc token")
+	}
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Ensure the signing method is HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
