@@ -35,7 +35,7 @@ function App() {
     setAuth(null);
   };
 
-  // Complete an SSO redirect (shared trio IdP) on load, if one is in flight.
+  // Complete an SSO redirect (shared Chestertown IdP) on load, if one is in flight.
   useEffect(() => {
     completeSso().then((a) => { if (a) handleLoggedIn(a); });
   }, []);
@@ -95,8 +95,8 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', flexShrink: 0, alignItems: 'center' }}>
-          {/* Trio app-switcher — one platform, three modules (AOS is the "operate" vertex). */}
-          <nav style={{ display: 'flex', gap: '4px', padding: '4px', border: '1px solid var(--border-highlight)', borderRadius: '9999px' }} aria-label="Trio apps">
+          {/* Chestertown app-switcher — one platform, three modules (AOS is the "operate" vertex). */}
+          <nav style={{ display: 'flex', gap: '4px', padding: '4px', border: '1px solid var(--border-highlight)', borderRadius: '9999px' }} aria-label="Chestertown apps">
             {[
               { label: 'AOS',      vertex: 'operate', accent: '#2563eb', url: import.meta.env.VITE_AOS_URL      || 'http://localhost:5173' },
               { label: 'Prudence', vertex: 'govern',  accent: '#d97706', url: import.meta.env.VITE_PRUDENCE_URL || 'http://localhost:5200' },

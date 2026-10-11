@@ -1,4 +1,4 @@
-// SSO for AOS — Authorization Code + PKCE against the shared trio IdP (Keycloak, client
+// SSO for AOS — Authorization Code + PKCE against the shared Chestertown IdP (Keycloak, client
 // aos-spa). On return it stores the same `aosAuth` shape the rest of the app already uses
 // ({token, userId, roles}), so api.js sends the Keycloak access token as a bearer and the
 // AOS backend validates it via JWKS. Opt-in: enabled when VITE_OIDC_ISSUER is set.

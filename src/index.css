@@ -19,7 +19,7 @@
     --bg-glass: rgba(10, 10, 10, 0.65);
     
     /* Dynamic OKLCH colors */
-    /* Primary: trio "operate" blue (AOS vertex) — ≈ #2563eb. Retuned from the old
+    /* Primary: Chestertown "operate" blue (AOS vertex) — ≈ #2563eb. Retuned from the old
        electric-indigo so AOS shares the family accent. See prudence/design/DESIGN.md. */
     --primary-h: 264;
     --primary: oklch(58% 0.2 var(--primary-h));
