@@ -9,7 +9,8 @@ import HistoryPanel from './components/HistoryPanel';
 import Logo from './components/Logo';
 import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth } from './utils/api';
-import { Bot, Settings as SettingsIcon, MessageSquare, Sun, Moon, Clock, LogIn, LogOut, UserRound } from 'lucide-react';
+import { ssoEnabled, ssoLogin, completeSso } from './utils/oidc';
+import { Bot, Settings as SettingsIcon, MessageSquare, Sun, Moon, Clock, LogIn, LogOut, UserRound, ShieldCheck } from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -33,6 +34,11 @@ function App() {
     setPendingApproval(null);
     setAuth(null);
   };
+
+  // Complete an SSO redirect (shared trio IdP) on load, if one is in flight.
+  useEffect(() => {
+    completeSso().then((a) => { if (a) handleLoggedIn(a); });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
@@ -121,14 +127,26 @@ function App() {
               <LogOut size={18} /> Logout
             </button>
           ) : (
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowLogin(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
-              title="Sign in"
-            >
-              <LogIn size={18} /> Login
-            </button>
+            <>
+              {ssoEnabled && (
+                <button
+                  className="btn btn-primary"
+                  onClick={ssoLogin}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+                  title="Sign in with the shared identity provider"
+                >
+                  <ShieldCheck size={18} /> SSO
+                </button>
+              )}
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowLogin(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+                title="Sign in"
+              >
+                <LogIn size={18} /> Login
+              </button>
+            </>
           )}
           <button
             className="btn btn-secondary"
