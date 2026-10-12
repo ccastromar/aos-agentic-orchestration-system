@@ -7,6 +7,10 @@
 // URL is configured (PRUDENCE_PDP_URL). When it runs, it is fail-closed — an unreachable
 // PDP yields a transport error the caller must treat as a denial. An APPROVAL_REQUIRED
 // verdict is routed into AOS's existing human-approval gate rather than failing outright.
+//
+// Against a secured PDP, the gate authenticates with an OAuth2 client-credentials token
+// (the `pdp.decide` scope) when PRUDENCE_PDP_TOKEN_URL / _CLIENT_ID / _CLIENT_SECRET are set
+// (see m2m.go). Obtaining the token is itself fail-closed.
 package governance
 
 import (
@@ -64,6 +68,17 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 		return Decision{}, fmt.Errorf("governance: cannot build PDP request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	// When the PDP is secured (PRUDENCE_PDP_* set), authenticate as a machine client with a
+	// client-credentials token carrying the `pdp.decide` scope. Fail closed if it can't be
+	// obtained — no token means no authority to run.
+	if auth := pdpAuthFromEnv(); auth != nil {
+		tok, tokErr := auth.bearer(reqCtx)
+		if tokErr != nil {
+			return Decision{}, fmt.Errorf("governance: cannot obtain PDP token (fail-closed): %w", tokErr)
+		}
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
