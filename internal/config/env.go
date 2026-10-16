@@ -18,6 +18,7 @@ type EnvVars struct {
 	BusBuffer  int `envconfig:"BUS_BUFFER"  default:"100"`
 
 	LLMBaseURL string `envconfig:"LLM_BASE_URL" default:"https://api.openai.com/v1"`
+	LLMAPIKey  string `envconfig:"LLM_API_KEY" default:""`
 	LLMEngine  string `envconfig:"LLM_ENGINE" default:"gpt-4.1"`
 
 	LLMModel   string        `envconfig:"LLM_MODEL" default:"gpt-4.1"`

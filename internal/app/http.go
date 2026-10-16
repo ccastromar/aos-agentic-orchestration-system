@@ -50,7 +50,13 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 	mux.HandleFunc("/metrics", metrics.ServeHTTP)
 	// Wrap with security and observability middleware
 	allowDevFallback := a.env != nil && auth.IsDevelopmentEnvironment(a.env.AppEnv)
-	authenticator := auth.NewJWTAuthenticator(auth.JWTConfig{AllowDevFallback: allowDevFallback})
+	jwtCfg := auth.JWTConfig{AllowDevFallback: allowDevFallback}
+	if a.env != nil {
+		jwtCfg.Issuer = a.env.JWTIssuer
+		jwtCfg.Audience = a.env.JWTAudience
+		jwtCfg.JWKURL = a.env.JWKURL
+	}
+	authenticator := auth.NewJWTAuthenticator(jwtCfg)
 	authenticated := authMiddleware(mux, authenticator)
 	hardened := secureMiddleware(observabilityMiddleware(authenticated))
 	corsHandler := corsMiddleware(hardened)

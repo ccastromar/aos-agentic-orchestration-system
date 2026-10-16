@@ -94,7 +94,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	} else {
 		// Default to OpenAI client to keep a.llm non-nil in tests even if API key is missing.
 		// The tests don't call the LLM, so an empty key is acceptable.
-		llmClient = llm.NewOpenAIClient(env.LLMBaseURL, "", env.LLMModel)
+		llmClient = llm.NewOpenAIClient(env.LLMBaseURL, env.LLMAPIKey, env.LLMModel)
 	}
 
 	// Mark specs as loaded only if we actually loaded non-empty specs
