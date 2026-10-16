@@ -52,9 +52,13 @@ export async function completeSso() {
   });
   if (!res.ok) return null;
   const tok = await res.json();
-  if (!tok.access_token) return null;
-  const c = decodeJwt(tok.access_token);
-  const auth = { token: tok.access_token, userId: c.preferred_username || c.email || c.sub, roles: c.roles || [] };
+  // AOS validates the SPA client audience. Keycloak puts that audience in the ID token for a
+  // public PKCE client, whereas an access token's audience is normally `account` unless an
+  // extra audience mapper is installed.
+  const bearer = tok.id_token || tok.access_token;
+  if (!bearer) return null;
+  const c = decodeJwt(bearer);
+  const auth = { token: bearer, userId: c.preferred_username || c.email || c.sub, roles: c.roles || [] };
   localStorage.setItem('aosAuth', JSON.stringify(auth));
   return auth;
 }
