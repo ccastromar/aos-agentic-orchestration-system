@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../utils/api';
 
 const ChatPanel = ({ onTaskCreated }) => {
-  // One prompt per Prudence risk-tier case of the live demo (the deterministic mock model
-  // pins these phrases in mocks/ollama/scenarios.yaml).
+  // One prompt per Prudence risk-tier case of the live demo. The deterministic mock models
+  // pin these phrases (mocks/ollama/scenarios.yaml); the support phrase must stay verbatim
+  // because the deployed aos-mock-agent recognises only that exact text.
   const governedDemos = [
-    { label: 'Support lookup · approved', prompt: 'Look up the support case for checkout', title: 'Approved system: Prudence allows it and the read-only lookup runs' },
-    { label: 'Credit pre-screening · high risk', prompt: 'Pre-screen credit application APP-1042', title: 'High-risk system: blocked until it is approved in Prudence' },
+    { label: 'Support lookup · limited risk', prompt: 'Run the governed customer-support lookup demo', title: 'Limited-risk system: denied until one reviewer approves it in Prudence' },
+    { label: 'Credit pre-screening · high risk', prompt: 'Pre-screen credit application APP-1042', title: 'High-risk system: blocked until two independent reviewers approve it in Prudence' },
     { label: 'Social scoring · prohibited', prompt: 'Compute the social score of citizen CIT-7781', title: 'Prohibited practice: Prudence always denies it' },
-    { label: 'Translator · suspended', prompt: 'Translate "the branch opens at nine" into Portuguese', title: 'Suspended system: denied until it is reinstated in Prudence' },
+    { label: 'Translator · suspended', prompt: 'Translate "the branch opens at nine" into Portuguese', title: 'Suspended system: denied until it is resubmitted and approved in Prudence' },
   ];
   const [messages, setMessages] = useState([
     { id: 1, text: "Welcome to AOS! I'm ready to orchestrate your tasks. Try saying: 'Transfer 20 to John', 'Deploy the catalog service', or type '/help' to see more examples.", sender: 'system' }
