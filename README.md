@@ -1,14 +1,20 @@
 # AOS — Agentic Orchestration System
 
-> **Project status: learning proof-of-concept.**
-> AOS is a personal PoC built to explore how to orchestrate LLM-assisted, deterministic
-> workflows in Go. The core runtime (bus, agents, YAML-driven pipelines, tool execution,
-> human gates) works and is covered by tests (`go test ./...` passes, including `-race`).
-> It is **not** production-ready and is not actively maintained as a product.
+> **Project status: MVP — the "operate" vertex of the Chestertown trilogy.**
+> AOS operates, [Prudence](https://github.com/ccastromar/prudence-governance) governs and
+> [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. The three run together as a deployed MVP aligned with the EU AI Act: before a
+> governed pipeline runs, AOS asks Prudence's Policy Decision Point and obeys the verdict, and
+> its execution evidence goes to Ernest. It is a first real version, not a hardened product;
+> see [TODO.md](TODO.md) for known limitations. The runtime (bus, agents, YAML-driven
+> pipelines, tool execution, human gates, governance gate) is covered by tests in CI
+> (`go test -race ./...`).
 >
 > **Implemented security features:**
-> - **JWT authentication** (`internal/auth/jwt.go`) verifies token signatures when `JWT_SECRET` is set.
+> - **JWT authentication** (`internal/auth/jwt.go`): tokens validated against an OIDC issuer's
+>   JWKS (`AOS_JWT_ISSUER`, `AOS_JWK_URL`) or signed with a shared `JWT_SECRET`.
 > - **RBAC** (`internal/rbac`) and the **audit log** (`internal/audit`) are wired into the request path and enforce role-based access control based on `permissions.yaml`.
+> - **Governance gate** (`internal/governance`): Prudence's PDP decides; AOS fails closed when it
+>   cannot get a verdict (see [Governance with Prudence](#governance-with-prudence-pep)).
 
 ## Introduction
 
@@ -154,12 +160,65 @@ success for `executed: false`.
 
 The same answers are served OpenAI-style under `/v1` (`/v1/models`, `/v1/chat/completions`,
 `/v1/embeddings`), so a deployment that uses `LLM_ENGINE=mock` with
-`LLM_BASE_URL=http://<mock>:11435/v1` gets the identical demo script.
+`LLM_BASE_URL=http://<mock>:11435/v1` gets the identical demo script. On `/v1` it also does
+OpenAI-style tool calling (it picks the best-matching tool, then answers with the tool's
+result), and scenarios can pin a `reply` for a free-form prompt. Prudence's Pydantic AI and
+LangGraph framework demos use it that way. The Docker image ships it as
+`/usr/local/bin/aos-mock-llm`.
 
 For presenting failures live, type a marker in the chat message: `#mock-fail:500`,
 `#mock-fail:badjson` (malformed model output) or `#mock-fail:slow`. Tuning:
 `MOCK_OLLAMA_PORT`, `MOCK_OLLAMA_MODEL`, `MOCK_OLLAMA_TOKEN_DELAY_MS`, `MOCK_OLLAMA_SLOW_MS`,
 `MOCK_OLLAMA_SCENARIOS`.
+
+## Governance with Prudence (PEP)
+
+AOS is a **Policy Enforcement Point** for Prudence. A pipeline opts in by naming the AI system it
+runs as (registered in Prudence's registry); `${VAR}` references are expanded from the
+environment:
+
+```yaml
+- name: pipeline_aos_credit_pre_screening
+  ai_system: "${AOS_PRUDENCE_CREDIT_SYSTEM_ID}"
+  governed: true
+  steps: [...]
+```
+
+At pipeline entry the planner calls `POST $PRUDENCE_PDP_URL/api/policy/decisions` with the
+subject, pipeline, AI system and action:
+
+| Verdict | What AOS does |
+|---|---|
+| `ALLOW` | Runs the pipeline. |
+| `DENY` | Stops before any step; the task ends as `governance_blocked`. |
+| `APPROVAL_REQUIRED` | Same: approval happens only in Prudence's review workflow, never via a local AOS click. |
+| PDP unreachable, unreadable or unexpected answer | Stops with an `error` (fail-closed). |
+
+A `governance_blocked` result carries the verdict (`decision`, `reason`, `approver`,
+`aiSystemId`, `pipeline`, `message`) and is persisted, so `/task` still shows it after the
+one-shot result is consumed; the UI renders it as a policy outcome, not as a failure.
+`governed: true` makes a pipeline **fail closed** when `ai_system` (e.g. an unset env var) or
+`PRUDENCE_PDP_URL` is missing; without the flag such a pipeline would run ungoverned.
+
+| Variable | Purpose |
+|---|---|
+| `PRUDENCE_PDP_URL` | Prudence base URL; the gate is off when empty (except for `governed` pipelines). |
+| `PRUDENCE_PDP_TOKEN_URL`, `PRUDENCE_PDP_CLIENT_ID`, `PRUDENCE_PDP_CLIENT_SECRET`, `PRUDENCE_PDP_SCOPE` | OAuth2 client-credentials for a secured PDP (scope `pdp.decide`); failing to get a token fails closed. |
+| `PRUDENCE_PDP_SUBJECT` | Service identity sent as subject (a secured PDP takes it from the token anyway). Defaults to the signed-in user. |
+
+The live demo has four governed pipelines, one per EU AI Act case, each bound to a seeded
+Prudence system:
+
+| Pipeline | System id variable | Seeded system | First verdict |
+|---|---|---|---|
+| `pipeline_aos_support_lookup` | `AOS_PRUDENCE_DEMO_SYSTEM_ID` | Customer-support assistant (limited) | DENY until one approval |
+| `pipeline_aos_credit_pre_screening` | `AOS_PRUDENCE_CREDIT_SYSTEM_ID` | Consumer-credit pre-screening (high) | APPROVAL_REQUIRED until two independent approvals |
+| `pipeline_aos_social_scoring` | `AOS_PRUDENCE_SOCIAL_SCORING_SYSTEM_ID` | Social scoring (prohibited) | Always DENY (OPA does not grant it either) |
+| `pipeline_aos_translate_message` | `AOS_PRUDENCE_TRANSLATOR_SYSTEM_ID` | Translator (suspended) | DENY until resubmitted and approved |
+
+`prudence-governance/scripts/aos-demo-env.sh` prints those variables from a running Prudence,
+and `scripts/aos-demo-rearm.sh` returns the four systems to their starting verdicts to replay
+the demo. The step-by-step script is `prudence-governance/docs/functional/06-demo-aos-en-vivo.md`.
 
 ## Endpoints
 
@@ -291,7 +350,7 @@ structured request. It uses the current pipeline definitions and repeats normal
 permission checks, validation and human gates; it is not replay of a versioned
 snapshot. Re-running can repeat external actions.
 
-See [TODO.md](TODO.md) for remaining PoC limitations and follow-up work.
+See [TODO.md](TODO.md) for known limitations and follow-up work.
 
 ## Protocol-backed steps
 
