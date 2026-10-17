@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { Activity, BrainCircuit, Wrench, CheckCircle, AlertTriangle, Copy } from 'lucide-react';
+import { Activity, BrainCircuit, Wrench, CheckCircle, AlertTriangle, Copy, ShieldAlert } from 'lucide-react';
 import DAGVisualizer from './DAGVisualizer';
 import { apiFetch } from '../utils/api';
 
@@ -100,7 +100,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             // The Analyst stores the one-shot final result with status
             // "completed". Stop polling immediately or the next request
             // falls back to the older persisted state and hides callback data.
-            if (['ok', 'success', 'completed', 'error'].includes(data.status)) {
+            if (['ok', 'success', 'completed', 'error', 'governance_blocked'].includes(data.status)) {
               clearInterval(statusPollingInterval);
               setTimeout(() => eventController.abort(), 1000);
             }
@@ -156,6 +156,13 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
       clearInterval(statusPollingInterval);
     };
   }, [taskId]);
+
+  // A governance verdict is a policy outcome, not a technical failure: show it differently.
+  const governanceBlocked = status === 'governance_blocked' && finalData && finalData.decision;
+  const needsApproval = governanceBlocked && finalData.decision === 'APPROVAL_REQUIRED';
+  const headerColor = governanceBlocked
+    ? (needsApproval ? '#f59e0b' : '#f87171')
+    : status === 'error' ? '#f87171' : 'var(--secondary)';
 
   const copyFinalResult = async () => {
     try {
@@ -358,8 +365,12 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           style={{ marginTop: '2rem' }}
         >
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-            <h3 style={{ margin: 0, color: status === 'error' ? '#f87171' : 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {status === 'error' ? <><AlertTriangle size={20} /> Execution Failed</> : <><CheckCircle size={20} /> Final Result</>}
+            <h3 style={{ margin: 0, color: headerColor, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {governanceBlocked
+                ? <><ShieldAlert size={20} /> {needsApproval ? 'Blocked by Prudence: approval required' : 'Denied by Prudence'}</>
+                : status === 'error'
+                  ? <><AlertTriangle size={20} /> Execution Failed</>
+                  : <><CheckCircle size={20} /> Final Result</>}
             </h3>
             <button
               type="button"
@@ -371,6 +382,18 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
               <Copy size={15} /> {copied ? 'Copiado' : 'Copiar'}
             </button>
           </div>
+          {governanceBlocked && (
+            <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: `1px solid ${headerColor}`, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              <div><strong>Decision:</strong> {finalData.decision}{finalData.reason ? ` · ${finalData.reason}` : ''}</div>
+              {finalData.approver && <div><strong>Approver:</strong> {finalData.approver}</div>}
+              <div><strong>AI system:</strong> {finalData.aiSystemId || '—'} · <strong>Pipeline:</strong> {finalData.pipeline}</div>
+              <div style={{ marginTop: '0.4rem', color: 'var(--text-muted)' }}>
+                {needsApproval
+                  ? 'AOS did not run any step. Approve the AI system in Prudence, then run the request again.'
+                  : 'AOS did not run any step. The governance decision is taken in Prudence, not in AOS.'}
+              </div>
+            </div>
+          )}
           <pre style={{
             background: 'color-mix(in srgb, var(--bg-base) 80%, transparent)',
             padding: '1.25rem',

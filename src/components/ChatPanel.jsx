@@ -4,7 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../utils/api';
 
 const ChatPanel = ({ onTaskCreated }) => {
-  const governedDemoPrompt = 'Run the governed customer-support lookup demo';
+  // One prompt per Prudence risk-tier case of the live demo (the deterministic mock model
+  // pins these phrases in mocks/ollama/scenarios.yaml).
+  const governedDemos = [
+    { label: 'Support lookup · approved', prompt: 'Look up the support case for checkout', title: 'Approved system: Prudence allows it and the read-only lookup runs' },
+    { label: 'Credit pre-screening · high risk', prompt: 'Pre-screen credit application APP-1042', title: 'High-risk system: blocked until it is approved in Prudence' },
+    { label: 'Social scoring · prohibited', prompt: 'Compute the social score of citizen CIT-7781', title: 'Prohibited practice: Prudence always denies it' },
+    { label: 'Translator · suspended', prompt: 'Translate "the branch opens at nine" into Portuguese', title: 'Suspended system: denied until it is reinstated in Prudence' },
+  ];
   const [messages, setMessages] = useState([
     { id: 1, text: "Welcome to AOS! I'm ready to orchestrate your tasks. Try saying: 'Transfer 20 to John', 'Deploy the catalog service', or type '/help' to see more examples.", sender: 'system' }
   ]);
@@ -123,17 +130,20 @@ const ChatPanel = ({ onTaskCreated }) => {
   return (
     <>
       <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Controlled demo:</span>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => setInput(governedDemoPrompt)}
-          disabled={isLoading}
-          title="Loads a read-only support lookup that AOS must first submit to Prudence"
-          style={{ padding: '0.4rem 0.7rem', fontSize: '0.82rem' }}
-        >
-          Prudence-governed support lookup
-        </button>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Prudence-governed demo:</span>
+        {governedDemos.map(demo => (
+          <button
+            key={demo.label}
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setInput(demo.prompt)}
+            disabled={isLoading}
+            title={demo.title}
+            style={{ padding: '0.4rem 0.7rem', fontSize: '0.82rem' }}
+          >
+            {demo.label}
+          </button>
+        ))}
       </div>
       <div className="chat-messages">
         <AnimatePresence initial={false}>
