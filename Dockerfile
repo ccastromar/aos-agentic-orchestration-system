@@ -22,6 +22,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -trimpath -ldflags "-s -w" -o /out/aos-mocks ./cmd/mocks
+RUN --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags "-s -w" -o /out/aos-mock-llm ./cmd/mock-ollama
 
 
 # --- Runtime stage ---
@@ -38,11 +41,13 @@ WORKDIR /app
 # Copy binary and required runtime assets
 COPY --from=builder /out/aos /usr/local/bin/aos
 COPY --from=builder /out/aos-mocks /usr/local/bin/aos-mocks
+# Deterministic demo "model" (Ollama + OpenAI-style APIs); its scenarios are embedded.
+COPY --from=builder /out/aos-mock-llm /usr/local/bin/aos-mock-llm
 COPY definitions ./definitions
 COPY templates ./templates
 
 # Ensure files are owned by non-root user
-RUN chown -R app:app /app /usr/local/bin/aos /usr/local/bin/aos-mocks
+RUN chown -R app:app /app /usr/local/bin/aos /usr/local/bin/aos-mocks /usr/local/bin/aos-mock-llm
 
 # Expose default port used by the application
 EXPOSE 9090
