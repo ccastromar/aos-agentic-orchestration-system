@@ -468,7 +468,14 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 // "governance_approval" gate state that resumes via the normal human_decision path) and
 // returns false. Ungoverned pipelines (no ai_system / no PRUDENCE_PDP_URL) always proceed.
 func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) bool {
-	dec, err := governance.Evaluate(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), userID, pipeName, pipe.AiSystem, "run")
+	// The PDP authorizes the service identity when one is explicitly configured. AOS still
+	// records the signed-in user in its own audit trail; this lets a production PDP grant a
+	// narrowly scoped machine client without maintaining a copy of every UI user in OPA.
+	subject := userID
+	if configured := strings.TrimSpace(os.Getenv("PRUDENCE_PDP_SUBJECT")); configured != "" {
+		subject = configured
+	}
+	dec, err := governance.Evaluate(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), subject, pipeName, pipe.AiSystem, "run")
 	if err != nil {
 		logx.L(id, "Governance", "%v", err)
 		storeResult(id, Result{Status: "error", Err: err.Error()})
@@ -484,14 +491,14 @@ func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userI
 		// API, exactly like a mid-pipeline human gate. An approval (human_decision) resumes
 		// the pipeline via the verifier; a rejection stops it.
 		st := &state.ExecutionState{
-			ID:       id,
+			ID:        id,
 			SessionID: sessionID,
-			UserID:   userID,
-			Intent:   intentType,
-			Pipeline: pipeName,
-			Params:   params,
-			Gate:     "governance_approval",
-			Status:   "await_human",
+			UserID:    userID,
+			Intent:    intentType,
+			Pipeline:  pipeName,
+			Params:    params,
+			Gate:      "governance_approval",
+			Status:    "await_human",
 		}
 		_ = p.stateManager.Save(taskCtx, st)
 		p.bus.Send("api", bus.Message{

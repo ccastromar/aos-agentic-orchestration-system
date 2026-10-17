@@ -12,6 +12,10 @@ permissions:
     - admin
     - finance
     - user
+  banking.governed_credit_pre_screening:
+    - admin
+    - finance
+    - read-write
   banking.get_movements:
     - admin
     - finance

@@ -51,15 +51,15 @@ type AgentDefinition struct {
 }
 
 type Pipeline struct {
-	Name          string         `yaml:"name"`
-	Description   string         `yaml:"description"`
-	Mode          string         `yaml:"mode"` // linear, dag
-	LLMModel      string         `yaml:"llm_model,omitempty" json:"llm_model,omitempty"`
-	SkipSummary   bool           `yaml:"skip_summary,omitempty"`
-	MaxIterations int            `yaml:"max_iterations,omitempty"`
-	AiSystem      string         `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
+	Name          string `yaml:"name"`
+	Description   string `yaml:"description"`
+	Mode          string `yaml:"mode"` // linear, dag
+	LLMModel      string `yaml:"llm_model,omitempty" json:"llm_model,omitempty"`
+	SkipSummary   bool   `yaml:"skip_summary,omitempty"`
+	MaxIterations int    `yaml:"max_iterations,omitempty"`
+	AiSystem      string `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
 
-	Steps         []PipelineStep `yaml:"steps"`
+	Steps []PipelineStep `yaml:"steps"`
 }
 
 type Intent struct {
@@ -209,6 +209,7 @@ func loadPipelinesDir(dir string, cfg *Config) error {
 		if err != nil {
 			return err
 		}
+		data = []byte(expandEnvRefs(string(data)))
 		var raw struct {
 			Pipelines []Pipeline `yaml:"pipelines"`
 		}

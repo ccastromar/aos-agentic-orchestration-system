@@ -19,6 +19,9 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -trimpath -ldflags "-s -w" -o /out/aos ./cmd/aos
+RUN --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags "-s -w" -o /out/aos-mocks ./cmd/mocks
 
 
 # --- Runtime stage ---
@@ -34,11 +37,12 @@ WORKDIR /app
 
 # Copy binary and required runtime assets
 COPY --from=builder /out/aos /usr/local/bin/aos
+COPY --from=builder /out/aos-mocks /usr/local/bin/aos-mocks
 COPY definitions ./definitions
 COPY templates ./templates
 
 # Ensure files are owned by non-root user
-RUN chown -R app:app /app /usr/local/bin/aos
+RUN chown -R app:app /app /usr/local/bin/aos /usr/local/bin/aos-mocks
 
 # Expose default port used by the application
 EXPOSE 9090

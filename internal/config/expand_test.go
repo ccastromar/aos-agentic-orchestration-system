@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestExpandEnvRefs(t *testing.T) {
 	t.Setenv("AOS_TEST_BASE", "http://mocks:8080")
@@ -24,5 +28,26 @@ func TestExpandEnvRefs(t *testing.T) {
 				t.Errorf("expandEnvRefs(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestPipelineExpandsEnvironmentReferences(t *testing.T) {
+	t.Setenv("AOS_TEST_SYSTEM", "system-123")
+	dir := t.TempDir()
+	for _, name := range []string{"tools", "pipelines", "intents"} {
+		if err := os.MkdirAll(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data := []byte("pipelines:\n  - name: demo\n    ai_system: ${AOS_TEST_SYSTEM}\n    steps: []\n")
+	if err := os.WriteFile(filepath.Join(dir, "pipelines", "demo.yaml"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFromDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Pipelines["demo"].AiSystem; got != "system-123" {
+		t.Fatalf("AiSystem = %q, want system-123", got)
 	}
 }
