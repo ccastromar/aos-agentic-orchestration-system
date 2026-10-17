@@ -3,8 +3,9 @@
 > **Project status: MVP — the "operate" vertex of the Chestertown trilogy.**
 > AOS operates, [Prudence](https://github.com/ccastromar/prudence-governance) governs and
 > [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. The three run together as a deployed MVP aligned with the EU AI Act: before a
-> governed pipeline runs, AOS asks Prudence's Policy Decision Point and obeys the verdict, and
-> its execution evidence goes to Ernest. It is a first real version, not a hardened product;
+> governed pipeline runs, AOS asks Prudence's Policy Decision Point and obeys the verdict;
+> Prudence seals each decision in Ernest, and AOS can also export its own hash-only execution
+> evidence there (`ERNEST_INGESTOR_URL`). It is a first real version, not a hardened product;
 > see [TODO.md](TODO.md) for known limitations. The runtime (bus, agents, YAML-driven
 > pipelines, tool execution, human gates, governance gate) is covered by tests in CI
 > (`go test -race ./...`).
