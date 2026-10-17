@@ -1,0 +1,26 @@
+pipelines:
+  # Each pipeline is bound to one registered AI system and marked governed: without a
+  # system id or PRUDENCE_PDP_URL it fails closed instead of running ungoverned.
+  - name: pipeline_aos_credit_pre_screening
+    description: "Governed consumer-credit pre-screening (high-risk)"
+    ai_system: "${AOS_PRUDENCE_CREDIT_SYSTEM_ID}"
+    governed: true
+    steps:
+      - tool: governance_demo.credit_pre_screening
+      - analyst: true
+
+  - name: pipeline_aos_social_scoring
+    description: "Social scoring of citizens (prohibited practice; must be denied)"
+    ai_system: "${AOS_PRUDENCE_SOCIAL_SCORING_SYSTEM_ID}"
+    governed: true
+    steps:
+      - tool: governance_demo.social_score
+      - analyst: true
+
+  - name: pipeline_aos_translate_message
+    description: "Governed internal message translation (limited-risk)"
+    ai_system: "${AOS_PRUDENCE_TRANSLATOR_SYSTEM_ID}"
+    governed: true
+    steps:
+      - tool: governance_demo.translate
+      - analyst: true

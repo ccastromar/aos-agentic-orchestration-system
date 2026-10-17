@@ -1,0 +1,30 @@
+intents:
+  # Live demo of Prudence governance by EU AI Act risk tier. Each intent maps to a pipeline
+  # bound to a different registered AI system; Prudence, not AOS, decides whether it runs.
+  # The support lookup (customer-support.governed_lookup) is the ALLOW case.
+  - type: governance-demo.credit_pre_screening
+    description: "Pre-screen a consumer-credit application (high-risk AI system, Annex III 5(b)); needs Prudence approval before it can run."
+    pipeline: pipeline_aos_credit_pre_screening
+    required_params: ["applicationId"]
+    examples:
+      - "Pre-screen credit application APP-1042"
+      - "Preselecciona la solicitud de crédito APP-1042"
+    allow_dangerous: false
+
+  - type: governance-demo.social_scoring
+    description: "Assign a social score to a citizen (prohibited AI practice, Art. 5); Prudence must always deny it."
+    pipeline: pipeline_aos_social_scoring
+    required_params: ["citizenId"]
+    examples:
+      - "Compute the social score of citizen CIT-7781"
+      - "Calcula la puntuación social del ciudadano CIT-7781"
+    allow_dangerous: false
+
+  - type: governance-demo.translate_message
+    description: "Translate an internal operational message (limited-risk AI system, currently suspended in Prudence)."
+    pipeline: pipeline_aos_translate_message
+    required_params: ["text", "targetLanguage"]
+    examples:
+      - "Translate \"the branch opens at nine\" into Portuguese"
+      - "Traduce \"la oficina abre a las nueve\" al portugués"
+    allow_dangerous: false

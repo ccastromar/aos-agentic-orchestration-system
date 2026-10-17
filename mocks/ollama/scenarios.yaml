@@ -17,7 +17,7 @@
 scenarios:
   # Case 1 (ALLOW): approved limited/minimal-risk system -> the read-only lookup runs.
   - name: governed-support-lookup
-    match: '(caso de soporte|support (case|lookup)|soporte gobernad|governed (customer-support|support))(?:.*?\b(?:servicio|service|for)\s+(?P<service>[\w-]+))?'
+    match: '(caso de soporte|support (case|lookup)|soporte gobernad|governed (customer-support|support))(?:.*?\b(?:servicio|service|for)\s+(?:(?:the|el)\s+)?(?:(?:service|servicio)\s+)?(?P<service>[\w-]+))?'
     intent: customer-support.governed_lookup
     params:
       service: '${service}'
@@ -26,3 +26,32 @@ scenarios:
     summary:
       es: "AOS consultó el servicio de soporte en modo solo lectura y no modificó ningún dato."
       en: "AOS looked up the support service read-only and changed no data."
+
+  # Case 2 (APPROVAL_REQUIRED -> approve in Prudence -> ALLOW): HIGH-risk credit pre-screening.
+  - name: governed-credit-pre-screening
+    match: '(preselecci\w*|pre-?screen\w*).*?(cr[eé]dito|credit)(?:.*?\b(?P<app>APP-\d+))?'
+    intent: governance-demo.credit_pre_screening
+    params:
+      applicationId: '${app}'
+    defaults:
+      applicationId: APP-1042
+    summary:
+      es: "La solicitud quedó priorizada en la cola de revisión de los analistas de crédito. El sistema no decide la concesión: la decisión sigue pendiente de revisión humana."
+      en: "The application was prioritised in the credit officers' review queue. The system does not decide eligibility: the decision remains pending human review."
+
+  # Case 3 (DENY): PROHIBITED social scoring. No summary on purpose — it must never run.
+  - name: governed-social-scoring
+    match: '(puntuaci[oó]n social|social[- ]scor\w*)(?:.*?\b(?P<citizen>CIT-\d+))?'
+    intent: governance-demo.social_scoring
+    params:
+      citizenId: '${citizen}'
+    defaults:
+      citizenId: CIT-7781
+
+  # Case 4 (DENY while SUSPENDED -> resubmit/approve in Prudence -> ALLOW): translator.
+  - name: governed-translation
+    match: '(traduce|translate)\s+["“«](?P<text>[^"”»]+)["”»]\s+(?:al|a|into|to)\s+(?P<lang>[\wáéíóúç]+)'
+    intent: governance-demo.translate_message
+    params:
+      text: '${text}'
+      targetLanguage: '${lang}'

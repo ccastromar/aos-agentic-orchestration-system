@@ -12,6 +12,7 @@ import (
 	mockCustody "github.com/ccastromar/aos-agentic-orchestration-system/mocks/custody"
 	mockCustomerSupport "github.com/ccastromar/aos-agentic-orchestration-system/mocks/customer-support"
 	mockDevops "github.com/ccastromar/aos-agentic-orchestration-system/mocks/devops"
+	mockGovernanceDemo "github.com/ccastromar/aos-agentic-orchestration-system/mocks/governance-demo"
 	mockHelpdesk "github.com/ccastromar/aos-agentic-orchestration-system/mocks/helpdesk"
 	mockHumanResources "github.com/ccastromar/aos-agentic-orchestration-system/mocks/human-resources"
 	mockLogistics "github.com/ccastromar/aos-agentic-orchestration-system/mocks/logistics"
@@ -36,6 +37,7 @@ func buildMux() *http.ServeMux {
 	mockA2A.RegisterHandlers(mux)
 	mockCustody.RegisterHandlers(mux)
 	mockBlockchain.RegisterHandlers(mux)
+	mockGovernanceDemo.RegisterHandlers(mux)
 	return mux
 }
 

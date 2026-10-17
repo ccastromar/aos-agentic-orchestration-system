@@ -794,8 +794,11 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 				errStr = st.Error
 			} else if st.Status != "" {
 				status = st.Status
-				if st.Status == "completed" {
+				switch st.Status {
+				case "completed":
 					finalData = st.StepResults
+				case "governance_blocked":
+					finalData = st.StepResults["_governance"]
 				}
 			} else if st.Gate != "" {
 				status = "await_" + st.Gate

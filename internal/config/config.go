@@ -58,6 +58,10 @@ type Pipeline struct {
 	SkipSummary   bool   `yaml:"skip_summary,omitempty"`
 	MaxIterations int    `yaml:"max_iterations,omitempty"`
 	AiSystem      string `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
+	// Governed marks a pipeline that must never run without a Prudence verdict: a missing
+	// ai_system (e.g. an unset env var) or PRUDENCE_PDP_URL then fails closed instead of
+	// silently running ungoverned.
+	Governed bool `yaml:"governed,omitempty" json:"governed,omitempty"`
 
 	Steps []PipelineStep `yaml:"steps"`
 }

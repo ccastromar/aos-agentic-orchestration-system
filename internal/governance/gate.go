@@ -4,9 +4,11 @@
 // lives in Prudence, not here.
 //
 // Opt-in and additive: the gate runs only when a pipeline declares `ai_system` AND a PDP
-// URL is configured (PRUDENCE_PDP_URL). When it runs, it is fail-closed — an unreachable
-// PDP yields a transport error the caller must treat as a denial. An APPROVAL_REQUIRED
-// verdict is routed into AOS's existing human-approval gate rather than failing outright.
+// URL is configured (PRUDENCE_PDP_URL); a pipeline marked `governed` additionally fails
+// closed when either is missing (enforced by the planner). When it runs, it is fail-closed —
+// an unreachable PDP yields a transport error the caller must treat as a denial. DENY and
+// APPROVAL_REQUIRED both stop the task: approval happens in Prudence's review workflow,
+// never through a local AOS gate.
 //
 // Against a secured PDP, the gate authenticates with an OAuth2 client-credentials token
 // (the `pdp.decide` scope) when PRUDENCE_PDP_TOKEN_URL / _CLIENT_ID / _CLIENT_SECRET are set

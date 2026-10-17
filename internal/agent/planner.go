@@ -415,9 +415,10 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	}
 
 	// ---------------------------------------------------------
-	// 5b) Governance gate (Prudence PDP). Runs only for pipelines that declare
-	// ai_system, and only when PRUDENCE_PDP_URL is set; fail-closed otherwise.
-	// APPROVAL_REQUIRED routes into the human-approval gate instead of failing.
+	// 5b) Governance gate (Prudence PDP). Runs for pipelines that declare ai_system when
+	// PRUDENCE_PDP_URL is set (fail-closed on transport errors); a pipeline marked
+	// governed fails closed when either is missing. DENY and APPROVAL_REQUIRED stop the
+	// task with status governance_blocked — approval happens in Prudence, never here.
 	// ---------------------------------------------------------
 	if !p.governanceAllows(taskCtx, id, sessionID, userID, detectedType, pipeName, pipe, params) {
 		return
@@ -463,11 +464,20 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 }
 
 // governanceAllows runs the Prudence pipeline-entry gate (ADR-000, PDP/PEP). Returns true
-// to proceed. On DENY or a fail-closed transport error it stores an error and returns
-// false. An APPROVAL_REQUIRED response also stops the task: only Prudence's governed review
-// can approve the registered AI system. A local AOS click must never bypass that lifecycle.
-// Ungoverned pipelines (no ai_system / no PRUDENCE_PDP_URL) always proceed.
+// to proceed. A fail-closed transport error, or a governed pipeline without ai_system /
+// PRUDENCE_PDP_URL, stores an error. DENY and APPROVAL_REQUIRED store a governance_blocked
+// result carrying the verdict, so the UI can tell a policy outcome from a technical failure.
+// APPROVAL_REQUIRED never pauses for a local click: only Prudence's governed review can
+// approve the registered AI system. Pipelines that are neither governed nor declare
+// ai_system (or run without PRUDENCE_PDP_URL) proceed.
 func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) bool {
+	pdpURL := os.Getenv("PRUDENCE_PDP_URL")
+	if pipe.Governed && (strings.TrimSpace(pipe.AiSystem) == "" || pdpURL == "") {
+		message := "governance: pipeline " + pipeName + " requires a Prudence verdict but ai_system or PRUDENCE_PDP_URL is not configured (fail-closed)"
+		logx.L(id, "Governance", "%s", message)
+		storeResult(id, Result{Status: "error", Err: message})
+		return false
+	}
 	// The PDP authorizes the service identity when one is explicitly configured. AOS still
 	// records the signed-in user in its own audit trail; this lets a production PDP grant a
 	// narrowly scoped machine client without maintaining a copy of every UI user in OPA.
@@ -475,31 +485,58 @@ func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userI
 	if configured := strings.TrimSpace(os.Getenv("PRUDENCE_PDP_SUBJECT")); configured != "" {
 		subject = configured
 	}
-	dec, err := governance.Evaluate(taskCtx, os.Getenv("PRUDENCE_PDP_URL"), subject, pipeName, pipe.AiSystem, "run")
+	dec, err := governance.Evaluate(taskCtx, pdpURL, subject, pipeName, pipe.AiSystem, "run")
 	if err != nil {
 		logx.L(id, "Governance", "%v", err)
 		storeResult(id, Result{Status: "error", Err: err.Error()})
 		return false
 	}
 
-	switch dec.Status {
-	case governance.Allow:
+	if dec.Status == governance.Allow {
+		p.eventBus.PublishEvent(id, "Governance", "governance_allowed", "Prudence allowed "+pipeName, "")
 		return true
-
-	case governance.ApprovalRequired:
-		message := "governance approval required in Prudence"
-		if dec.Reason != "" {
-			message += ": " + dec.Reason
-		}
-		logx.L(id, "Governance", "%s", message)
-		storeResult(id, Result{Status: "error", Err: message})
-		return false
-
-	default: // Deny or anything unexpected
-		logx.L(id, "Governance", "denied running %q: %s", pipeName, dec.Reason)
-		storeResult(id, Result{Status: "error", Err: "governance: denied running " + pipeName + ": " + dec.Reason})
-		return false
 	}
+
+	// DENY, APPROVAL_REQUIRED (or anything unexpected, treated as a denial).
+	decision := dec.Status
+	if decision != governance.ApprovalRequired {
+		decision = governance.Deny
+	}
+	var message string
+	if decision == governance.ApprovalRequired {
+		message = "governance approval required in Prudence"
+	} else {
+		message = "governance: denied running " + pipeName
+	}
+	if dec.Reason != "" {
+		message += ": " + dec.Reason
+	}
+	logx.L(id, "Governance", "%s", message)
+	p.eventBus.PublishEvent(id, "Governance", "governance_blocked", message, "")
+	verdict := map[string]any{
+		"decision":   decision,
+		"reason":     dec.Reason,
+		"approver":   dec.Approver,
+		"aiSystemId": pipe.AiSystem,
+		"pipeline":   pipeName,
+		"message":    message,
+	}
+	// Persist the verdict too: the one-shot result is consumed by the first /task poll, and
+	// a reload or the task history must still show why the task was blocked.
+	if p.stateManager != nil {
+		_ = p.stateManager.Save(taskCtx, &state.ExecutionState{
+			ID:          id,
+			SessionID:   sessionID,
+			UserID:      userID,
+			Intent:      intentType,
+			Pipeline:    pipeName,
+			Params:      params,
+			Status:      "governance_blocked",
+			StepResults: map[string]any{"_governance": verdict},
+		})
+	}
+	storeResult(id, Result{Status: "governance_blocked", Data: verdict})
+	return false
 }
 
 func (p *Planner) storeError(id string, errMsg string) {

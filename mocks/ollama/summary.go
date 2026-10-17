@@ -95,7 +95,8 @@ func scalarFields(m map[string]any, max int) []string {
 	sort.Strings(keys)
 	var out []string
 	for _, k := range keys {
-		if k == "executed" || k == "error" || strings.HasPrefix(k, "_") {
+		// Transport bookkeeping added by the tool executor is not business data.
+		if k == "executed" || k == "error" || k == "ok" || k == "statusCode" || strings.HasPrefix(k, "_") {
 			continue
 		}
 		switch v := source[k].(type) {

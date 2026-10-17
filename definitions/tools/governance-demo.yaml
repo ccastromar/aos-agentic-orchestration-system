@@ -1,0 +1,25 @@
+tools:
+  # Read-only mock tools behind the governed demo pipelines (mocks/governance-demo).
+  - name: governance_demo.credit_pre_screening
+    type: http
+    method: GET
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/governance-demo/credit/pre-screening?applicationId={{ .applicationId }}"
+    mode: read
+    timeout: 3000
+
+  - name: governance_demo.social_score
+    type: http
+    method: GET
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/governance-demo/social-score?citizenId={{ .citizenId }}"
+    mode: read
+    timeout: 3000
+
+  - name: governance_demo.translate
+    type: http
+    method: POST
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/governance-demo/translate"
+    mode: read
+    timeout: 3000
+    body:
+      text: "{{ .text }}"
+      targetLanguage: "{{ .targetLanguage }}"
