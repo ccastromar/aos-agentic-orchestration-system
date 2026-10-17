@@ -464,9 +464,9 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 
 // governanceAllows runs the Prudence pipeline-entry gate (ADR-000, PDP/PEP). Returns true
 // to proceed. On DENY or a fail-closed transport error it stores an error and returns
-// false. On APPROVAL_REQUIRED it pauses into AOS's existing human-approval gate (saving a
-// "governance_approval" gate state that resumes via the normal human_decision path) and
-// returns false. Ungoverned pipelines (no ai_system / no PRUDENCE_PDP_URL) always proceed.
+// false. An APPROVAL_REQUIRED response also stops the task: only Prudence's governed review
+// can approve the registered AI system. A local AOS click must never bypass that lifecycle.
+// Ungoverned pipelines (no ai_system / no PRUDENCE_PDP_URL) always proceed.
 func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) bool {
 	// The PDP authorizes the service identity when one is explicitly configured. AOS still
 	// records the signed-in user in its own audit trail; this lets a production PDP grant a
@@ -487,34 +487,12 @@ func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userI
 		return true
 
 	case governance.ApprovalRequired:
-		// Route into the human-approval gate: save a governance gate state and signal the
-		// API, exactly like a mid-pipeline human gate. An approval (human_decision) resumes
-		// the pipeline via the verifier; a rejection stops it.
-		st := &state.ExecutionState{
-			ID:        id,
-			SessionID: sessionID,
-			UserID:    userID,
-			Intent:    intentType,
-			Pipeline:  pipeName,
-			Params:    params,
-			Gate:      "governance_approval",
-			Status:    "await_human",
+		message := "governance approval required in Prudence"
+		if dec.Reason != "" {
+			message += ": " + dec.Reason
 		}
-		_ = p.stateManager.Save(taskCtx, st)
-		p.bus.Send("api", bus.Message{
-			Type: "await_human",
-			Payload: map[string]any{
-				"id":       id,
-				"gate":     "governance_approval",
-				"approver": dec.Approver,
-				"reason":   dec.Reason,
-			},
-		})
-		logx.L(id, "Governance", "approval required (approver=%s): %s", dec.Approver, dec.Reason)
-		storeResult(id, Result{
-			Status: "await_approval",
-			Data:   map[string]any{"gate": "governance_approval", "approver": dec.Approver, "reason": dec.Reason, "pipeline": pipeName},
-		})
+		logx.L(id, "Governance", "%s", message)
+		storeResult(id, Result{Status: "error", Err: message})
 		return false
 
 	default: // Deny or anything unexpected
