@@ -17,14 +17,6 @@ pipelines:
       - tool: banking.core_get_credit_card_balance
       - analyst: true
 
-  # A fixed, safe MVP journey: AOS calls a read-only mock MCP-style tool only after
-  # Prudence's PDP has allowed the declared production AI system to run this pipeline.
-  - name: pipeline_aos_credit_pre_screening
-    description: "Governed consumer-credit pre-screening demonstration"
-    ai_system: "${AOS_PRUDENCE_DEMO_SYSTEM_ID}"
-    steps:
-      - tool: banking.core_get_credit_card_balance
-      - analyst: true
 
   - name: pipeline_send_bizum
     description: "Send a Bizum (demo)"

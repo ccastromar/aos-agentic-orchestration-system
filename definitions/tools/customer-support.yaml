@@ -1,4 +1,13 @@
 tools:
+  # A fixed, safe MVP journey: read-only mock service lookup after Prudence's PDP has
+  # allowed the declared customer-support AI system to run the pipeline.
+  - name: customer_support.governed_case_lookup
+    type: http
+    method: GET
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/purchase?service={{ .service }}"
+    mode: read
+    timeout: 3000
+
   - name: customer_support.get_purchase
     type: http
     method: GET

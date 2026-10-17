@@ -12,10 +12,6 @@ permissions:
     - admin
     - finance
     - user
-  banking.governed_credit_pre_screening:
-    - admin
-    - finance
-    - read-write
   banking.get_movements:
     - admin
     - finance
@@ -72,6 +68,10 @@ permissions:
     - sales
 
   # Customer Support & Helpdesk
+  customer-support.governed_lookup:
+    - admin
+    - support
+    - read-write
   customer-support.return_product:
     - admin
     - support

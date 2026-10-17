@@ -1,4 +1,11 @@
 pipelines:
+  - name: pipeline_aos_support_lookup
+    description: "Governed customer-support lookup demonstration"
+    ai_system: "${AOS_PRUDENCE_DEMO_SYSTEM_ID}"
+    steps:
+      - tool: customer_support.governed_case_lookup
+      - analyst: true
+
   - name: pipeline_customer_support_return_product
     description: "Return a product (demo)"
     steps:

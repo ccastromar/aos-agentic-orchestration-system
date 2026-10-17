@@ -21,16 +21,6 @@ intents:
         - cardId
     allow_dangerous: false
 
-  - type: banking.governed_credit_pre_screening
-    description: >
-      Run the governed consumer-credit pre-screening demonstration through Prudence before a read-only mock tool.
-    pipeline: pipeline_aos_credit_pre_screening
-    required_params:
-      - cardId
-    examples:
-      - "Run the governed consumer-credit pre-screening demo"
-    allow_dangerous: false
-
   - type: banking.get_movements
     description: >
       INTENT: Transaction list

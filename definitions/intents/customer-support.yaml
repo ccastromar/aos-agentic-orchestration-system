@@ -1,4 +1,12 @@
 intents:
+  - type: customer-support.governed_lookup
+    description: "Run the governed customer-support lookup demonstration through Prudence before a read-only mock tool."
+    pipeline: pipeline_aos_support_lookup
+    required_params: ["service"]
+    examples:
+      - "Run the governed customer-support lookup demo"
+    allow_dangerous: false
+
   - type: customer-support.return_product
     description: "Return a product"
     pipeline: pipeline_customer_support_return_product
