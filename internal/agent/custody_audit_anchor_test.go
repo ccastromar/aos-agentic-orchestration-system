@@ -63,6 +63,14 @@ func TestCustodyCallbackAnchorsCurrentAuditHash(t *testing.T) {
 	v := NewVerifier(messageBus, cfg, nil, bus.New(), sm)
 	v.SetAuditLogger(chain)
 
+	// Record the pipeline manifest first, as the run_pipeline handler does before executing.
+	// Skipping it makes the callback resume record pipeline.started after callback.received,
+	// so the anchor would cover that late manifest record instead of the callback.
+	existing, err := sm.Load(context.Background(), "trace-anchor")
+	require.NoError(t, err)
+	_, err = v.ensurePipelineManifest("trace-anchor", "session-1", "custody.transfer_async", pipe, map[string]any{}, existing)
+	require.NoError(t, err)
+
 	executeLinear(v, pipe, "trace-anchor", "session-1", "custody.transfer_async", "es", context.Background(), map[string]any{}, map[string]any{})
 	waiting, err := sm.Load(context.Background(), "trace-anchor")
 	require.NoError(t, err)
