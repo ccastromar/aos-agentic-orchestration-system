@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../utils/api';
 
 const ChatPanel = ({ onTaskCreated }) => {
-  const governedDemoPrompt = 'Run the governed consumer-credit pre-screening demo';
+  const governedDemoPrompt = 'Run the governed customer-support lookup demo';
   const [messages, setMessages] = useState([
     { id: 1, text: "Welcome to AOS! I'm ready to orchestrate your tasks. Try saying: 'Transfer 20 to John', 'Deploy the catalog service', or type '/help' to see more examples.", sender: 'system' }
   ]);
@@ -129,10 +129,10 @@ const ChatPanel = ({ onTaskCreated }) => {
           className="btn btn-secondary"
           onClick={() => setInput(governedDemoPrompt)}
           disabled={isLoading}
-          title="Loads a read-only demo that AOS must first submit to Prudence"
+          title="Loads a read-only support lookup that AOS must first submit to Prudence"
           style={{ padding: '0.4rem 0.7rem', fontSize: '0.82rem' }}
         >
-          Prudence-governed credit check
+          Prudence-governed support lookup
         </button>
       </div>
       <div className="chat-messages">
