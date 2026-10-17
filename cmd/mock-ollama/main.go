@@ -1,5 +1,6 @@
 // Command mock-ollama serves a deterministic Ollama-compatible API for live demos of AOS
-// without a real model. Point AOS at it with LLM_ENGINE=ollama and OLLAMA_BASE_URL.
+// without a real model. Point AOS at it with LLM_ENGINE=ollama and OLLAMA_BASE_URL, or with
+// LLM_ENGINE=mock, LLM_BASE_URL=http://<host>:<port>/v1 and any non-empty LLM_API_KEY.
 //
 //	MOCK_OLLAMA_PORT            listen port (default 11435, next to a real Ollama on 11434)
 //	MOCK_OLLAMA_MODEL           advertised model name (default aos-demo:deterministic)

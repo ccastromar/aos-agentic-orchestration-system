@@ -152,6 +152,10 @@ ReAct, code generation) and answers them by rule: demo phrases pinned in
 sends in its prompt. Summaries only report what the step results contain and never claim
 success for `executed: false`.
 
+The same answers are served OpenAI-style under `/v1` (`/v1/models`, `/v1/chat/completions`,
+`/v1/embeddings`), so a deployment that uses `LLM_ENGINE=mock` with
+`LLM_BASE_URL=http://<mock>:11435/v1` gets the identical demo script.
+
 For presenting failures live, type a marker in the chat message: `#mock-fail:500`,
 `#mock-fail:badjson` (malformed model output) or `#mock-fail:slow`. Tuning:
 `MOCK_OLLAMA_PORT`, `MOCK_OLLAMA_MODEL`, `MOCK_OLLAMA_TOKEN_DELAY_MS`, `MOCK_OLLAMA_SLOW_MS`,

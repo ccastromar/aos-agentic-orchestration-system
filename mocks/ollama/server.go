@@ -1,7 +1,8 @@
 // Package ollama is a deterministic stand-in for an Ollama server, built for live demos of
 // AOS (and Prudence through AOS) without a real model. It speaks the subset of the Ollama
 // HTTP API that AOS's OllamaClient uses — /api/tags, /api/chat (streaming, non-streaming and
-// native tool calls) and /api/embeddings — so the real client code path runs unchanged.
+// native tool calls) and /api/embeddings — so the real client code path runs unchanged. The
+// same answers are also served OpenAI-style under /v1 for deployments using that client.
 //
 // It is NOT a language model. Each request is classified by the fixed prompts AOS sends
 // (intent detection, parameter extraction, analyst summary, ReAct, code generation) and
@@ -51,6 +52,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/chat", s.handleChat)
 	mux.HandleFunc("/api/embeddings", s.handleEmbeddings)
 	mux.HandleFunc("/api/embed", s.handleEmbed)
+	s.registerOpenAI(mux)
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
