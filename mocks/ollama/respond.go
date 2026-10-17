@@ -80,6 +80,9 @@ func respond(prompt string, scenarios []Scenario) (promptKind, string) {
 			"action_input": "The aos-demo mock cannot run open-ended agent tasks; use a real model for this flow.",
 		})
 	default:
+		if reply := matchReply(scenarios, prompt); reply != "" {
+			return "scenario_reply", reply
+		}
 		return kind, "[aos-demo mock] This prompt is not one of the AOS prompts the deterministic mock understands."
 	}
 }

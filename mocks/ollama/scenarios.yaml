@@ -8,6 +8,8 @@
 #   intent:   must exist in definitions/intents (otherwise the scenario is ignored)
 #   params:   parameter values; "$1" / "${name}" expand capture groups
 #   defaults: values used when a param expands to ""
+#   reply:    canned answer for a free-form (non-AOS) prompt; match then applies to the
+#             whole prompt and intent is not needed (used by Prudence's framework demos)
 #   summary:  optional analyst text per language, used ONLY when every step executed
 #             without error; otherwise the mock describes the raw results generically
 #             (and never claims success for executed:false). Never claim a governance
@@ -55,3 +57,8 @@ scenarios:
     params:
       text: '${text}'
       targetLanguage: '${lang}'
+
+  # Prudence framework demo (LangGraph response drafter): the node asks for a customer reply.
+  - name: prudence-response-drafter
+    match: 'draft (a )?(short )?(customer )?(reply|response)'
+    reply: "Draft: We are investigating the checkout issue and will update you shortly."

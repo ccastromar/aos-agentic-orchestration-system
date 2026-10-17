@@ -24,6 +24,9 @@ type Scenario struct {
 	// Summary is the analyst text per language code. It is only used when every step of the
 	// run executed without error, so a pinned "success" line can never mask a failure.
 	Summary map[string]string `yaml:"summary"`
+	// Reply is a canned answer for a free-form prompt that is not one of AOS's fixed prompts
+	// (e.g. a framework demo asking for a draft). Match is then applied to the whole prompt.
+	Reply string `yaml:"reply"`
 
 	re      *regexp.Regexp
 	matched string // the message a returned copy matched, for capture-group expansion
@@ -49,8 +52,11 @@ func LoadScenarios(path string) ([]Scenario, error) {
 	}
 	for i := range file.Scenarios {
 		sc := &file.Scenarios[i]
-		if sc.Intent == "" {
-			return nil, fmt.Errorf("scenario %q: intent is required", sc.Name)
+		if sc.Intent == "" && sc.Reply == "" {
+			return nil, fmt.Errorf("scenario %q: intent or reply is required", sc.Name)
+		}
+		if sc.Reply != "" && sc.Match == "" {
+			return nil, fmt.Errorf("scenario %q: a reply needs a match", sc.Name)
 		}
 		if sc.Match == "" {
 			continue // summary-only scenario
@@ -70,7 +76,7 @@ func matchScenario(scenarios []Scenario, msg string) (*Scenario, []int) {
 	}
 	for i := range scenarios {
 		sc := &scenarios[i]
-		if sc.re == nil {
+		if sc.re == nil || sc.Intent == "" {
 			continue
 		}
 		if groups := sc.re.FindStringSubmatchIndex(msg); groups != nil {
@@ -99,6 +105,16 @@ func scenarioSummary(scenarios []Scenario, intent, lang string) string {
 	for _, sc := range scenarios {
 		if sc.Intent == intent && sc.Summary[lang] != "" {
 			return sc.Summary[lang]
+		}
+	}
+	return ""
+}
+
+// matchReply returns the canned reply for a free-form prompt, if a scenario pins one.
+func matchReply(scenarios []Scenario, prompt string) string {
+	for _, sc := range scenarios {
+		if sc.Reply != "" && sc.re != nil && sc.re.MatchString(prompt) {
+			return sc.Reply
 		}
 	}
 	return ""
