@@ -1,0 +1,28 @@
+# Demo script for the aos-demo deterministic Ollama mock.
+#
+# Each scenario pins what the "model" answers for a phrase the presenter will type, so the
+# live demo never depends on the generic keyword matcher. Anything not listed here still
+# works: the mock then picks the intent whose examples/description best overlap the message.
+#
+#   match:    case-insensitive regex over the user message (capture groups usable in params)
+#   intent:   must exist in definitions/intents (otherwise the scenario is ignored)
+#   params:   parameter values; "$1" / "${name}" expand capture groups
+#   defaults: values used when a param expands to ""
+#   summary:  optional analyst text per language, used ONLY when every step executed
+#             without error; otherwise the mock describes the raw results generically
+#             (and never claims success for executed:false). Never claim a governance
+#             verdict here: the mock cannot see whether a PDP was consulted.
+#
+# Override with MOCK_OLLAMA_SCENARIOS=/path/to/file.yaml.
+scenarios:
+  # Case 1 (ALLOW): approved limited/minimal-risk system -> the read-only lookup runs.
+  - name: governed-support-lookup
+    match: '(caso de soporte|support (case|lookup)|soporte gobernad|governed (customer-support|support))(?:.*?\b(?:servicio|service|for)\s+(?P<service>[\w-]+))?'
+    intent: customer-support.governed_lookup
+    params:
+      service: '${service}'
+    defaults:
+      service: checkout
+    summary:
+      es: "AOS consultó el servicio de soporte en modo solo lectura y no modificó ningún dato."
+      en: "AOS looked up the support service read-only and changed no data."

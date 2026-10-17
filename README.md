@@ -141,6 +141,22 @@ docker run --rm -p 8080:8080 \
   aos:local
 ```
 
+### Live demos without a model (mock Ollama)
+
+`./run.sh demo` starts the same stack as `./run.sh all`, but points AOS at `cmd/mock-ollama`
+(port 11435): a **deterministic** Ollama-compatible server, not a language model. It
+advertises the model `aos-demo:deterministic` so UI stats and evidence never suggest a real
+LLM. It recognises the fixed AOS prompts (intent, parameter extraction, analyst summary,
+ReAct, code generation) and answers them by rule: demo phrases pinned in
+`mocks/ollama/scenarios.yaml` first, then keyword overlap with the intent catalog AOS already
+sends in its prompt. Summaries only report what the step results contain and never claim
+success for `executed: false`.
+
+For presenting failures live, type a marker in the chat message: `#mock-fail:500`,
+`#mock-fail:badjson` (malformed model output) or `#mock-fail:slow`. Tuning:
+`MOCK_OLLAMA_PORT`, `MOCK_OLLAMA_MODEL`, `MOCK_OLLAMA_TOKEN_DELAY_MS`, `MOCK_OLLAMA_SLOW_MS`,
+`MOCK_OLLAMA_SCENARIOS`.
+
 ## Endpoints
 
 - POST /ask — Asynchronous natural-language-like entrypoint
