@@ -7,7 +7,8 @@ import { apiFetch } from '../utils/api';
 
 const Timeline = ({ taskId, onApprovalNeeded }) => {
   const [events, setEvents] = useState([]);
-  const [status, setStatus] = useState('pending'); // pending, ok, error
+  // loading = nothing heard from the server yet; pending = the task is still running.
+  const [status, setStatus] = useState('loading');
   const [finalData, setFinalData] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -15,7 +16,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
     if (!taskId) return;
 
     setEvents([]);
-    setStatus('pending');
+    setStatus('loading');
     setFinalData(null);
     setCopied(false);
 
@@ -87,7 +88,12 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
     };
     readEventStream();
 
-    const statusPollingInterval = setInterval(async () => {
+    // Ask for the task right away: a finished task (opened from History) must not sit behind a
+    // "Working..." indicator for the first polling interval, which looked like a re-run.
+    let statusPollingInterval = null;
+    let stopped = false;
+    const pollStatus = async () => {
+      if (stopped) return;
       try {
         const tskRes = await apiFetch(`/task?id=${taskId}`);
         if (tskRes.ok) {
@@ -101,6 +107,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             // "completed". Stop polling immediately or the next request
             // falls back to the older persisted state and hides callback data.
             if (['ok', 'success', 'completed', 'error', 'governance_blocked'].includes(data.status)) {
+              stopped = true;
               clearInterval(statusPollingInterval);
               setTimeout(() => eventController.abort(), 1000);
             }
@@ -144,12 +151,16 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           } else if (data.status === 'await_human' || data.status === 'await_clarification') {
             setStatus(data.status);
             setFinalData(null); // Clear final data if we are awaiting human input
+          } else {
+            setStatus('pending'); // still running
           }
         }
       } catch (e) {
         console.error("Status polling error", e);
       }
-    }, 3000);
+    };
+    statusPollingInterval = setInterval(pollStatus, 3000);
+    pollStatus();
 
     return () => {
       eventController.abort();
@@ -322,7 +333,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{taskId.substring(0,8)}</span>
         </h2>
 
-        {status !== 'pending' && (
+        {status !== 'pending' && status !== 'loading' && (
           <span className={`status-badge status-${status}`}>
             {status.toUpperCase()}
           </span>
@@ -342,7 +353,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             {events.map((evt, idx) => renderEvent(evt, idx))}
           </AnimatePresence>
         )}
-        {status === 'pending' && (
+        {(status === 'pending' || status === 'loading') && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -351,7 +362,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           >
             <div className="timeline-dot" style={{ animation: 'pulse 1.5s infinite' }} />
             <div className="event-content" style={{ color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0' }}>
-              Working...
+              {status === 'loading' ? 'Loading task…' : 'Working...'}
             </div>
           </motion.div>
         )}
