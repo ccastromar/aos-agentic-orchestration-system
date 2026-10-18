@@ -6,10 +6,9 @@ import HumanApprovalModal from './components/HumanApprovalModal';
 import ClarificationModal from './components/ClarificationModal';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
-import Logo from './components/Logo';
 import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth } from './utils/api';
-import { ssoEnabled, ssoLogin, completeSso } from './utils/oidc';
+import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Sun, Moon, Clock, LogIn, LogOut, UserRound, ShieldCheck } from 'lucide-react';
 import './index.css';
 
@@ -17,7 +16,7 @@ function App() {
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
   const [view, setView] = useState('chat'); // 'chat' | 'settings' | 'history'
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [auth, setAuth] = useState(() => getAuth());
   const [showLogin, setShowLogin] = useState(false);
 
@@ -42,11 +41,8 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
-    if (theme === 'light') {
-      document.body.classList.add('theme-light');
-    } else {
-      document.body.classList.remove('theme-light');
-    }
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.vertex = 'operate';
   }, [theme]);
 
   // Handle URL query param for taskId to support direct linking from History
@@ -85,35 +81,25 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <Logo size={64} />
-          <div>
-            <h1 style={{ margin: 0, fontSize: '2.2rem', lineHeight: '1.2' }}>Agentic Orchestration System</h1>
-            <p style={{ margin: 0, marginTop: '0.25rem' }}>AOS Web UI - Watch your workflows execute in real-time</p>
-          </div>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '1rem', flexShrink: 0, alignItems: 'center' }}>
-          {/* Chestertown app-switcher — one platform, three modules (AOS is the "operate" vertex). */}
-          <nav style={{ display: 'flex', gap: '4px', padding: '4px', border: '1px solid var(--border-highlight)', borderRadius: '9999px' }} aria-label="Chestertown apps">
+      <header className="topbar">
+        <div className="brand"><span className="mark">A</span><span>AOS</span><span className="vertex">· operate</span></div>
+        <div className="topbar-actions">
+          <nav className="switcher" aria-label="Chestertown apps">
             {[
-              { label: 'AOS',      vertex: 'operate', accent: '#2563eb', url: import.meta.env.VITE_AOS_URL      || 'http://localhost:5173' },
-              { label: 'Prudence', vertex: 'govern',  accent: '#d97706', url: import.meta.env.VITE_PRUDENCE_URL || 'http://localhost:5200' },
-              { label: 'Ernest',   vertex: 'assure',  accent: '#0d9488', url: import.meta.env.VITE_ERNEST_URL   || 'http://localhost:5174' },
+              { label: 'AOS',      vertex: 'operate', url: import.meta.env.VITE_AOS_URL      || 'http://localhost:5173' },
+              { label: 'Prudence', vertex: 'govern',  url: import.meta.env.VITE_PRUDENCE_URL || 'http://localhost:5200' },
+              { label: 'Ernest',   vertex: 'assure',  url: import.meta.env.VITE_ERNEST_URL   || 'http://localhost:5174' },
             ].map((a) => {
               const here = a.vertex === 'operate';
               return (
                 <a key={a.label} href={a.url} title={`${a.label} — ${a.vertex}`}
-                   style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase',
-                            textDecoration: 'none', padding: '4px 12px', borderRadius: '9999px',
-                            color: here ? '#fff' : 'var(--text-secondary)', background: here ? a.accent : 'transparent' }}>
+                   className={here ? 'here' : ''}>
                   {a.label}
                 </a>
               );
             })}
           </nav>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }} title={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous dev identity'}>
+          <div className="identity" title={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous'}>
             <UserRound size={16} />
             <span>{auth ? auth.userId : 'demo-user'}</span>
           </div>
@@ -121,7 +107,6 @@ function App() {
             <button
               className="btn btn-secondary"
               onClick={handleLogout}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
               title="Sign out"
             >
               <LogOut size={18} /> Logout
@@ -132,54 +117,37 @@ function App() {
                 <button
                   className="btn btn-primary"
                   onClick={ssoLogin}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
                   title="Sign in with the shared identity provider"
                 >
                   <ShieldCheck size={18} /> SSO
                 </button>
               )}
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowLogin(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
-                title="Sign in"
-              >
-                <LogIn size={18} /> Login
-              </button>
+              {devLoginEnabled && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowLogin(true)}
+                  title="Development login"
+                >
+                  <LogIn size={18} /> Dev login
+                </button>
+              )}
             </>
           )}
           <button
             className="btn btn-secondary"
             onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', borderRadius: '50%' }}
             title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
           
-          <button 
-            className={`btn ${view === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setView('chat')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
-          >
-            <MessageSquare size={18} /> Chat
-          </button>
-          <button 
-            className={`btn ${view === 'history' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setView('history')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
-          >
-            <Clock size={18} /> History
-          </button>
-          <button 
-            className={`btn ${view === 'settings' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setView('settings')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
-          >
-            <SettingsIcon size={18} /> Settings
-          </button>
         </div>
       </header>
+      <nav className="tabs" aria-label="AOS sections">
+        <button className={view === 'chat' ? 'active' : ''} onClick={() => setView('chat')}><MessageSquare size={16} /> Chat</button>
+        <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}><Clock size={16} /> History</button>
+        <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}><SettingsIcon size={16} /> Settings</button>
+      </nav>
 
       <AnimatePresence mode="wait">
         {view === 'chat' && (

@@ -7,6 +7,11 @@ const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'aos-spa';
 
 export const ssoEnabled = Boolean(ISSUER && CLIENT_ID);
 
+// The username/role modal exists only to exercise the backend's deliberately insecure
+// development authenticator. Do not expose it merely because OIDC is absent: it must be
+// explicitly enabled in a local Vite build and is never available in a production build.
+export const devLoginEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true';
+
 const VERIFIER_KEY = 'aos_pkce_verifier';
 const STATE_KEY = 'aos_pkce_state';
 

@@ -1,5 +1,12 @@
 # React + Vite
 
+## Authentication
+
+The production UI uses the shared Chestertown SSO (OIDC/PKCE). The legacy username-and-role
+modal is deliberately hidden by default: it talks to AOS' development-only authenticator, which
+does not validate the password. To exercise it locally, run Vite with
+`VITE_ENABLE_DEV_LOGIN=true`; it is not included in production builds.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

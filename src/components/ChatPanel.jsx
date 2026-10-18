@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getAuth } from '../utils/api';
+import { devLoginEnabled } from '../utils/oidc';
 
 const ChatPanel = ({ onTaskCreated }) => {
   // One prompt per Prudence risk-tier case of the live demo. The deterministic mock models
@@ -14,7 +15,7 @@ const ChatPanel = ({ onTaskCreated }) => {
     { label: 'Translator · suspended', prompt: 'Translate "the branch opens at nine" into Portuguese', title: 'Suspended system: denied until it is resubmitted and approved in Prudence' },
   ];
   const [messages, setMessages] = useState([
-    { id: 1, text: "Welcome to AOS! I'm ready to orchestrate your tasks. Try saying: 'Transfer 20 to John', 'Deploy the catalog service', or type '/help' to see more examples.", sender: 'system' }
+    { id: 1, text: "Welcome to AOS. I run predefined, governed pipelines; I don't create workflows on demand. Use one of the available flows—for example, 'Transfer 20 to John' or 'Deploy the catalog service'—or type '/help' to see supported examples.", sender: 'system' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +30,9 @@ const ChatPanel = ({ onTaskCreated }) => {
     }
   });
   const [historyIndex, setHistoryIndex] = useState(-1);
+  // Mock roles are useful only when exercising anonymous development flows. A real
+  // SSO or development-login session supplies the identity and roles in its token.
+  const showMockRole = devLoginEnabled && !getAuth()?.token;
 
   const messagesEndRef = useRef(null);
 
@@ -130,21 +134,23 @@ const ChatPanel = ({ onTaskCreated }) => {
 
   return (
     <>
-      <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Prudence-governed demo:</span>
-        {governedDemos.map(demo => (
-          <button
-            key={demo.label}
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setInput(demo.prompt)}
-            disabled={isLoading}
-            title={demo.title}
-            style={{ padding: '0.4rem 0.7rem', fontSize: '0.82rem' }}
-          >
-            {demo.label}
-          </button>
-        ))}
+      <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Prudence-governed demos:</span>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {governedDemos.map(demo => (
+            <button
+              key={demo.label}
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setInput(demo.prompt)}
+              disabled={isLoading}
+              title={demo.title}
+              style={{ padding: '0.4rem 0.7rem', fontSize: '0.82rem' }}
+            >
+              {demo.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="chat-messages">
         <AnimatePresence initial={false}>
@@ -206,35 +212,37 @@ const ChatPanel = ({ onTaskCreated }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="chat-input-form">
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Simulate Role:</span>
-          <select
-            value={localStorage.getItem('aosMockRole') || 'admin'}
-            onChange={(e) => {
-              localStorage.setItem('aosMockRole', e.target.value);
-              // Force re-render to update the select value visually
-              setHistory(prev => [...prev]);
-            }}
-            style={{
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.2rem 0.5rem',
-              fontSize: '0.8rem'
-            }}
-          >
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-            <option value="guest">Guest</option>
-            <option value="finance">Finance</option>
-            <option value="sales">Sales</option>
-            <option value="support">Support</option>
-            <option value="sre">SRE / DevOps</option>
-            <option value="hr">Human Resources</option>
-            <option value="operations">Operations</option>
-          </select>
-        </div>
+        {showMockRole && (
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Demo role:</span>
+            <select
+              value={localStorage.getItem('aosMockRole') || 'admin'}
+              onChange={(e) => {
+                localStorage.setItem('aosMockRole', e.target.value);
+                // Force re-render to update the select value visually.
+                setHistory(prev => [...prev]);
+              }}
+              style={{
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-light)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.8rem'
+              }}
+            >
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+              <option value="guest">Guest</option>
+              <option value="finance">Finance</option>
+              <option value="sales">Sales</option>
+              <option value="support">Support</option>
+              <option value="sre">SRE / DevOps</option>
+              <option value="hr">Human Resources</option>
+              <option value="operations">Operations</option>
+            </select>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <input
             type="text"
