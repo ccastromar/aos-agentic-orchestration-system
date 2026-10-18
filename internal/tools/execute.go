@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
@@ -15,6 +16,22 @@ import (
 )
 
 var SkipSSRF bool
+
+// internalHosts are tool hostnames allowed to resolve to private/loopback addresses (e.g. a
+// mock-tools container on the Docker network). Every other host keeps the SSRF check.
+var internalHosts = map[string]bool{}
+
+// SetInternalHosts replaces the hostnames exempted from the internal-IP check. Matching is
+// exact and case-insensitive on the URL host (no wildcards, no IP ranges).
+func SetInternalHosts(hosts []string) {
+	allowed := map[string]bool{}
+	for _, h := range hosts {
+		if h = strings.ToLower(strings.TrimSpace(h)); h != "" {
+			allowed[h] = true
+		}
+	}
+	internalHosts = allowed
+}
 
 var safeClient = &http.Client{
 	Timeout: 30 * time.Second,
@@ -30,6 +47,9 @@ var safeClient = &http.Client{
 			ips, err := net.LookupIP(host)
 			if err != nil {
 				return nil, err
+			}
+			if internalHosts[strings.ToLower(host)] {
+				return net.Dial(network, net.JoinHostPort(ips[0].String(), port))
 			}
 			for _, ip := range ips {
 				if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() {

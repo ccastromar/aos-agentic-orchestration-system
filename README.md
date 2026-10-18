@@ -287,6 +287,16 @@ the last one will be paused at a specific step, because it requires human intera
 
 
 
+## Tool network access (SSRF protection)
+
+HTTP tools cannot reach private, loopback or link-local addresses: a tool URL that resolves to an
+internal IP is refused (`ssrf prevention: access to internal IP … is denied`). Two switches:
+
+| Variable | Effect |
+|---|---|
+| `AOS_TOOL_INTERNAL_HOSTS` | Comma-separated tool hostnames that may resolve to internal IPs, matched exactly (e.g. `aos-tools-mock` on a Docker network). Everything else stays protected. |
+| `ALLOW_LOCAL_TOOLS=true` | Turns the protection off entirely (and relaxes the dangerous-chain guard). Local development only. |
+
 ## Secrets for tools (API keys, tokens)
 
 When your YAML-defined tools need to call secured APIs, never hardcode secrets in the YAML. Keep secrets in environment variables and reference them from your tool templates.

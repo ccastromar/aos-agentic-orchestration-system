@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
@@ -95,6 +96,11 @@ func main() {
 	if os.Getenv("ALLOW_LOCAL_TOOLS") == "true" {
 		logx.Warn("App", "ALLOW_LOCAL_TOOLS is true. SSRF protection is disabled!")
 		tools.SkipSSRF = true
+	} else if raw := strings.TrimSpace(os.Getenv("AOS_TOOL_INTERNAL_HOSTS")); raw != "" {
+		// Narrow exemption: only these tool hosts may resolve to internal IPs.
+		hosts := strings.Split(raw, ",")
+		tools.SetInternalHosts(hosts)
+		logx.Info("App", "SSRF protection on; internal tool hosts allowed: %s", raw)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
