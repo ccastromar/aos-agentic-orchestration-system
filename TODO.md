@@ -25,6 +25,7 @@ governs, Ernest proves); see the README status.
 - [x] Deterministic mock LLM: Ollama and OpenAI-style `/v1` APIs, pinned demo phrases, intent-catalog matching, honest analyst summaries, OpenAI tool calling and canned replies, `#mock-fail:*` markers.
 - [x] Unit tests for the governance gate, `governance_blocked`, fail-closed config and the demo pipelines' definitions; CI green again (custody anchor test fixed).
 - [x] Deployed with Prudence and Ernest on the MVP server; the four cases verified from the AOS UI.
+- [x] Execution evidence to Ernest over Kafka: the audit journal is the outbox, a background shipper publishes it (TLS), governed `pipeline.started` events are tagged as executions of their AI system for Prudence's time-aware drift check.
 
 ## Memory and history closure — codex/close-memory-history
 
@@ -49,7 +50,8 @@ governs, Ernest proves); see the README status.
 - Add end-to-end coverage using a real LLM; current automated tests and the live demo use controlled doubles (the deterministic mock).
 - Introduce explicit persisted execution status instead of inferring completion from step results (only `governance_blocked` is persisted explicitly today).
 - Decide whether to support separate conversations per user; current memory/context scope is one per authenticated user.
-- Enable AOS's hash-only audit export to Ernest in the MVP deployment: today Prudence seals its decisions there, but AOS's own execution evidence is not exported (`ERNEST_INGESTOR_URL` is unset on the server).
+- Kafka evidence runs over TLS without client authentication on the MVP server, so Ernest records it as "unverified"; move the broker to SASL_SSL with per-producer ACLs (AOS may only write `aos.executions`).
+- Link each execution to the Prudence decision that allowed it (the PDP response carries no decision id yet), so Ernest can prove the pairing, not only the timing.
 - Governance is checked once at pipeline entry; consider per-step checks for long or multi-system pipelines, and re-checking on resume after a callback wait.
 - On APPROVAL_REQUIRED, point the user to the system's review in Prudence (link or notification) instead of only showing the verdict.
 - The mock LLM recognises AOS's prompts by fixed marker strings that mirror `internal/llm`; add a test that fails when those prompts change without updating `mocks/ollama/respond.go`.

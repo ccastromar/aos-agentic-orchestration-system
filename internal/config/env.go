@@ -42,6 +42,18 @@ type EnvVars struct {
 	ErnestIngestorHMACSecret string        `envconfig:"ERNEST_INGESTOR_HMAC_SECRET" default:""`
 	ErnestIngestorTimeout    time.Duration `envconfig:"ERNEST_INGESTOR_TIMEOUT" default:"5s"`
 
+	// Asynchronous evidence to Ernest over Kafka: the audit journal (AUDIT_LOG_PATH) is the
+	// outbox and a background shipper publishes it. Off when no broker is configured.
+	EvidenceKafkaBrokers       string        `envconfig:"AOS_EVIDENCE_KAFKA_BROKERS" default:""`
+	EvidenceKafkaTopic         string        `envconfig:"AOS_EVIDENCE_KAFKA_TOPIC" default:"aos.executions"`
+	EvidenceKafkaSecurity      string        `envconfig:"AOS_EVIDENCE_KAFKA_SECURITY_PROTOCOL" default:"PLAINTEXT"`
+	EvidenceKafkaCAFile        string        `envconfig:"AOS_EVIDENCE_KAFKA_TLS_CA_FILE" default:""`
+	EvidenceKafkaSASLMechanism string        `envconfig:"AOS_EVIDENCE_KAFKA_SASL_MECHANISM" default:""`
+	EvidenceKafkaSASLUsername  string        `envconfig:"AOS_EVIDENCE_KAFKA_SASL_USERNAME" default:""`
+	EvidenceKafkaSASLPassword  string        `envconfig:"AOS_EVIDENCE_KAFKA_SASL_PASSWORD" default:""`
+	EvidenceKafkaCursor        string        `envconfig:"AOS_EVIDENCE_KAFKA_CURSOR" default:""`
+	EvidenceKafkaInterval      time.Duration `envconfig:"AOS_EVIDENCE_KAFKA_INTERVAL" default:"1s"`
+
 	QdrantURL string `envconfig:"QDRANT_URL" default:"http://localhost:6333"`
 
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`

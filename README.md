@@ -4,8 +4,8 @@
 > AOS operates, [Prudence](https://github.com/ccastromar/prudence-governance) governs and
 > [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. The three run together as a deployed MVP aligned with the EU AI Act: before a
 > governed pipeline runs, AOS asks Prudence's Policy Decision Point and obeys the verdict;
-> Prudence seals each decision in Ernest, and AOS can also export its own hash-only execution
-> evidence there (`ERNEST_INGESTOR_URL`). It is a first real version, not a hardened product;
+> Prudence seals each decision in Ernest, and AOS ships its own hash-only execution evidence
+> there asynchronously over Kafka. It is a first real version, not a hardened product;
 > see [TODO.md](TODO.md) for known limitations. The runtime (bus, agents, YAML-driven
 > pipelines, tool execution, human gates, governance gate) is covered by tests in CI
 > (`go test -race ./...`).
@@ -431,6 +431,33 @@ is enabled. The bundled `/mock/blockchain/anchors` endpoint is only a local
 simulator that returns a receipt; it is not a real blockchain or smart contract.
 A local hash chain is tamper-evident, but a real external anchor is needed to
 make deletion or rewriting detectable by an independent party.
+
+### Execution evidence to Ernest over Kafka (recommended)
+
+Set `AOS_EVIDENCE_KAFKA_BROKERS` and AOS publishes its audit journal to Ernest asynchronously.
+The journal (`AUDIT_LOG_PATH`, required) is the outbox: every event is durable and hash-chained
+on disk first; a background shipper reads complete records after a persisted cursor
+(`<journal>.kafka-cursor`), publishes them to `AOS_EVIDENCE_KAFKA_TOPIC` (default
+`aos.executions`) and advances the cursor only once Kafka acknowledges them. Pipelines never wait
+for or fail because of Kafka or Ernest; the backlog ships when they are back, and replays are
+deduplicated by Ernest on `sourceEventId`. Records carry the same hash-only body as the HTTP path,
+plus `journalSequence`; the record's chain hash is the event hash, so Ernest's evidence can be
+matched with the local journal.
+
+Events of a pipeline that declares `ai_system` carry `metadata.aiSystemId`, and the
+`pipeline.started` event (recorded only after the governance gate allowed the run) is tagged
+`stage: execution`. That is what Ernest counts per AI system and what Prudence's drift check reads.
+
+| Variable | Purpose |
+|---|---|
+| `AOS_EVIDENCE_KAFKA_BROKERS` | Comma-separated brokers; empty disables the shipper. |
+| `AOS_EVIDENCE_KAFKA_TOPIC` | Topic (default `aos.executions`); Ernest's Kafka consumer must subscribe to it. |
+| `AOS_EVIDENCE_KAFKA_SECURITY_PROTOCOL` | `PLAINTEXT` (development only), `SSL`, `SASL_PLAINTEXT` or `SASL_SSL`. Outside development AOS refuses to start unless it is `SSL` or `SASL_SSL`. |
+| `AOS_EVIDENCE_KAFKA_TLS_CA_FILE` | PEM CA for TLS. |
+| `AOS_EVIDENCE_KAFKA_SASL_MECHANISM`, `_SASL_USERNAME`, `_SASL_PASSWORD` | `SCRAM-SHA-512` (default), `SCRAM-SHA-256` or `PLAIN`. |
+| `AOS_EVIDENCE_KAFKA_CURSOR`, `AOS_EVIDENCE_KAFKA_INTERVAL` | Cursor file and polling interval (default `1s`). |
+
+### Execution evidence to Ernest over HTTP (synchronous)
 
 To export hash-only AOS audit evidence to Ernest, set `ERNEST_INGESTOR_URL` to
 the Ernest event-ingestor base URL (for example `http://localhost:3011`) and

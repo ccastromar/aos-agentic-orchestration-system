@@ -32,6 +32,7 @@ type App struct {
 	http        *HTTPServer
 	auditCloser interface{ Close() error }
 	stateCloser interface{ Close() error }
+	evidence    *audit.KafkaShipper // nil unless Kafka evidence is configured
 }
 
 // New loads environment variables if available and delegates to NewWithEnv.
@@ -67,7 +68,8 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		vectorStore = state.NewQdrantVectorStore(env.QdrantURL)
 	}
 	stateManager := state.NewStateManager(stateStore, vectorStore)
-	auditLogger, auditCloser, err := newAuditLogger(env)
+	aiSystems := governedSystems(cfg)
+	auditLogger, auditCloser, err := newAuditLoggerFor(env, aiSystems)
 	if err != nil {
 		if stateCloser != nil {
 			_ = stateCloser.Close()
@@ -120,6 +122,17 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	messageBus.Subscribe("verifier", verifier.Inbox())
 	messageBus.Subscribe("analyst", analyst.Inbox())
 
+	evidence, err := newEvidenceShipper(env, aiSystems)
+	if err != nil {
+		if auditCloser != nil {
+			_ = auditCloser.Close()
+		}
+		if stateCloser != nil {
+			_ = stateCloser.Close()
+		}
+		return nil, fmt.Errorf("initialize Kafka evidence: %w", err)
+	}
+
 	app := &App{
 		cfg:         cfg,
 		env:         env,
@@ -128,6 +141,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 		llm:         llmClient,
 		auditCloser: auditCloser,
 		stateCloser: stateCloser,
+		evidence:    evidence,
 	}
 
 	httpServer := NewHTTPServer(app, apiAgent, messageBus, r)
@@ -136,7 +150,63 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	return app, nil
 }
 
+// governedSystems maps each pipeline that declares ai_system to that Prudence system id.
+func governedSystems(cfg *config.Config) map[string]string {
+	out := map[string]string{}
+	if cfg == nil {
+		return out
+	}
+	for name, p := range cfg.Pipelines {
+		if id := strings.TrimSpace(p.AiSystem); id != "" {
+			out[name] = id
+		}
+	}
+	return out
+}
+
+// newEvidenceShipper returns nil when no Kafka broker is configured. Kafka evidence needs the
+// local audit journal (it is the outbox), and outside development an encrypted connection.
+func newEvidenceShipper(env *config.EnvVars, aiSystems map[string]string) (*audit.KafkaShipper, error) {
+	brokers := splitList(env.EvidenceKafkaBrokers)
+	if len(brokers) == 0 {
+		return nil, nil
+	}
+	protocol := strings.ToUpper(strings.TrimSpace(env.EvidenceKafkaSecurity))
+	if !auth.IsDevelopmentEnvironment(env.AppEnv) && protocol != "SSL" && protocol != "SASL_SSL" {
+		return nil, fmt.Errorf("AOS_EVIDENCE_KAFKA_SECURITY_PROTOCOL must be SSL or SASL_SSL outside development (got %q)", env.EvidenceKafkaSecurity)
+	}
+	return audit.NewKafkaShipper(audit.KafkaShipperConfig{
+		JournalPath: env.AuditLogPath,
+		CursorPath:  env.EvidenceKafkaCursor,
+		Brokers:     brokers,
+		Topic:       env.EvidenceKafkaTopic,
+		Interval:    env.EvidenceKafkaInterval,
+		Security: audit.KafkaSecurity{
+			Protocol:      env.EvidenceKafkaSecurity,
+			CAFile:        env.EvidenceKafkaCAFile,
+			SASLMechanism: env.EvidenceKafkaSASLMechanism,
+			Username:      env.EvidenceKafkaSASLUsername,
+			Password:      env.EvidenceKafkaSASLPassword,
+		},
+		AISystems: aiSystems,
+	})
+}
+
+func splitList(raw string) []string {
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func newAuditLogger(env *config.EnvVars) (audit.Logger, interface{ Close() error }, error) {
+	return newAuditLoggerFor(env, nil)
+}
+
+func newAuditLoggerFor(env *config.EnvVars, aiSystems map[string]string) (audit.Logger, interface{ Close() error }, error) {
 	var sinks []audit.Logger
 	if env.AuditLogPath != "" {
 		chain, err := audit.NewFileChain(env.AuditLogPath)
@@ -163,7 +233,7 @@ func newAuditLogger(env *config.EnvVars) (audit.Logger, interface{ Close() error
 			}
 			return nil, nil, fmt.Errorf("initialize Ernest audit integration: %w", err)
 		}
-		sinks = append(sinks, remote)
+		sinks = append(sinks, remote.WithAISystems(aiSystems))
 	}
 	if len(sinks) == 0 {
 		return audit.StdLogger{}, nil, nil
@@ -231,6 +301,13 @@ func (a *App) Run(ctx context.Context) error {
 	g.Go(func() error {
 		return a.http.Start(gctx)
 	})
+
+	// Ship the audit journal to Ernest over Kafka in the background (never blocks pipelines).
+	if a.evidence != nil {
+		g.Go(func() error {
+			return a.evidence.Run(gctx)
+		})
+	}
 
 	if a.env != nil {
 		logx.Info("App", "AOS v0.3.0 started (env=%s)", a.env.AppEnv)

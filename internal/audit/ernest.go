@@ -23,7 +23,9 @@ type ErnestLogger struct {
 	endpoint string
 	apiKey   string
 	hmacKey  string
-	client   *http.Client
+	// aiSystems maps a pipeline name to the Prudence AI system it runs as.
+	aiSystems map[string]string
+	client    *http.Client
 
 	mu      sync.Mutex
 	lastErr error
@@ -49,6 +51,13 @@ func NewErnestLogger(baseURL, apiKey, hmacSecret string, timeout time.Duration) 
 			},
 		},
 	}, nil
+}
+
+// WithAISystems tags each event with the Prudence AI system of its pipeline (pipeline name ->
+// system id), so Ernest can attribute governed executions.
+func (l *ErnestLogger) WithAISystems(aiSystems map[string]string) *ErnestLogger {
+	l.aiSystems = aiSystems
+	return l
 }
 
 func (l *ErnestLogger) Log(event Event) {
@@ -81,43 +90,11 @@ func (l *ErnestLogger) send(event Event) error {
 	}
 	eventSum := sha256.Sum256(canonical)
 	eventHash := hex.EncodeToString(eventSum[:])
-	eventType := "aos.audit.event"
-	if phase := strings.Trim(strings.TrimSpace(event.Phase), "."); phase != "" {
-		eventType += "." + phase
-	}
-	sourceEventID := strings.Join([]string{event.TraceID, event.Phase, event.Step, eventHash}, ":")
-	if event.TraceID == "" {
-		sourceEventID = eventHash
-	}
-
-	// Send only identifiers, status, and a digest. Prompts, params, tool outputs,
-	// user IDs, and error messages stay in AOS's local audit journal.
-	metadata := map[string]any{
-		"producer":      "aos-agentic-orchestration-system",
-		"schemaVersion": "1",
-		"eventHash":     eventHash,
-		"phase":         event.Phase,
-		"traceId":       event.TraceID,
-		"intent":        event.Intent,
-		"pipeline":      event.Pipeline,
-		"result":        event.Result,
-		"latencyMs":     event.LatencyMs,
-		"occurredAt":    event.Timestamp.Format(time.RFC3339Nano),
-	}
-	if event.Step != "" {
-		metadata["step"] = event.Step
-	}
-	body, err := json.Marshal(map[string]any{
-		"source":        "aos",
-		"eventType":     eventType,
-		"sourceEventId": sourceEventID,
-		"occurredAt":    event.Timestamp.Format(time.RFC3339Nano),
-		"modelId":       "aos-agentic-orchestration-system",
-		"metadata":      metadata,
-	})
+	evidence, err := BuildEvidence(event, eventHash, l.aiSystems[event.Pipeline], nil)
 	if err != nil {
-		return fmt.Errorf("marshal Ernest event: %w", err)
+		return err
 	}
+	eventType, sourceEventID, body := evidence.EventType, evidence.SourceEventID, evidence.Body
 
 	ctx, cancel := context.WithTimeout(context.Background(), l.client.Timeout)
 	defer cancel()
