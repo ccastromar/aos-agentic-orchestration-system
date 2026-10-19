@@ -44,6 +44,7 @@ type ExecutionState struct {
 	PipelineVersion  string            `json:"pipeline_version,omitempty"`
 	PipelineSnapshot json.RawMessage   `json:"pipeline_snapshot,omitempty"`
 	InputDigest      string            `json:"input_digest,omitempty"`
+	DecisionID       string            `json:"decision_id,omitempty"`     // Prudence decision that allowed the run
 	CompletedSteps   []string          `json:"completed_steps,omitempty"` // IDs of completed steps
 	Params           map[string]string `json:"params"`
 	MissingParams    []string          `json:"missing_params"`

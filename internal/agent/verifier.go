@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/engine"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/governance"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
@@ -383,9 +385,22 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		storeResult(id, Result{Status: "error", Err: "cannot load execution state: " + loadErr.Error()})
 		return
 	}
+	// A manifest already on record means this run started before (a resume): it was reported then.
+	freshStart := manifestState == nil || manifestState.PipelineVersion == ""
 	if _, err := v.ensurePipelineManifest(id, sessionID, intentType, pipe, baseParams, manifestState); err != nil {
 		v.failAuditExecution(nil, id, err)
 		return
+	}
+	if freshStart && strings.TrimSpace(pipe.AiSystem) != "" && governance.ReportsEnabled() {
+		decisionID, _ := payload.GetString(msg.Payload, "decision_id")
+		governance.ReportExecutionAsync(governance.ExecutionReport{
+			Runtime:     "aos",
+			ExecutionID: id,
+			DecisionID:  decisionID,
+			AiSystemID:  pipe.AiSystem,
+			Pipeline:    pipe.Name,
+			StartedAt:   time.Now().UTC().Format(time.RFC3339Nano),
+		})
 	}
 
 	taskCtx, _ := GetTaskContext(id)

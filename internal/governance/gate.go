@@ -36,6 +36,9 @@ type Decision struct {
 	Status   string // Allow | Deny | ApprovalRequired
 	Reason   string
 	Approver string
+	// DecisionID is the id Prudence recorded the decision under (Decision API v1); the
+	// execution report cites it. Empty against an older PDP.
+	DecisionID string
 }
 
 type decisionRequest struct {
@@ -46,9 +49,10 @@ type decisionRequest struct {
 }
 
 type decisionResponse struct {
-	Decision string `json:"decision"`
-	Reason   string `json:"reason"`
-	Approver string `json:"approver"`
+	Decision   string `json:"decision"`
+	Reason     string `json:"reason"`
+	Approver   string `json:"approver"`
+	DecisionID string `json:"decisionId"`
 }
 
 // Evaluate consults the Prudence PDP at pdpURL. A pipeline that is not governed (pdpURL or
@@ -94,7 +98,7 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 	}
 	switch dr.Decision {
 	case Allow, Deny, ApprovalRequired:
-		return Decision{Status: dr.Decision, Reason: dr.Reason, Approver: dr.Approver}, nil
+		return Decision{Status: dr.Decision, Reason: dr.Reason, Approver: dr.Approver, DecisionID: dr.DecisionID}, nil
 	default:
 		return Decision{}, fmt.Errorf("governance: unexpected PDP decision %q", dr.Decision)
 	}

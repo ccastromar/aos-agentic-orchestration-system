@@ -420,7 +420,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// governed fails closed when either is missing. DENY and APPROVAL_REQUIRED stop the
 	// task with status governance_blocked — approval happens in Prudence, never here.
 	// ---------------------------------------------------------
-	if !p.governanceAllows(taskCtx, id, sessionID, userID, detectedType, pipeName, pipe, params) {
+	decisionID, allowed := p.governanceGate(taskCtx, id, sessionID, userID, detectedType, pipeName, pipe, params)
+	if !allowed {
 		return
 	}
 
@@ -439,44 +440,53 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// user) from the start; the Analyst completes it with the final results.
 	if p.stateManager != nil {
 		_ = p.stateManager.Save(taskCtx, &state.ExecutionState{
-			ID:        id,
-			SessionID: sessionID,
-			UserID:    userID,
-			Intent:    detectedType,
-			Pipeline:  pipeName,
-			Params:    params,
+			ID:         id,
+			SessionID:  sessionID,
+			UserID:     userID,
+			Intent:     detectedType,
+			Pipeline:   pipeName,
+			Params:     params,
+			DecisionID: decisionID,
 		})
 	}
 
 	p.bus.Send("verifier", bus.Message{
 		Type: "run_pipeline",
 		Payload: map[string]any{
-			"id":         id,
-			"session_id": sessionID,
-			"intent":     detectedType,
-			"pipeline":   pipe,
-			"params":     params,
-			"language":   lang,
-			"message":    userMsg,
+			"id":          id,
+			"session_id":  sessionID,
+			"intent":      detectedType,
+			"pipeline":    pipe,
+			"params":      params,
+			"language":    lang,
+			"message":     userMsg,
+			"decision_id": decisionID,
 		},
 	})
 	timer2.End()
 }
 
 // governanceAllows runs the Prudence pipeline-entry gate (ADR-000, PDP/PEP). Returns true
-// to proceed. A fail-closed transport error, or a governed pipeline without ai_system /
+// to proceed, with the id Prudence recorded the ALLOW under ("" when ungoverned). A
+// fail-closed transport error, or a governed pipeline without ai_system /
 // PRUDENCE_PDP_URL, stores an error. DENY and APPROVAL_REQUIRED store a governance_blocked
 // result carrying the verdict, so the UI can tell a policy outcome from a technical failure.
 // APPROVAL_REQUIRED never pauses for a local click: only Prudence's governed review can
 // approve the registered AI system. Pipelines that are neither governed nor declare
 // ai_system (or run without PRUDENCE_PDP_URL) proceed.
 func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) bool {
+	_, allowed := p.governanceGate(taskCtx, id, sessionID, userID, intentType, pipeName, pipe, params)
+	return allowed
+}
+
+// governanceGate is governanceAllows that also returns the decision id, for the execution report.
+func (p *Planner) governanceGate(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) (string, bool) {
 	pdpURL := os.Getenv("PRUDENCE_PDP_URL")
 	if pipe.Governed && (strings.TrimSpace(pipe.AiSystem) == "" || pdpURL == "") {
 		message := "governance: pipeline " + pipeName + " requires a Prudence verdict but ai_system or PRUDENCE_PDP_URL is not configured (fail-closed)"
 		logx.L(id, "Governance", "%s", message)
 		storeResult(id, Result{Status: "error", Err: message})
-		return false
+		return "", false
 	}
 	// The PDP authorizes the service identity when one is explicitly configured. AOS still
 	// records the signed-in user in its own audit trail; this lets a production PDP grant a
@@ -489,12 +499,12 @@ func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userI
 	if err != nil {
 		logx.L(id, "Governance", "%v", err)
 		storeResult(id, Result{Status: "error", Err: err.Error()})
-		return false
+		return "", false
 	}
 
 	if dec.Status == governance.Allow {
 		p.eventBus.PublishEvent(id, "Governance", "governance_allowed", "Prudence allowed "+pipeName, "")
-		return true
+		return dec.DecisionID, true
 	}
 
 	// DENY, APPROVAL_REQUIRED (or anything unexpected, treated as a denial).
@@ -536,7 +546,7 @@ func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userI
 		})
 	}
 	storeResult(id, Result{Status: "governance_blocked", Data: verdict})
-	return false
+	return "", false
 }
 
 func (p *Planner) storeError(id string, errMsg string) {
@@ -642,7 +652,8 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 	}
 
 	// Governance gate (Prudence PDP) on the resume-after-clarification path too.
-	if !p.governanceAllows(taskCtx, id, st.SessionID, st.UserID, st.Intent, pipe.Name, pipe, st.Params) {
+	decisionID, allowed := p.governanceGate(taskCtx, id, st.SessionID, st.UserID, st.Intent, pipe.Name, pipe, st.Params)
+	if !allowed {
 		return
 	}
 
@@ -650,13 +661,14 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 	p.bus.Send("verifier", bus.Message{
 		Type: "run_pipeline",
 		Payload: map[string]any{
-			"id":         id,
-			"session_id": st.SessionID,
-			"intent":     st.Intent,
-			"pipeline":   pipe,
-			"params":     st.Params,
-			"language":   "es",
-			"message":    userMsg,
+			"id":          id,
+			"session_id":  st.SessionID,
+			"intent":      st.Intent,
+			"pipeline":    pipe,
+			"params":      st.Params,
+			"language":    "es",
+			"message":     userMsg,
+			"decision_id": decisionID,
 		},
 	})
 }
