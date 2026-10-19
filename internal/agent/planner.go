@@ -447,6 +447,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			Pipeline:   pipeName,
 			Params:     params,
 			DecisionID: decisionID,
+			AiSystemID: pipe.AiSystem,
 		})
 	}
 
@@ -542,6 +543,7 @@ func (p *Planner) governanceGate(taskCtx context.Context, id, sessionID, userID,
 			Pipeline:    pipeName,
 			Params:      params,
 			Status:      "governance_blocked",
+			AiSystemID:  pipe.AiSystem,
 			StepResults: map[string]any{"_governance": verdict},
 		})
 	}
@@ -644,6 +646,7 @@ func (p *Planner) handleClarifyIntent(msg bus.Message) {
 
 	st.Gate = ""
 	st.MissingParams = nil
+	st.AiSystemID = pipe.AiSystem
 	_ = p.stateManager.Save(taskCtx, st)
 
 	if err := guard.ValidateAll(intentCfg, pipe, st.Params, p.cfg.Tools); err != nil {
