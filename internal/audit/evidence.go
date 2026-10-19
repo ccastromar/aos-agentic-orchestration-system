@@ -12,6 +12,9 @@ import (
 // the AI system that Ernest counts (and Prudence's drift detection reads).
 const PhasePipelineStarted = "pipeline.started"
 
+// ungovernedModelID groups the evidence of pipelines that run without a governed AI system.
+const ungovernedModelID = "aos-agentic-orchestration-system"
+
 // Evidence is the hash-only record AOS sends to Ernest for one audit event, over HTTP or Kafka.
 type Evidence struct {
 	EventType     string
@@ -67,14 +70,22 @@ func BuildEvidence(event Event, eventHash, aiSystemID string, extra map[string]a
 	for k, v := range extra {
 		metadata[k] = v
 	}
-	body, err := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"source":        "aos",
 		"eventType":     eventType,
 		"sourceEventId": sourceEventID,
 		"occurredAt":    occurredAt,
-		"modelId":       "aos-agentic-orchestration-system",
+		"modelId":       ungovernedModelID,
 		"metadata":      metadata,
-	})
+	}
+	if aiSystemID != "" {
+		// A governed pipeline's evidence belongs to its AI system, next to Prudence's
+		// decisions about it. Prudence owns that system (name, risk tier, lifecycle), so AOS
+		// names the system of record but sends no name: Ernest keeps the one Prudence gave.
+		payload["modelId"] = aiSystemID
+		payload["aiSystem"] = map[string]any{"id": aiSystemID, "systemOfRecord": "prudence"}
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("marshal Ernest event: %w", err)
 	}
