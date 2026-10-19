@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Activity, BrainCircuit, Wrench, CheckCircle, AlertTriangle, Copy, ShieldAlert } from 'lucide-react';
 import DAGVisualizer from './DAGVisualizer';
 import { apiFetch } from '../utils/api';
+import { ernestEvidenceUrl, prudenceSystemUrl } from '../utils/chestertown';
 
 const Timeline = ({ taskId, onApprovalNeeded }) => {
   const [events, setEvents] = useState([]);
@@ -397,11 +398,30 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: `1px solid ${headerColor}`, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
               <div><strong>Decision:</strong> {finalData.decision}{finalData.reason ? ` · ${finalData.reason}` : ''}</div>
               {finalData.approver && <div><strong>Approver:</strong> {finalData.approver}</div>}
-              <div><strong>AI system:</strong> {finalData.aiSystemId || '—'} · <strong>Pipeline:</strong> {finalData.pipeline}</div>
+              <div>
+                <strong>AI system:</strong> {finalData.aiSystemId || '—'}
+                {finalData.aiSystemId && (
+                  <>
+                    {' '}
+                    <a href={ernestEvidenceUrl(finalData.aiSystemId)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)' }}>
+                      evidence ↗
+                    </a>
+                  </>
+                )}
+                {' · '}<strong>Pipeline:</strong> {finalData.pipeline}
+              </div>
               <div style={{ marginTop: '0.4rem', color: 'var(--text-muted)' }}>
                 {needsApproval
                   ? 'AOS did not run any step. Approve the AI system in Prudence, then run the request again.'
                   : 'AOS did not run any step. The governance decision is taken in Prudence, not in AOS.'}
+                {finalData.aiSystemId && (
+                  <>
+                    {' '}
+                    <a href={prudenceSystemUrl(finalData.aiSystemId)} target="_blank" rel="noopener noreferrer">
+                      Open in Prudence ↗
+                    </a>
+                  </>
+                )}
               </div>
             </div>
           )}

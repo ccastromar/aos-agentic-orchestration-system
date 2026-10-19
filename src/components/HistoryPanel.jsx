@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, XCircle, Search, Play, Eye } from 'lucide-react';
 import { apiFetch } from '../utils/api';
+import { ernestEvidenceUrl } from '../utils/chestertown';
 
 export default function HistoryPanel({ onSelectTask }) {
   const [tasks, setTasks] = useState([]);
@@ -127,6 +128,21 @@ export default function HistoryPanel({ onSelectTask }) {
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     Task ID: <span style={{ fontFamily: 'monospace' }}>{task.id.split('-')[0]}...</span> •
                     Pipeline: <span style={{ color: 'var(--secondary)' }}>{task.pipeline || 'None'}</span>
+                    {task.ai_system_id && (
+                      <>
+                        {' • '}
+                        <a
+                          href={ernestEvidenceUrl(task.ai_system_id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title="This AI system's evidence in Ernest"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          evidence ↗
+                        </a>
+                      </>
+                    )}
                   </div>
                 </div>
 
