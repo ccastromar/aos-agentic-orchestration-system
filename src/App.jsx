@@ -9,14 +9,27 @@ import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth } from './utils/api';
 import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso } from './utils/oidc';
-import { Bot, Settings as SettingsIcon, MessageSquare, Sun, Moon, Clock, LogIn, LogOut, UserRound, ShieldCheck } from 'lucide-react';
+import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
+import { Button, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
+import '@chestertown/design/styles.css';
 import './index.css';
+
+const APPS = chestertownApps({
+  operate: import.meta.env.VITE_AOS_URL,
+  govern: import.meta.env.VITE_PRUDENCE_URL,
+  assure: import.meta.env.VITE_ERNEST_URL,
+});
+
+const TAB_ITEMS = [
+  { id: 'chat', label: 'Chat', icon: <MessageSquare size={16} /> },
+  { id: 'history', label: 'History', icon: <Clock size={16} /> },
+  { id: 'settings', label: 'Settings', icon: <SettingsIcon size={16} /> },
+];
 
 function App() {
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
   const [view, setView] = useState('chat'); // 'chat' | 'settings' | 'history'
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [auth, setAuth] = useState(() => getAuth());
   const [showLogin, setShowLogin] = useState(false);
 
@@ -38,12 +51,6 @@ function App() {
   useEffect(() => {
     completeSso().then((a) => { if (a) handleLoggedIn(a); });
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('theme', theme);
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.vertex = 'operate';
-  }, [theme]);
 
   // Handle URL query param for taskId to support direct linking from History
   useEffect(() => {
@@ -81,80 +88,39 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="topbar">
-        <div className="brand"><span className="mark">A</span><span>AOS</span><span className="vertex">· operate</span></div>
-        <div className="topbar-actions">
-          <nav className="switcher" aria-label="Chestertown apps">
-            {[
-              { label: 'AOS',      vertex: 'operate', url: import.meta.env.VITE_AOS_URL      || 'http://localhost:5173' },
-              { label: 'Prudence', vertex: 'govern',  url: import.meta.env.VITE_PRUDENCE_URL || 'http://localhost:5200' },
-              { label: 'Ernest',   vertex: 'assure',  url: import.meta.env.VITE_ERNEST_URL   || 'http://localhost:5174' },
-            ].map((a) => {
-              const here = a.vertex === 'operate';
-              return (
-                <a key={a.label} href={a.url} title={`${a.label} — ${a.vertex}`}
-                   className={here ? 'here' : ''}>
-                  {a.label}
-                </a>
-              );
-            })}
-          </nav>
-          <div className="identity" title={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous'}>
-            <UserRound size={16} />
-            <span>{auth ? auth.userId : (devLoginEnabled ? 'demo-user' : 'Not signed in')}</span>
-          </div>
-          {auth ? (
-            <button
-              className="btn btn-secondary"
-              onClick={handleLogout}
-              title="Sign out"
-            >
-              <LogOut size={18} /> Logout
-            </button>
-          ) : (
-            <>
-              {ssoEnabled && (
-                <button
-                  className="btn btn-primary"
-                  onClick={ssoLogin}
-                  title="Sign in with the shared identity provider"
-                >
-                  <ShieldCheck size={18} /> SSO
-                </button>
-              )}
-              {devLoginEnabled && (
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setShowLogin(true)}
-                  title="Development login"
-                >
-                  <LogIn size={18} /> Dev login
-                </button>
-              )}
-            </>
-          )}
-          <button
-            className="btn btn-secondary"
-            onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
-          
-        </div>
-      </header>
-      <nav className="tabs" role="tablist" aria-label="AOS sections">
-        {[
-          ['chat', MessageSquare, 'Chat'],
-          ['history', Clock, 'History'],
-          ['settings', SettingsIcon, 'Settings'],
-        ].map(([id, Icon, label]) => (
-          <button key={id} role="tab" aria-selected={view === id}
-                  className={view === id ? 'active' : ''} onClick={() => setView(id)}>
-            <Icon size={16} /> {label}
-          </button>
-        ))}
-      </nav>
+      <Topbar
+        vertex="operate"
+        name="AOS"
+        apps={APPS}
+        actions={
+          <>
+            <Identity
+              name={auth ? auth.userId : (devLoginEnabled ? 'demo-user' : null)}
+              detail={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous'}
+            />
+            {auth ? (
+              <Button size="sm" onClick={handleLogout} title="Sign out">
+                <LogOut size={14} /> Sign out
+              </Button>
+            ) : (
+              <>
+                {ssoEnabled && (
+                  <Button size="sm" variant="primary" onClick={ssoLogin} title="Sign in with the shared identity provider">
+                    <ShieldCheck size={14} /> Sign in
+                  </Button>
+                )}
+                {devLoginEnabled && (
+                  <Button size="sm" onClick={() => setShowLogin(true)} title="Development login">
+                    <LogIn size={14} /> Dev login
+                  </Button>
+                )}
+              </>
+            )}
+            <ThemeToggle storageKey="theme" />
+          </>
+        }
+      />
+      <Tabs label="AOS sections" items={TAB_ITEMS} value={view} onChange={setView} />
 
       <AnimatePresence mode="wait">
         {view === 'chat' && (

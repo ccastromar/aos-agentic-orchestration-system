@@ -4,8 +4,11 @@ Web console of AOS, the *operate* vertex of the Chestertown trilogy: start prede
 workflows from the chat, follow their runs (DAG, timeline, human approvals) and browse the
 history. Governed runs link to their decision in Prudence and their evidence in Ernest.
 
-React 19 + Vite. Styling uses the shared Chestertown tokens (`src/chestertown-tokens.css`),
-so the shell matches Prudence and Ernest in light and dark mode.
+React 19 + Vite. The shell (top bar, module switcher, tabs, theme) and the design tokens come
+from `@chestertown/design`, the shared design system, so AOS matches Prudence and Ernest in
+light and dark mode. It is installed from a pinned tarball in `vendor/`, released from the
+`chestertown-design` repository; to upgrade, run that repository's `scripts/release-local.sh`
+and commit `vendor/`, `package.json` and the lock file.
 
 ## Run locally
 

@@ -11,6 +11,8 @@ ENV VITE_AOS_URL=$VITE_AOS_URL
 ENV VITE_PRUDENCE_URL=$VITE_PRUDENCE_URL
 ENV VITE_ERNEST_URL=$VITE_ERNEST_URL
 COPY package*.json ./
+# @chestertown/design comes from the vendored tarball pinned in package.json.
+COPY vendor ./vendor
 RUN npm ci
 COPY . .
 RUN npm run build
