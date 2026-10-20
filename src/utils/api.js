@@ -1,3 +1,5 @@
+import { devLoginEnabled } from './oidc';
+
 export const getApiUrl = () => {
   // Empty string = same origin: requests stay relative and the Vite dev
   // proxy forwards them to the backend (AOS_BACKEND_URL in vite.config.js).
@@ -39,8 +41,8 @@ export const apiFetch = async (endpoint, options = {}) => {
   const headers = { ...options.headers };
   if (auth?.token) {
     headers['Authorization'] = `Bearer ${auth.token}`;
-  } else {
-    // Anonymous dev mode: the backend maps this to the demo-user identity
+  } else if (devLoginEnabled) {
+    // Anonymous dev mode only: the backend maps this to the demo-user identity
     headers['X-Mock-Role'] = localStorage.getItem('aosMockRole') || 'admin';
   }
 

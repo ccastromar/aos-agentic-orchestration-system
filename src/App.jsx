@@ -101,7 +101,7 @@ function App() {
           </nav>
           <div className="identity" title={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous'}>
             <UserRound size={16} />
-            <span>{auth ? auth.userId : 'demo-user'}</span>
+            <span>{auth ? auth.userId : (devLoginEnabled ? 'demo-user' : 'Not signed in')}</span>
           </div>
           {auth ? (
             <button
