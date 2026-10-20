@@ -20,6 +20,8 @@ const APPS = chestertownApps({
   assure: import.meta.env.VITE_ERNEST_URL,
 });
 
+const PENDING_TASK_KEY = 'aosPendingTaskId';
+
 const TAB_ITEMS = [
   { id: 'chat', label: 'Chat', icon: <MessageSquare size={16} /> },
   { id: 'history', label: 'History', icon: <Clock size={16} /> },
@@ -57,6 +59,9 @@ function App() {
       if (ssoEnabled) {
         if (redirectingRef.current) return;
         redirectingRef.current = true;
+        // The IdP returns to "/", so keep a deep-linked run (?taskId=, e.g. from Ernest) to reopen it.
+        const taskId = new URLSearchParams(window.location.search).get('taskId');
+        if (taskId) sessionStorage.setItem(PENDING_TASK_KEY, taskId);
         ssoLogin();
       } else if (devLoginEnabled) {
         setShowLogin(true);
@@ -68,7 +73,16 @@ function App() {
 
   // Complete an SSO redirect (shared Chestertown IdP) on load, if one is in flight.
   useEffect(() => {
-    completeSso().then((a) => { if (a) handleLoggedIn(a); });
+    completeSso().then((a) => {
+      if (!a) return;
+      handleLoggedIn(a);
+      const taskId = sessionStorage.getItem(PENDING_TASK_KEY);
+      sessionStorage.removeItem(PENDING_TASK_KEY);
+      if (taskId) {
+        setActiveTaskId(taskId);
+        setView('chat');
+      }
+    });
   }, []);
 
   // Handle URL query param for taskId to support direct linking from History

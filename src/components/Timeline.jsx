@@ -12,6 +12,8 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
   const [status, setStatus] = useState('loading');
   const [finalData, setFinalData] = useState(null);
   const [copied, setCopied] = useState(false);
+  // The Prudence AI system and decision a governed run was evaluated under (from /task).
+  const [governance, setGovernance] = useState(null);
 
   useEffect(() => {
     if (!taskId) return;
@@ -20,6 +22,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
     setStatus('loading');
     setFinalData(null);
     setCopied(false);
+    setGovernance(null);
 
     const eventController = new AbortController();
     const handleEventMessage = (raw) => {
@@ -101,6 +104,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           const data = await tskRes.json();
           if (data.status !== 'pending' && data.status !== 'await_human' && data.status !== 'await_clarification') {
             setStatus(data.status);
+            if (data.ai_system_id) setGovernance({ aiSystemId: data.ai_system_id, decisionId: data.decision_id });
             if (data.data) setFinalData(data.data);
             if (data.error) setFinalData({ error: data.error });
 
@@ -394,6 +398,18 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
               <Copy size={15} /> {copied ? 'Copiado' : 'Copiar'}
             </button>
           </div>
+          {!governanceBlocked && governance && (
+            <div style={{ marginBottom: '1rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem 1rem', alignItems: 'baseline' }}>
+              <span>
+                <strong>Governed by Prudence</strong> · AI system {governance.aiSystemId}
+                {governance.decisionId && <span style={{ color: 'var(--text-muted)' }}> · decision <code>{governance.decisionId.substring(0, 8)}</code></span>}
+              </span>
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: '1rem' }}>
+                <a href={prudenceSystemUrl(governance.aiSystemId)} target="_blank" rel="noopener noreferrer">Open in Prudence ↗</a>
+                <a href={ernestEvidenceUrl(governance.aiSystemId)} target="_blank" rel="noopener noreferrer">Evidence in Ernest ↗</a>
+              </span>
+            </div>
+          )}
           {governanceBlocked && (
             <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: `1px solid ${headerColor}`, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
               <div><strong>Decision:</strong> {finalData.decision}{finalData.reason ? ` · ${finalData.reason}` : ''}</div>
