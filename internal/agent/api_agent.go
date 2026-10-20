@@ -751,6 +751,7 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check ownership before exposing or consuming a persisted task result.
+	var owned *state.ExecutionState
 	if a.state != nil {
 		st, err := a.state.Load(r.Context(), id)
 		if err != nil {
@@ -763,18 +764,19 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "task not found", http.StatusNotFound)
 				return
 			}
+			owned = st
 		}
 	}
 
 	if res, ok := getResult(id); ok {
 		deleteResult(id)
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(withGovernanceRefs(map[string]any{
 			"id":     id,
 			"status": res.Status,
 			"data":   res.Data,
 			"error":  res.Err,
-		})
+		}, owned))
 		return
 	}
 
@@ -822,7 +824,7 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(withGovernanceRefs(map[string]any{
 				"id":              id,
 				"status":          status,
 				"data":            finalData,
@@ -830,7 +832,7 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 				"react_history":   st.ReActHistory,
 				"completed_steps": st.CompletedSteps,
 				"pipeline":        st.Pipeline,
-			})
+			}, st))
 			return
 		}
 	}
@@ -840,6 +842,21 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 		"id":     id,
 		"status": "pending",
 	})
+}
+
+// withGovernanceRefs adds the Prudence AI system and decision a governed task ran under, so the
+// UI can link the run to its governance (Prudence) and its evidence (Ernest).
+func withGovernanceRefs(body map[string]any, st *state.ExecutionState) map[string]any {
+	if st == nil {
+		return body
+	}
+	if st.AiSystemID != "" {
+		body["ai_system_id"] = st.AiSystemID
+	}
+	if st.DecisionID != "" {
+		body["decision_id"] = st.DecisionID
+	}
+	return body
 }
 
 func (a *APIAgent) handleHumanApprove(w http.ResponseWriter, r *http.Request) {
