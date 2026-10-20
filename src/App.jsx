@@ -143,10 +143,17 @@ function App() {
           
         </div>
       </header>
-      <nav className="tabs" aria-label="AOS sections">
-        <button className={view === 'chat' ? 'active' : ''} onClick={() => setView('chat')}><MessageSquare size={16} /> Chat</button>
-        <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}><Clock size={16} /> History</button>
-        <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}><SettingsIcon size={16} /> Settings</button>
+      <nav className="tabs" role="tablist" aria-label="AOS sections">
+        {[
+          ['chat', MessageSquare, 'Chat'],
+          ['history', Clock, 'History'],
+          ['settings', SettingsIcon, 'Settings'],
+        ].map(([id, Icon, label]) => (
+          <button key={id} role="tab" aria-selected={view === id}
+                  className={view === id ? 'active' : ''} onClick={() => setView(id)}>
+            <Icon size={16} /> {label}
+          </button>
+        ))}
       </nav>
 
       <AnimatePresence mode="wait">

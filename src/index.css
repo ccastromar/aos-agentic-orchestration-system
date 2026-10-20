@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import './chestertown-tokens.css';
 
 @layer reset, base, theme, components, utilities;
@@ -62,7 +62,7 @@ h1,h2,h3,h4,h5,h6 { font-family:var(--font-sans); color:var(--text); letter-spac
 .main-content { width:100%; max-width:1280px; margin:0 auto; padding:var(--sp-6); gap:var(--sp-6); grid-template-columns:minmax(320px,400px) 1fr; }
 .chat-panel { top:var(--sp-6); height:calc(100vh - 152px); padding:0; }
 .chat-input-area { border-top-color:var(--border); }
-@media (max-width:900px) { .topbar { flex-wrap:wrap; padding:var(--sp-3) var(--sp-4); } .topbar-actions { margin-left:0; width:100%; flex-wrap:wrap; } .tabs { padding:0 var(--sp-4); overflow-x:auto; } .main-content { grid-template-columns:1fr; padding:var(--sp-4); } .identity { display:none; } }
+@media (max-width:900px) { .topbar { flex-wrap:wrap; padding:var(--sp-3) var(--sp-4); } .topbar-actions { margin-left:0; width:100%; flex-wrap:wrap; } .tabs { padding:0 var(--sp-4); overflow-x:auto; } .main-content { grid-template-columns:1fr; padding:var(--sp-4); } .chat-panel { position:static; height:min(75dvh,720px); } .identity { display:none; } }
 
 @layer theme {
   :root {
@@ -172,7 +172,6 @@ h1,h2,h3,h4,h5,h6 { font-family:var(--font-sans); color:var(--text); letter-spac
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', system-ui, sans-serif;
     font-weight: 700;
     letter-spacing: -0.04em;
     color: var(--text-primary);
