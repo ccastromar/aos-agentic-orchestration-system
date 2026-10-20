@@ -11,7 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@chestertown/design": "file:vendor/chestertown-design-0.3.4.tgz",
+    "@chestertown/design": "file:vendor/chestertown-design-0.3.5.tgz",
     "dagre": "^0.8.5",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.42.2",
