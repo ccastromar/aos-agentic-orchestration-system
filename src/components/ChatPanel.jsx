@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch, getAuth } from '../utils/api';
-import { devLoginEnabled } from '../utils/oidc';
+import { apiFetch, getAuth, savePendingPrompt, takePendingPrompt } from '../utils/api';
+import { devLoginEnabled, ssoEnabled } from '../utils/oidc';
 
 const ChatPanel = ({ onTaskCreated }) => {
   // One prompt per Prudence risk-tier case of the live demo. The deterministic mock models
@@ -17,7 +17,7 @@ const ChatPanel = ({ onTaskCreated }) => {
   const [messages, setMessages] = useState([
     { id: 1, text: "Welcome to AOS. I run predefined, governed pipelines; I don't create workflows on demand. Use one of the available flows—for example, 'Transfer 20 to John' or 'Deploy the catalog service'—or type '/help' to see supported examples.", sender: 'system' }
   ]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => (getAuth()?.token ? takePendingPrompt() : ''));
   const [isLoading, setIsLoading] = useState(false);
 
   // Keep the last ten prompts across reloads so ↑/↓ is useful between sessions.
@@ -91,7 +91,13 @@ const ChatPanel = ({ onTaskCreated }) => {
         body: JSON.stringify({ message: userMsg, lang: 'en' })
       });
 
-      if (!response.ok) throw new Error('API Error');
+      if (response.status === 401) {
+        savePendingPrompt(userMsg);
+        throw new Error(ssoEnabled || devLoginEnabled
+          ? 'Your session has expired or you are not signed in. Please sign in to continue.'
+          : 'You are not signed in.');
+      }
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
       const data = await response.json();
 
       onTaskCreated(data.id);

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ChatPanel from './components/ChatPanel';
 import Timeline from './components/Timeline';
@@ -7,7 +7,7 @@ import ClarificationModal from './components/ClarificationModal';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
-import { getAuth, clearAuth } from './utils/api';
+import { getAuth, clearAuth, UNAUTHORIZED_EVENT } from './utils/api';
 import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Button, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
@@ -46,6 +46,25 @@ function App() {
     setPendingApproval(null);
     setAuth(null);
   };
+
+  // A 401 from any API call means no session or an expired one: go to the sign-in flow
+  // instead of surfacing a raw API error. The ref keeps parallel 401s from starting two
+  // SSO redirects (the second would overwrite the PKCE state of the first).
+  const redirectingRef = useRef(false);
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setAuth(null);
+      if (ssoEnabled) {
+        if (redirectingRef.current) return;
+        redirectingRef.current = true;
+        ssoLogin();
+      } else if (devLoginEnabled) {
+        setShowLogin(true);
+      }
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
 
   // Complete an SSO redirect (shared Chestertown IdP) on load, if one is in flight.
   useEffect(() => {

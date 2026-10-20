@@ -46,5 +46,22 @@ export const apiFetch = async (endpoint, options = {}) => {
     headers['X-Mock-Role'] = localStorage.getItem('aosMockRole') || 'admin';
   }
 
-  return fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    // Missing or expired session: drop the stale token and let App send the user to sign in.
+    clearAuth();
+    window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+  }
+  return res;
+};
+
+export const UNAUTHORIZED_EVENT = 'aos:unauthorized';
+
+// A prompt typed while signed out survives the sign-in round trip and is restored into the input.
+const PENDING_PROMPT_KEY = 'aosPendingPrompt';
+export const savePendingPrompt = (text) => sessionStorage.setItem(PENDING_PROMPT_KEY, text);
+export const takePendingPrompt = () => {
+  const text = sessionStorage.getItem(PENDING_PROMPT_KEY) || '';
+  sessionStorage.removeItem(PENDING_PROMPT_KEY);
+  return text;
 };
