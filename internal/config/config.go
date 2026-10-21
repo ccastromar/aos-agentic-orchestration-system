@@ -25,6 +25,7 @@ type Tool struct {
 	Service     string            `yaml:"service,omitempty"`   // gRPC fully-qualified service
 	Operation   string            `yaml:"operation,omitempty"` // MCP operation or A2A method
 	Agent       string            `yaml:"agent,omitempty"`     // A2A agent identifier
+	Insecure    bool              `yaml:"insecure,omitempty"`  // gRPC only: plaintext instead of TLS (a local or in-cluster service)
 }
 
 type PipelineStep struct {

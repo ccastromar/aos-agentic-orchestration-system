@@ -366,9 +366,17 @@ See [TODO.md](TODO.md) for known limitations and follow-up work.
 ## Protocol-backed steps
 
 Tools can use `type: mcp`, `type: grpc`, or `type: a2a` while remaining ordinary
-pipeline steps. MCP sends JSON-RPC `tools/call` requests to `target`; gRPC invokes
-the configured fully-qualified method using a protobuf `Struct` request/response;
-A2A sends a `message/send` JSON-RPC request and returns the remote task or message.
+pipeline steps. MCP sends JSON-RPC `tools/call` requests to `target`; a result with
+`isError: true` fails the step. gRPC invokes the configured fully-qualified method
+using a protobuf `Struct` request/response, over TLS unless the tool sets
+`insecure: true` (for a local or in-cluster plaintext service). A2A uses the
+JSON-RPC binding: `message/send` with a full message (`kind`, `messageId`, `role`,
+`parts`), then `tasks/get` on the same endpoint, backing off from 200 ms to 2 s,
+while the task is `submitted` or `working`. Only `completed` (or a direct message
+reply) succeeds; `failed`, `canceled`, `rejected`, `input-required` and
+`auth-required` fail the step, since a pipeline step cannot answer the agent.
+All three go through the same SSRF check as HTTP tools: an internal address is
+refused unless its host is in `AOS_TOOL_INTERNAL_HOSTS`.
 Each tool supports `timeout` and inherits the pipeline retry policy. See
 `definitions/tools/protocols.yaml` and `definitions/pipelines/protocols_demo.yaml`.
 The gRPC adapter assumes services accept `google.protobuf.Struct`; generated
@@ -400,9 +408,9 @@ The local mock server also exposes `POST /mock/mcp`, a deterministic CRM MCP
 server. Start it with `go run ./cmd/mocks` and point `crm.mcp_lookup` at the
 default `http://localhost:9000/mock/mcp` endpoint.
 
-It also exposes the asynchronous A2A mock at `/mock/a2a/message:send` and
-`/mock/a2a/tasks/{id}`. The mock returns `working` briefly and then completes
-with a compliance artifact; the AOS A2A step polls it until completion or its
+It also exposes an asynchronous A2A agent at `/mock/a2a` (JSON-RPC: `message/send`
+and `tasks/get`). The task is `working` briefly and then completes with a
+compliance artifact; the AOS A2A step polls it until completion or its
 configured timeout.
 
 Asynchronous providers can use `type: await_callback`. AOS exposes

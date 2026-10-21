@@ -10,6 +10,7 @@ tools:
   - name: risk.grpc_score
     type: grpc
     target: "localhost:9002"
+    insecure: true # the local mock speaks plaintext; real services use TLS
     service: "risk.RiskService"
     method: "Score"
     description: "Score a case through the internal risk service"
@@ -18,7 +19,7 @@ tools:
 
   - name: compliance.a2a_review
     type: a2a
-    target: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/a2a/message:send"
+    target: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/a2a"
     operation: "message/send"
     agent: "compliance-agent"
     description: "Delegate a review task to a remote A2A agent"

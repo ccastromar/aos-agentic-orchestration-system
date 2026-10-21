@@ -33,32 +33,39 @@ func SetInternalHosts(hosts []string) {
 	internalHosts = allowed
 }
 
+// guardedDial is the SSRF check every outbound tool connection goes through (HTTP, MCP, A2A
+// and gRPC alike): a host that resolves to a private, loopback or otherwise internal address
+// is refused unless it is listed in internalHosts. It dials the address it checked, so a DNS
+// answer cannot change between the check and the connection.
+func guardedDial(ctx context.Context, network, addr string) (net.Conn, error) {
+	var d net.Dialer
+	if SkipSSRF {
+		return d.DialContext(ctx, network, addr)
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
+	if err != nil {
+		return nil, err
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("ssrf prevention: %s does not resolve", host)
+	}
+	if !internalHosts[strings.ToLower(host)] {
+		for _, ip := range ips {
+			if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() {
+				return nil, fmt.Errorf("ssrf prevention: access to internal IP %s is denied", ip.String())
+			}
+		}
+	}
+	return d.DialContext(ctx, network, net.JoinHostPort(ips[0].String(), port))
+}
+
 var safeClient = &http.Client{
-	Timeout: 30 * time.Second,
-	Transport: &http.Transport{
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			if SkipSSRF {
-				return net.Dial(network, addr)
-			}
-			host, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, err
-			}
-			ips, err := net.LookupIP(host)
-			if err != nil {
-				return nil, err
-			}
-			if internalHosts[strings.ToLower(host)] {
-				return net.Dial(network, net.JoinHostPort(ips[0].String(), port))
-			}
-			for _, ip := range ips {
-				if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() {
-					return nil, fmt.Errorf("ssrf prevention: access to internal IP %s is denied", ip.String())
-				}
-			}
-			return net.Dial(network, net.JoinHostPort(ips[0].String(), port))
-		},
-	},
+	Timeout:   30 * time.Second,
+	Transport: &http.Transport{DialContext: guardedDial},
 }
 
 func ExecuteTool(t config.Tool, params map[string]string) (map[string]any, error) {

@@ -3,7 +3,6 @@ package a2a
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -13,39 +12,74 @@ var (
 	tasks = map[string]time.Time{}
 )
 
+// RegisterHandlers exposes a tiny A2A agent over the JSON-RPC binding: one endpoint for
+// message/send (answers a working task) and tasks/get (the task completes after 250 ms).
 func RegisterHandlers(mux *http.ServeMux) {
-	mux.HandleFunc("/mock/a2a/message:send", send)
-	mux.HandleFunc("/mock/a2a/tasks/", task)
+	mux.HandleFunc("/mock/a2a", handle)
 }
 
-func send(w http.ResponseWriter, r *http.Request) {
+func handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", 405)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	id := "a2a-task-" + time.Now().Format("150405.000000000")
-	mu.Lock()
-	tasks[id] = time.Now()
-	mu.Unlock()
+	var req struct {
+		ID     any    `json:"id"`
+		Method string `json:"method"`
+		Params struct {
+			ID      string         `json:"id"`
+			Message map[string]any `json:"message"`
+		} `json:"params"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"id": id, "status": map[string]any{"state": "working"}}})
+	switch req.Method {
+	case "message/send":
+		if req.Params.Message["messageId"] == nil {
+			writeError(w, req.ID, -32602, "message.messageId is required")
+			return
+		}
+		id := "a2a-task-" + time.Now().Format("150405.000000000")
+		mu.Lock()
+		tasks[id] = time.Now()
+		mu.Unlock()
+		writeResult(w, req.ID, task(id, "working", nil))
+	case "tasks/get":
+		mu.Lock()
+		started, ok := tasks[req.Params.ID]
+		mu.Unlock()
+		if !ok {
+			writeError(w, req.ID, -32001, "task not found")
+			return
+		}
+		if time.Since(started) < 250*time.Millisecond {
+			writeResult(w, req.ID, task(req.Params.ID, "working", nil))
+			return
+		}
+		writeResult(w, req.ID, task(req.Params.ID, "completed", []any{map[string]any{
+			"artifactId": "review",
+			"parts":      []any{map[string]any{"kind": "text", "text": "Compliance review approved"}},
+		}}))
+	default:
+		writeError(w, req.ID, -32601, "method not found")
+	}
 }
 
-func task(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/mock/a2a/tasks/")
-	mu.Lock()
-	started, ok := tasks[id]
-	mu.Unlock()
-	if !ok {
-		http.Error(w, "task not found", 404)
-		return
+func task(id, state string, artifacts []any) map[string]any {
+	t := map[string]any{"kind": "task", "id": id, "contextId": "ctx-" + id, "status": map[string]any{"state": state}}
+	if artifacts != nil {
+		t["artifacts"] = artifacts
 	}
-	state := "working"
-	result := map[string]any{}
-	if time.Since(started) >= 250*time.Millisecond {
-		state = "completed"
-		result = map[string]any{"artifacts": []any{map[string]any{"parts": []any{map[string]any{"kind": "text", "text": "Compliance review approved"}}}}}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"id": id, "status": map[string]any{"state": state}, "result": result}})
+	return t
+}
+
+func writeResult(w http.ResponseWriter, id any, result any) {
+	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
+}
+
+func writeError(w http.ResponseWriter, id any, code int, message string) {
+	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": id, "error": map[string]any{"code": code, "message": message}})
 }

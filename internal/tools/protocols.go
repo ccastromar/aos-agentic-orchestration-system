@@ -3,21 +3,26 @@ package tools
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // ExecuteProtocolTool adapts protocol-native calls to the same map result used
 // by ordinary HTTP tools. The protocol boundary remains explicit in YAML.
+// Every connection goes through the same SSRF check as HTTP tools (guardedDial).
 func ExecuteProtocolTool(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
 	switch strings.ToLower(t.Type) {
 	case "mcp":
@@ -38,39 +43,37 @@ func protocolTimeout(ctx context.Context, ms int) (context.Context, context.Canc
 	return context.WithTimeout(ctx, time.Duration(ms)*time.Millisecond)
 }
 
-func executeMCP(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
-	ctx, cancel := protocolTimeout(ctx, t.TimeoutMs)
-	defer cancel()
-	url := t.Target
-	if url == "" {
-		url = t.URL
+func protocolURL(t config.Tool) string {
+	if t.Target != "" {
+		return t.Target
 	}
-	method := t.Operation
-	if method == "" {
-		method = "tools/call"
+	return t.URL
+}
+
+// jsonRPC sends one JSON-RPC 2.0 request through the SSRF-guarded client and returns its
+// result object. An HTTP error, a JSON-RPC error or a missing result is an error.
+func jsonRPC(ctx context.Context, url string, headers map[string]string, method string, params any) (map[string]any, error) {
+	data, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": uuid.NewString(), "method": method, "params": params})
+	if err != nil {
+		return nil, err
 	}
-	args := map[string]any{}
-	for k, v := range params {
-		args[k] = v
-	}
-	body := map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": map[string]any{"name": t.Name, "arguments": args}}
-	data, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	for k, v := range t.Headers {
+	req.Header.Set("Accept", "application/json")
+	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-	resp, err := (&http.Client{}).Do(req)
+	resp, err := safeClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		b, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("MCP HTTP %d: %s", resp.StatusCode, string(b))
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	var out struct {
 		Result map[string]any `json:"result"`
@@ -80,93 +83,123 @@ func executeMCP(ctx context.Context, t config.Tool, params map[string]string) (m
 		return nil, err
 	}
 	if out.Error != nil {
-		return nil, fmt.Errorf("MCP error: %v", out.Error)
+		return nil, fmt.Errorf("JSON-RPC error: %v", out.Error)
 	}
-	return map[string]any{"ok": true, "protocol": "mcp", "result": out.Result}, nil
+	if out.Result == nil {
+		return nil, fmt.Errorf("JSON-RPC response has no result")
+	}
+	return out.Result, nil
 }
 
-func executeA2A(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
+func executeMCP(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
 	ctx, cancel := protocolTimeout(ctx, t.TimeoutMs)
 	defer cancel()
-	url := t.Target
-	if url == "" {
-		url = t.URL
+	method := t.Operation
+	if method == "" {
+		method = "tools/call"
 	}
-	message := map[string]any{"role": "user", "parts": []any{map[string]any{"kind": "text", "text": params["message"]}}}
-	if message["parts"].([]any)[0].(map[string]any)["text"] == "" {
-		message["parts"].([]any)[0].(map[string]any)["text"] = fmt.Sprint(params)
+	args := map[string]any{}
+	for k, v := range params {
+		args[k] = v
 	}
-	operation := t.Operation
-	if operation == "" {
-		operation = "message/send"
-	}
-	body := map[string]any{"jsonrpc": "2.0", "id": 1, "method": operation, "params": map[string]any{"message": message}}
-	data, _ := json.Marshal(body)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	result, err := jsonRPC(ctx, protocolURL(t), t.Headers, method, map[string]any{"name": t.Name, "arguments": args})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("MCP %s: %w", t.Name, err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range t.Headers {
-		req.Header.Set(k, v)
+	// A tool that failed answers with a result, not a JSON-RPC error: isError marks it.
+	if isErr, _ := result["isError"].(bool); isErr {
+		return nil, fmt.Errorf("MCP tool %s failed: %s", t.Name, mcpText(result))
 	}
-	resp, err := (&http.Client{}).Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		b, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("A2A HTTP %d: %s", resp.StatusCode, string(b))
-	}
-	var out map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
-	}
-	out["protocol"] = "a2a"
-	// A2A may return a task in working state. Poll its task resource until it
-	// reaches a terminal state or the step context expires.
-	if result, ok := out["result"].(map[string]any); ok {
-		if status, ok := result["status"].(map[string]any); ok && status["state"] == "working" {
-			id, _ := result["id"].(string)
-			if id == "" {
-				return nil, fmt.Errorf("A2A working response has no task id")
-			}
-			base := strings.TrimSuffix(url, "/message:send")
-			pollURL := base + "/tasks/" + id
-			for {
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				default:
-				}
-				time.Sleep(100 * time.Millisecond)
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, pollURL, nil)
-				if err != nil {
-					return nil, err
-				}
-				poll, err := (&http.Client{}).Do(req)
-				if err != nil {
-					return nil, err
-				}
-				var current map[string]any
-				err = json.NewDecoder(poll.Body).Decode(&current)
-				poll.Body.Close()
-				if err != nil {
-					return nil, err
-				}
-				out = current
-				out["protocol"] = "a2a"
-				if currentResult, ok := current["result"].(map[string]any); ok {
-					if currentStatus, ok := currentResult["status"].(map[string]any); ok && currentStatus["state"] == "working" {
-						continue
-					}
-				}
-				break
+	return map[string]any{"ok": true, "protocol": "mcp", "result": result}, nil
+}
+
+// mcpText joins the text parts of an MCP tool result.
+func mcpText(result map[string]any) string {
+	parts, _ := result["content"].([]any)
+	var texts []string
+	for _, p := range parts {
+		if m, ok := p.(map[string]any); ok && m["type"] == "text" {
+			if s, ok := m["text"].(string); ok {
+				texts = append(texts, s)
 			}
 		}
 	}
-	return out, nil
+	if len(texts) == 0 {
+		return "no details"
+	}
+	return strings.Join(texts, " ")
+}
+
+// executeA2A delegates to a remote agent over A2A's JSON-RPC binding: message/send, then
+// tasks/get on the same endpoint while the task is submitted or working. Only a completed
+// task (or a direct message reply) is a success; a failed, canceled or rejected task is an
+// error, and so is one that asks for input or authorization, which a pipeline step cannot give.
+func executeA2A(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
+	ctx, cancel := protocolTimeout(ctx, t.TimeoutMs)
+	defer cancel()
+	url := protocolURL(t)
+	text := params["message"]
+	if text == "" {
+		text = fmt.Sprint(params)
+	}
+	message := map[string]any{
+		"kind":      "message",
+		"messageId": uuid.NewString(),
+		"role":      "user",
+		"parts":     []any{map[string]any{"kind": "text", "text": text}},
+	}
+	method := t.Operation
+	if method == "" {
+		method = "message/send"
+	}
+	result, err := jsonRPC(ctx, url, t.Headers, method, map[string]any{"message": message})
+	if err != nil {
+		return nil, fmt.Errorf("A2A: %w", err)
+	}
+
+	delay := 200 * time.Millisecond
+	for {
+		if result["kind"] == "message" {
+			return map[string]any{"ok": true, "protocol": "a2a", "result": result}, nil
+		}
+		status, _ := result["status"].(map[string]any)
+		state, _ := status["state"].(string)
+		switch state {
+		case "completed":
+			return map[string]any{"ok": true, "protocol": "a2a", "result": result}, nil
+		case "submitted", "working":
+			id, _ := result["id"].(string)
+			if id == "" {
+				return nil, fmt.Errorf("A2A %s task has no id", state)
+			}
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("A2A task %s still %s: %w", id, state, ctx.Err())
+			case <-time.After(delay):
+			}
+			if delay < 2*time.Second {
+				delay *= 2
+			}
+			if result, err = jsonRPC(ctx, url, t.Headers, "tasks/get", map[string]any{"id": id}); err != nil {
+				return nil, fmt.Errorf("A2A tasks/get %s: %w", id, err)
+			}
+		case "input-required", "auth-required":
+			return nil, fmt.Errorf("A2A agent needs %s; a pipeline step cannot provide it", strings.TrimSuffix(state, "-required"))
+		case "failed", "canceled", "rejected":
+			return nil, fmt.Errorf("A2A task %s", state)
+		default:
+			return nil, fmt.Errorf("A2A task in unknown state %q", state)
+		}
+	}
+}
+
+// grpcTarget keeps the configured host name all the way to the dialer, so the SSRF check
+// (and its internal-hosts allowlist) sees the name, not an address gRPC already resolved.
+func grpcTarget(target string) string {
+	if strings.Contains(target, "://") {
+		return target
+	}
+	return "passthrough:///" + target
 }
 
 func executeGRPC(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
@@ -175,7 +208,16 @@ func executeGRPC(ctx context.Context, t config.Tool, params map[string]string) (
 	if t.Target == "" || t.Method == "" {
 		return nil, fmt.Errorf("grpc requires target and method")
 	}
-	conn, err := grpc.NewClient(t.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// TLS unless the tool explicitly says the service is plaintext (a local or in-cluster one).
+	creds := credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+	if t.Insecure {
+		creds = insecure.NewCredentials()
+	}
+	conn, err := grpc.NewClient(grpcTarget(t.Target),
+		grpc.WithTransportCredentials(creds),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return guardedDial(ctx, "tcp", addr)
+		}))
 	if err != nil {
 		return nil, err
 	}
