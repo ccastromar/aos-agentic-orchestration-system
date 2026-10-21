@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Server } from 'lucide-react';
+import { Button, Card, Field, Input } from '@chestertown/design';
 import { getApiUrl } from '../utils/api';
 import MemorySettings from './MemorySettings';
 
 export default function Settings() {
   const [apiUrl, setApiUrl] = useState('');
-  
+
   useEffect(() => {
     // Load the configured URL from localStorage or fallback to default
     setApiUrl(getApiUrl());
@@ -25,42 +26,28 @@ export default function Settings() {
   };
 
   return (
-    <div className="settings-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      
-      {/* AOS Backend Configuration */}
-      <section className="glass-panel" style={{ padding: '2rem' }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
-          <Server className="text-primary" /> Connection Settings
-        </h2>
-        
-        <form onSubmit={handleSave} style={{ display: 'grid', gap: '1rem', maxWidth: '600px' }}>
-          <div className="input-group">
-            <label>AOS Backend URL</label>
-            <input 
-              type="text" 
-              className="input-base" 
-              style={{ borderRadius: 'var(--radius-md)' }}
+    <div className="settings-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+      <Card title={<span className="ct-row"><Server size={20} /> Connection settings</span>}>
+        <form onSubmit={handleSave} style={{ maxWidth: 600 }}>
+          <Field
+            label="AOS backend URL"
+            htmlFor="settings-api-url"
+            hint="Empty = requests go through the Vite dev proxy (AOS_BACKEND_URL in vite.config.js). Set an absolute URL only to bypass the proxy."
+          >
+            <Input
+              id="settings-api-url"
               value={apiUrl}
-              onChange={e => setApiUrl(e.target.value)}
+              onChange={(e) => setApiUrl(e.target.value)}
               placeholder="Leave empty to use the Vite proxy (recommended)"
             />
-            <small style={{ color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
-              Empty = requests go through the Vite dev proxy (AOS_BACKEND_URL in vite.config.js).
-              Set an absolute URL only to bypass the proxy.
-            </small>
-          </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '1rem' }}>
-            <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Save size={18} /> Save Settings
-            </button>
-          </div>
+          </Field>
+          <Button type="submit" variant="primary">
+            <Save size={16} /> Save settings
+          </Button>
         </form>
-      </section>
+      </Card>
 
-      {/* Memory Management */}
       <MemorySettings />
-
     </div>
   );
 }

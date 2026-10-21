@@ -5,6 +5,7 @@ import { Activity, BrainCircuit, Wrench, CheckCircle, AlertTriangle, Copy, Shiel
 import DAGVisualizer from './DAGVisualizer';
 import { apiFetch } from '../utils/api';
 import { ernestEvidenceUrl, prudenceSystemUrl } from '../utils/chestertown';
+import { Button } from '@chestertown/design';
 
 const Timeline = ({ taskId, onApprovalNeeded }) => {
   const [events, setEvents] = useState([]);
@@ -388,15 +389,9 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
                   ? <><AlertTriangle size={20} /> Execution Failed</>
                   : <><CheckCircle size={20} /> Final Result</>}
             </h3>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={copyFinalResult}
-              aria-label="Copiar resultado final"
-              style={{ padding: '0.4rem 0.7rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
-            >
-              <Copy size={15} /> {copied ? 'Copiado' : 'Copiar'}
-            </button>
+            <Button size="sm" onClick={copyFinalResult} aria-label="Copy the final result">
+              <Copy size={14} /> {copied ? 'Copied' : 'Copy'}
+            </Button>
           </div>
           {!governanceBlocked && governance && (
             <div style={{ marginBottom: '1rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem 1rem', alignItems: 'baseline' }}>

@@ -3,6 +3,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch, getAuth, savePendingPrompt, takePendingPrompt } from '../utils/api';
 import { devLoginEnabled, ssoEnabled } from '../utils/oidc';
+import { Button, Input, Select } from '@chestertown/design';
 
 const ChatPanel = ({ onTaskCreated }) => {
   // One prompt per Prudence risk-tier case of the live demo. The deterministic mock models
@@ -144,17 +145,15 @@ const ChatPanel = ({ onTaskCreated }) => {
         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Prudence-governed demos:</span>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {governedDemos.map(demo => (
-            <button
+            <Button
               key={demo.label}
-              type="button"
-              className="btn btn-secondary"
+              size="sm"
               onClick={() => setInput(demo.prompt)}
               disabled={isLoading}
               title={demo.title}
-              style={{ padding: '0.4rem 0.7rem', fontSize: '0.82rem' }}
             >
               {demo.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -221,21 +220,16 @@ const ChatPanel = ({ onTaskCreated }) => {
         {showMockRole && (
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Demo role:</span>
-            <select
+            <Select
               value={localStorage.getItem('aosMockRole') || 'admin'}
               onChange={(e) => {
                 localStorage.setItem('aosMockRole', e.target.value);
                 // Force re-render to update the select value visually.
                 setHistory(prev => [...prev]);
               }}
-              style={{
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.2rem 0.5rem',
-                fontSize: '0.8rem'
-              }}
+              aria-label="Demo role"
+              className="ct-text-sm"
+              style={{ width: 'auto', padding: '4px 8px' }}
             >
               <option value="admin">Admin</option>
               <option value="user">User</option>
@@ -246,26 +240,21 @@ const ChatPanel = ({ onTaskCreated }) => {
               <option value="sre">SRE / DevOps</option>
               <option value="hr">Human Resources</option>
               <option value="operations">Operations</option>
-            </select>
+            </Select>
           </div>
         )}
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input
-            type="text"
+          <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type your request here (↑/↓ history, e.g. 'Deploy catalog service')..."
-            className="input-base"
+            aria-label="Your request"
             disabled={isLoading}
           />
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isLoading || !input.trim()}
-          >
+          <Button type="submit" variant="primary" disabled={isLoading || !input.trim()} aria-label="Send">
             {isLoading ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
-          </button>
+          </Button>
         </div>
       </form>
     </>
