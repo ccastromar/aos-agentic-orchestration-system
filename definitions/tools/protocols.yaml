@@ -9,7 +9,7 @@ tools:
 
   - name: risk.grpc_score
     type: grpc
-    target: "localhost:9002"
+    target: "${AOS_MOCK_GRPC_TARGET:-localhost:9002}"
     insecure: true # the local mock speaks plaintext; real services use TLS
     service: "risk.RiskService"
     method: "Score"

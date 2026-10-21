@@ -1,0 +1,8 @@
+intents:
+  - type: protocols.customer_review
+    description: "Look up a customer over MCP, score its risk over gRPC and ask a remote agent for a compliance review over A2A"
+    pipeline: pipeline_protocols_demo
+    required_params:
+      - customerId
+    examples:
+      - "Review customer CUST-42 across CRM, risk and compliance"

@@ -13,6 +13,7 @@ import (
 	mockCustomerSupport "github.com/ccastromar/aos-agentic-orchestration-system/mocks/customer-support"
 	mockDevops "github.com/ccastromar/aos-agentic-orchestration-system/mocks/devops"
 	mockGovernanceDemo "github.com/ccastromar/aos-agentic-orchestration-system/mocks/governance-demo"
+	mockGRPCRisk "github.com/ccastromar/aos-agentic-orchestration-system/mocks/grpcrisk"
 	mockHelpdesk "github.com/ccastromar/aos-agentic-orchestration-system/mocks/helpdesk"
 	mockHumanResources "github.com/ccastromar/aos-agentic-orchestration-system/mocks/human-resources"
 	mockLogistics "github.com/ccastromar/aos-agentic-orchestration-system/mocks/logistics"
@@ -45,6 +46,18 @@ func main() {
 	port := os.Getenv("AOS_MOCK_PORT")
 	if port == "" {
 		port = "9000"
+	}
+	// The gRPC risk mock behind the protocols demo (risk.grpc_score); AOS_MOCK_GRPC_PORT=off skips it.
+	if grpcPort := os.Getenv("AOS_MOCK_GRPC_PORT"); grpcPort != "off" {
+		if grpcPort == "" {
+			grpcPort = "9002"
+		}
+		go func() {
+			log.Printf("[MOCK SERVER] gRPC risk service listening on :%s", grpcPort)
+			if err := mockGRPCRisk.Serve(":" + grpcPort); err != nil {
+				log.Printf("[MOCK SERVER] gRPC risk service stopped: %v", err)
+			}
+		}()
 	}
 	mux := buildMux()
 	log.Printf("[MOCK SERVER] listening on :%s", port)

@@ -21,11 +21,13 @@ type Tool struct {
 	Body        map[string]string `yaml:"body"`
 	Model       string            `yaml:"model"`
 	Headers     map[string]string `yaml:"headers"`
-	Target      string            `yaml:"target,omitempty"`    // gRPC address or MCP/A2A URL
-	Service     string            `yaml:"service,omitempty"`   // gRPC fully-qualified service
-	Operation   string            `yaml:"operation,omitempty"` // MCP operation or A2A method
-	Agent       string            `yaml:"agent,omitempty"`     // A2A agent identifier
-	Insecure    bool              `yaml:"insecure,omitempty"`  // gRPC only: plaintext instead of TLS (a local or in-cluster service)
+	Target      string            `yaml:"target,omitempty"`           // gRPC address or MCP/A2A URL
+	Service     string            `yaml:"service,omitempty"`          // gRPC fully-qualified service
+	Operation   string            `yaml:"operation,omitempty"`        // MCP operation or A2A method
+	Agent       string            `yaml:"agent,omitempty"`            // A2A agent identifier
+	Insecure    bool              `yaml:"insecure,omitempty"`         // gRPC only: plaintext instead of TLS (a local or in-cluster service)
+	RemoteTool  string            `yaml:"remote_tool,omitempty"`      // MCP only: the server's tool name, when it differs from Name
+	Version     string            `yaml:"protocol_version,omitempty"` // A2A only: "0.3" (default) or "1.0"
 }
 
 type PipelineStep struct {

@@ -43,26 +43,111 @@ func rpcServer(t *testing.T, handle func(method string, params map[string]any) (
 	}))
 }
 
-func TestMCPToolCall(t *testing.T) {
-	s := rpcServer(t, func(method string, params map[string]any) (any, any) {
-		if method != "tools/call" || params["name"] != "crm.lookup" {
-			t.Fatalf("method=%v params=%v", method, params)
+// mcpFake is a minimal MCP server: it assigns a session on initialize, requires it afterwards,
+// lists one tool with an integer parameter, and answers as JSON or, with sse, as an SSE stream.
+// Without init it is a stateless server that does not implement initialize.
+type mcpFake struct {
+	sse, init bool
+	call      func(name string, args map[string]any) map[string]any
+	gotArgs   map[string]any
+}
+
+func (f *mcpFake) server(t *testing.T) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID     any            `json:"id"`
+			Method string         `json:"method"`
+			Params map[string]any `json:"params"`
 		}
-		return map[string]any{"content": []any{map[string]any{"type": "text", "text": "ok"}}}, nil
-	})
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if f.init && req.Method != "initialize" && r.Header.Get("Mcp-Session-Id") != "s-1" {
+			http.Error(w, "missing session", http.StatusBadRequest)
+			return
+		}
+		var result any
+		switch req.Method {
+		case "initialize":
+			if !f.init {
+				writeRPC(w, f.sse, req.ID, nil, map[string]any{"code": -32601, "message": "method not found"})
+				return
+			}
+			w.Header().Set("Mcp-Session-Id", "s-1")
+			result = map[string]any{"protocolVersion": "2025-11-25", "capabilities": map[string]any{}}
+		case "notifications/initialized":
+			w.WriteHeader(http.StatusAccepted)
+			return
+		case "tools/list":
+			result = map[string]any{"tools": []any{map[string]any{"name": "lookup", "inputSchema": map[string]any{
+				"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "limit": map[string]any{"type": "integer"}, "active": map[string]any{"type": "boolean"}}}}}}
+		case "tools/call":
+			f.gotArgs, _ = req.Params["arguments"].(map[string]any)
+			name, _ := req.Params["name"].(string)
+			result = f.call(name, f.gotArgs)
+		}
+		writeRPC(w, f.sse, req.ID, result, nil)
+	}))
+}
+
+func writeRPC(w http.ResponseWriter, sse bool, id, result, rpcErr any) {
+	body := map[string]any{"jsonrpc": "2.0", "id": id}
+	if rpcErr != nil {
+		body["error"] = rpcErr
+	} else {
+		body["result"] = result
+	}
+	data, _ := json.Marshal(body)
+	if sse {
+		w.Header().Set("Content-Type", "text/event-stream")
+		// A progress notification first: the client must skip it and wait for its answer.
+		_, _ = w.Write([]byte("event: message\ndata: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\",\"params\":{}}\n\n"))
+		_, _ = w.Write([]byte("event: message\ndata: " + string(data) + "\n\n"))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(data)
+}
+
+func okText(text string) func(string, map[string]any) map[string]any {
+	return func(string, map[string]any) map[string]any {
+		return map[string]any{"content": []any{map[string]any{"type": "text", "text": text}}}
+	}
+}
+
+func TestMCPToolCall(t *testing.T) {
+	for _, sse := range []bool{false, true} {
+		f := &mcpFake{sse: sse, init: true, call: okText("ok")}
+		s := f.server(t)
+		out, err := ExecuteProtocolTool(context.Background(),
+			config.Tool{Type: "mcp", Target: s.URL, Name: "crm.lookup", RemoteTool: "lookup"},
+			map[string]string{"id": "42", "limit": "3", "active": "true"})
+		s.Close()
+		if err != nil || out["protocol"] != "mcp" || out["ok"] != true {
+			t.Fatalf("sse=%v out=%v err=%v", sse, out, err)
+		}
+		// Typed per the tool's input schema; JSON numbers decode as float64.
+		if f.gotArgs["id"] != "42" || f.gotArgs["limit"] != float64(3) || f.gotArgs["active"] != true {
+			t.Fatalf("sse=%v args=%#v", sse, f.gotArgs)
+		}
+	}
+}
+
+func TestMCPWithoutInitializeStillWorks(t *testing.T) {
+	f := &mcpFake{init: false, call: okText("ok")}
+	s := f.server(t)
 	defer s.Close()
-	out, err := ExecuteProtocolTool(context.Background(), config.Tool{Type: "mcp", Target: s.URL, Name: "crm.lookup"}, map[string]string{"id": "42"})
-	if err != nil || out["protocol"] != "mcp" || out["ok"] != true {
-		t.Fatalf("out=%v err=%v", out, err)
+	if _, err := ExecuteProtocolTool(context.Background(), config.Tool{Type: "mcp", Target: s.URL, Name: "lookup"}, nil); err != nil {
+		t.Fatalf("a server without initialize must still be callable: %v", err)
 	}
 }
 
 func TestMCPToolErrorIsNotSuccess(t *testing.T) {
-	s := rpcServer(t, func(string, map[string]any) (any, any) {
-		return map[string]any{"isError": true, "content": []any{map[string]any{"type": "text", "text": "customer 42 not found"}}}, nil
-	})
+	f := &mcpFake{init: true, call: func(string, map[string]any) map[string]any {
+		return map[string]any{"isError": true, "content": []any{map[string]any{"type": "text", "text": "customer 42 not found"}}}
+	}}
+	s := f.server(t)
 	defer s.Close()
-	_, err := ExecuteProtocolTool(context.Background(), config.Tool{Type: "mcp", Target: s.URL, Name: "crm.lookup"}, nil)
+	_, err := ExecuteProtocolTool(context.Background(), config.Tool{Type: "mcp", Target: s.URL, Name: "lookup"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "customer 42 not found") {
 		t.Fatalf("want the tool's error, got %v", err)
 	}

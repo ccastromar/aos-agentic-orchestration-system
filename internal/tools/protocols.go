@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -98,17 +99,31 @@ func executeMCP(ctx context.Context, t config.Tool, params map[string]string) (m
 	if method == "" {
 		method = "tools/call"
 	}
-	args := map[string]any{}
-	for k, v := range params {
-		args[k] = v
+	name := t.RemoteTool
+	if name == "" {
+		name = t.Name
 	}
-	result, err := jsonRPC(ctx, protocolURL(t), t.Headers, method, map[string]any{"name": t.Name, "arguments": args})
+	c := &mcpClient{url: protocolURL(t), headers: t.Headers}
+	defer c.close()
+	if err := c.initialize(ctx); err != nil {
+		return nil, fmt.Errorf("MCP %s: %w", name, err)
+	}
+	args := map[string]any{}
+	if len(params) > 0 {
+		// Parameters reach AOS as strings; send them in the types the tool declares.
+		schema, err := c.inputSchema(ctx, name)
+		if err != nil {
+			return nil, fmt.Errorf("MCP %s: tools/list: %w", name, err)
+		}
+		args = typedArguments(params, schema)
+	}
+	result, err := c.request(ctx, method, map[string]any{"name": name, "arguments": args}, false)
 	if err != nil {
-		return nil, fmt.Errorf("MCP %s: %w", t.Name, err)
+		return nil, fmt.Errorf("MCP %s: %w", name, err)
 	}
 	// A tool that failed answers with a result, not a JSON-RPC error: isError marks it.
 	if isErr, _ := result["isError"].(bool); isErr {
-		return nil, fmt.Errorf("MCP tool %s failed: %s", t.Name, mcpText(result))
+		return nil, fmt.Errorf("MCP tool %s failed: %s", name, mcpText(result))
 	}
 	return map[string]any{"ok": true, "protocol": "mcp", "result": result}, nil
 }
@@ -130,31 +145,60 @@ func mcpText(result map[string]any) string {
 	return strings.Join(texts, " ")
 }
 
-// executeA2A delegates to a remote agent over A2A's JSON-RPC binding: message/send, then
-// tasks/get on the same endpoint while the task is submitted or working. Only a completed
-// task (or a direct message reply) is a success; a failed, canceled or rejected task is an
-// error, and so is one that asks for input or authorization, which a pipeline step cannot give.
+// executeA2A delegates to a remote agent over A2A's JSON-RPC binding, in protocol version 0.3
+// (default: message/send, tasks/get) or 1.0 (SendMessage, GetTask), announced in the
+// A2A-Version header. The message is sent non-blocking, then the task is polled on the same
+// endpoint while it is submitted or working, so a long task never holds one HTTP request.
+// Only a completed task (or a direct message reply) is a success; a failed, canceled or
+// rejected task is an error, and so is one that asks for input or authorization, which a
+// pipeline step cannot give.
 func executeA2A(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
 	ctx, cancel := protocolTimeout(ctx, t.TimeoutMs)
 	defer cancel()
 	url := protocolURL(t)
+	v1 := strings.HasPrefix(strings.TrimSpace(t.Version), "1")
+	headers := map[string]string{"A2A-Version": "0.3"}
+	if v1 {
+		headers["A2A-Version"] = "1.0"
+	}
+	for k, v := range t.Headers {
+		headers[k] = v
+	}
 	text := params["message"]
 	if text == "" {
 		text = fmt.Sprint(params)
 	}
+	sendMethod, getMethod := "message/send", "tasks/get"
 	message := map[string]any{
 		"kind":      "message",
 		"messageId": uuid.NewString(),
 		"role":      "user",
 		"parts":     []any{map[string]any{"kind": "text", "text": text}},
 	}
-	method := t.Operation
-	if method == "" {
-		method = "message/send"
+	configuration := map[string]any{"blocking": false}
+	if v1 {
+		sendMethod, getMethod = "SendMessage", "GetTask"
+		message = map[string]any{
+			"messageId": uuid.NewString(),
+			"role":      "ROLE_USER",
+			"parts":     []any{map[string]any{"text": text}},
+		}
+		configuration = map[string]any{"returnImmediately": true}
 	}
-	result, err := jsonRPC(ctx, url, t.Headers, method, map[string]any{"message": message})
+	if t.Operation != "" {
+		sendMethod = t.Operation
+	}
+	result, err := jsonRPC(ctx, url, headers, sendMethod, map[string]any{"message": message, "configuration": configuration})
 	if err != nil {
 		return nil, fmt.Errorf("A2A: %w", err)
+	}
+	if v1 {
+		// 1.0 wraps the answer: {"task": {...}} or {"message": {...}}.
+		if task, ok := result["task"].(map[string]any); ok {
+			result = task
+		} else if msg, ok := result["message"].(map[string]any); ok {
+			return map[string]any{"ok": true, "protocol": "a2a", "result": msg}, nil
+		}
 	}
 
 	delay := 200 * time.Millisecond
@@ -163,7 +207,8 @@ func executeA2A(ctx context.Context, t config.Tool, params map[string]string) (m
 			return map[string]any{"ok": true, "protocol": "a2a", "result": result}, nil
 		}
 		status, _ := result["status"].(map[string]any)
-		state, _ := status["state"].(string)
+		raw, _ := status["state"].(string)
+		state := a2aState(raw)
 		switch state {
 		case "completed":
 			return map[string]any{"ok": true, "protocol": "a2a", "result": result}, nil
@@ -180,17 +225,23 @@ func executeA2A(ctx context.Context, t config.Tool, params map[string]string) (m
 			if delay < 2*time.Second {
 				delay *= 2
 			}
-			if result, err = jsonRPC(ctx, url, t.Headers, "tasks/get", map[string]any{"id": id}); err != nil {
-				return nil, fmt.Errorf("A2A tasks/get %s: %w", id, err)
+			if result, err = jsonRPC(ctx, url, headers, getMethod, map[string]any{"id": id}); err != nil {
+				return nil, fmt.Errorf("A2A %s %s: %w", getMethod, id, err)
 			}
 		case "input-required", "auth-required":
 			return nil, fmt.Errorf("A2A agent needs %s; a pipeline step cannot provide it", strings.TrimSuffix(state, "-required"))
 		case "failed", "canceled", "rejected":
 			return nil, fmt.Errorf("A2A task %s", state)
 		default:
-			return nil, fmt.Errorf("A2A task in unknown state %q", state)
+			return nil, fmt.Errorf("A2A task in unknown state %q", raw)
 		}
 	}
+}
+
+// a2aState maps 1.0's TASK_STATE_INPUT_REQUIRED to 0.3's input-required, and so on.
+func a2aState(raw string) string {
+	s := strings.ToLower(strings.TrimPrefix(raw, "TASK_STATE_"))
+	return strings.ReplaceAll(s, "_", "-")
 }
 
 // grpcTarget keeps the configured host name all the way to the dialer, so the SSRF check
@@ -222,6 +273,28 @@ func executeGRPC(ctx context.Context, t config.Tool, params map[string]string) (
 		return nil, err
 	}
 	defer conn.Close()
+	method := t.Method
+	if t.Service != "" && !strings.HasPrefix(method, "/") {
+		method = "/" + t.Service + "/" + method
+	}
+	if !strings.HasPrefix(method, "/") {
+		method = "/" + method
+	}
+
+	// Prefer the method's real types, described by the server over gRPC reflection.
+	md, err := resolveMethod(ctx, conn, method)
+	switch {
+	case err == nil:
+		result, err := invokeTyped(ctx, conn, method, md, params)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"ok": true, "protocol": "grpc", "result": result}, nil
+	case !errors.Is(err, errNoReflection):
+		return nil, fmt.Errorf("gRPC %s: %w", method, err)
+	}
+
+	// No reflection: the service must take and return google.protobuf.Struct.
 	in := map[string]any{}
 	for k, v := range params {
 		in[k] = v
@@ -231,13 +304,6 @@ func executeGRPC(ctx context.Context, t config.Tool, params map[string]string) (
 		return nil, err
 	}
 	res := &structpb.Struct{}
-	method := t.Method
-	if t.Service != "" && !strings.HasPrefix(method, "/") {
-		method = "/" + t.Service + "/" + method
-	}
-	if !strings.HasPrefix(method, "/") {
-		method = "/" + method
-	}
 	if err := conn.Invoke(ctx, method, req, res); err != nil {
 		return nil, fmt.Errorf("gRPC %s: %w", method, err)
 	}

@@ -366,21 +366,31 @@ See [TODO.md](TODO.md) for known limitations and follow-up work.
 ## Protocol-backed steps
 
 Tools can use `type: mcp`, `type: grpc`, or `type: a2a` while remaining ordinary
-pipeline steps. MCP sends JSON-RPC `tools/call` requests to `target`; a result with
-`isError: true` fails the step. gRPC invokes the configured fully-qualified method
-using a protobuf `Struct` request/response, over TLS unless the tool sets
-`insecure: true` (for a local or in-cluster plaintext service). A2A uses the
-JSON-RPC binding: `message/send` with a full message (`kind`, `messageId`, `role`,
-`parts`), then `tasks/get` on the same endpoint, backing off from 200 ms to 2 s,
-while the task is `submitted` or `working`. Only `completed` (or a direct message
-reply) succeeds; `failed`, `canceled`, `rejected`, `input-required` and
-`auth-required` fail the step, since a pipeline step cannot answer the agent.
-All three go through the same SSRF check as HTTP tools: an internal address is
-refused unless its host is in `AOS_TOOL_INTERNAL_HOSTS`.
-Each tool supports `timeout` and inherits the pipeline retry policy. See
-`definitions/tools/protocols.yaml` and `definitions/pipelines/protocols_demo.yaml`.
-The gRPC adapter assumes services accept `google.protobuf.Struct`; generated
-protobuf clients should replace it when a service has a domain-specific contract.
+pipeline steps. Each supports `timeout`, inherits the pipeline retry policy, and goes through
+the same SSRF check as HTTP tools: an internal address is refused unless its host is in
+`AOS_TOOL_INTERNAL_HOSTS`. See `definitions/tools/protocols.yaml`,
+`definitions/pipelines/protocols_demo.yaml` and the intent `protocols.customer_review`.
+
+- **MCP** (Streamable HTTP): AOS sends `initialize` (protocol `2025-11-25`), keeps the
+  session the server assigns (`Mcp-Session-Id`, `MCP-Protocol-Version`), reads the tool's
+  input schema from `tools/list` so string parameters arrive as the declared types (integer,
+  number, boolean, object, array), calls `tools/call`, accepts a JSON or an SSE answer, and
+  closes the session. `remote_tool` names the server's tool when it differs from the AOS tool
+  name. A result with `isError: true` fails the step. A minimal server without `initialize`
+  is called without a session.
+- **A2A** (JSON-RPC binding): `protocol_version: "0.3"` (default: `message/send`,
+  `tasks/get`) or `"1.0"` (`SendMessage`, `GetTask`), announced in `A2A-Version`. The message
+  carries `messageId`; it is sent non-blocking and the task is polled on the same endpoint,
+  backing off from 200 ms to 2 s, while it is submitted or working. Only `completed` (or a
+  direct message reply) succeeds; `failed`, `canceled`, `rejected`, `input-required` and
+  `auth-required` fail the step, since a pipeline step cannot answer the agent.
+- **gRPC**: TLS unless the tool sets `insecure: true` (a local or in-cluster plaintext
+  service). When the server offers gRPC server reflection, AOS calls the method with its real
+  request and response types (string parameters converted to the fields' types; messages,
+  lists and maps given as JSON) and returns the response as JSON. Without a descriptor it
+  falls back to `google.protobuf.Struct` in and out. Streaming methods are refused.
+
+Checked against servers built with the official MCP and A2A SDKs: `test/interop/`.
 
 ## External agent steps
 
@@ -409,7 +419,8 @@ server. Start it with `go run ./cmd/mocks` and point `crm.mcp_lookup` at the
 default `http://localhost:9000/mock/mcp` endpoint.
 
 It also exposes an asynchronous A2A agent at `/mock/a2a` (JSON-RPC: `message/send`
-and `tasks/get`). The task is `working` briefly and then completes with a
+and `tasks/get`), and a gRPC risk service (`risk.RiskService/Score`, `Struct` in and out) on
+`AOS_MOCK_GRPC_PORT` (default 9002; `off` disables it). The task is `working` briefly and then completes with a
 compliance artifact; the AOS A2A step polls it until completion or its
 configured timeout.
 

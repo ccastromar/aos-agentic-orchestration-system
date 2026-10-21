@@ -32,6 +32,13 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	result := map[string]any{}
 	switch req.Method {
+	case "initialize":
+		result["protocolVersion"] = "2025-11-25"
+		result["capabilities"] = map[string]any{"tools": map[string]any{}}
+		result["serverInfo"] = map[string]any{"name": "aos-mock-crm", "version": "1"}
+	case "notifications/initialized":
+		w.WriteHeader(http.StatusAccepted)
+		return
 	case "tools/list":
 		result["tools"] = []any{map[string]any{"name": "crm.mcp_lookup", "description": "Look up a CRM customer", "inputSchema": map[string]any{"type": "object", "properties": map[string]any{"id": map[string]string{"type": "string"}}}}}
 	case "tools/call":

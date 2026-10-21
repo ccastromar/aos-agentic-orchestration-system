@@ -2,6 +2,10 @@ defaults:
   unknown_intent: deny
 
 permissions:
+  # Protocol steps demo (MCP, gRPC, A2A)
+  protocols.customer_review:
+    - admin
+    - support
   # Banking
   banking.get_balance:
     - admin
