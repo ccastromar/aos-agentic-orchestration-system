@@ -1,4 +1,5 @@
 import { devLoginEnabled } from './oidc';
+import { clearStoredAuth, getStoredAuth, saveStoredAuth } from './authStorage';
 
 export const getApiUrl = () => {
   // Empty string = same origin: requests stay relative and the Vite dev
@@ -9,15 +10,9 @@ export const getApiUrl = () => {
 
 // --- Auth (dev login against POST /auth/login) ---
 
-export const getAuth = () => {
-  try {
-    return JSON.parse(localStorage.getItem('aosAuth')) || null;
-  } catch {
-    return null;
-  }
-};
+export const getAuth = () => getStoredAuth();
 
-export const clearAuth = () => localStorage.removeItem('aosAuth');
+export const clearAuth = () => clearStoredAuth();
 
 export const login = async (username, password, roles = []) => {
   const res = await fetch(`${getApiUrl()}/auth/login`, {
@@ -30,7 +25,7 @@ export const login = async (username, password, roles = []) => {
   }
   const data = await res.json();
   const auth = { token: data.token, userId: data.user_id, roles: data.roles };
-  localStorage.setItem('aosAuth', JSON.stringify(auth));
+  saveStoredAuth(auth);
   return auth;
 };
 

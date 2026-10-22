@@ -2,6 +2,8 @@
 // aos-spa). On return it stores the same `aosAuth` shape the rest of the app already uses
 // ({token, userId, roles}), so api.js sends the Keycloak access token as a bearer and the
 // AOS backend validates it via JWKS. Opt-in: enabled when VITE_OIDC_ISSUER is set.
+import { saveStoredAuth } from './authStorage';
+
 const ISSUER = (import.meta.env.VITE_OIDC_ISSUER || '').replace(/\/$/, '');
 const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'aos-spa';
 
@@ -64,6 +66,6 @@ export async function completeSso() {
   if (!bearer) return null;
   const c = decodeJwt(bearer);
   const auth = { token: bearer, userId: c.preferred_username || c.email || c.sub, roles: c.roles || [] };
-  localStorage.setItem('aosAuth', JSON.stringify(auth));
+  saveStoredAuth(auth);
   return auth;
 }
