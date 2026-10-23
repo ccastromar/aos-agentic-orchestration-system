@@ -88,3 +88,94 @@ export async function completeSso() {
   saveStoredAuth(auth);
   return auth;
 }
+
+const SILENT_STATE = 'idp-session-check';
+// Any well-formed S256 challenge: the code is never exchanged, only the prompt=none outcome matters.
+const DUMMY_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+
+/** Runs inside the hidden iframe: reports the prompt=none outcome to the parent and stops. */
+export function reportIdpSessionIfFramed() {
+  if (window.parent === window) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("state") !== SILENT_STATE) return false;
+  window.parent.postMessage(
+    { type: SILENT_STATE, active: !params.has("error") },
+    window.location.origin,
+  );
+  return true;
+}
+
+function idpSessionActive(authorizationEndpoint, clientId, redirectUri) {
+  return new Promise((resolve) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    const finish = (value) => {
+      window.removeEventListener("message", onMessage);
+      clearTimeout(timer);
+      iframe.remove();
+      resolve(value);
+    };
+    const onMessage = (event) => {
+      if (event.origin !== window.location.origin || event.data?.type !== SILENT_STATE) return;
+      finish(Boolean(event.data.active));
+    };
+    const timer = setTimeout(() => finish(null), 8000);
+    window.addEventListener("message", onMessage);
+    const url = new URL(authorizationEndpoint);
+    url.search = new URLSearchParams({
+      client_id: clientId,
+      response_type: "code",
+      scope: "openid",
+      redirect_uri: redirectUri,
+      prompt: "none",
+      state: SILENT_STATE,
+      code_challenge: DUMMY_CHALLENGE,
+      code_challenge_method: "S256",
+    }).toString();
+    iframe.src = url.toString();
+    document.body.appendChild(iframe);
+  });
+}
+
+/**
+ * Detects a sign-out done in another app of the suite: while this app holds a session, it asks
+ * the IdP now and then (and when the tab regains focus) whether its own session is still alive.
+ */
+export function watchIdpSession(
+  authorizationEndpoint,
+  clientId,
+  redirectUri,
+  hasSession,
+  onEnded,
+) {
+  let busy = false;
+  const check = async () => {
+    if (busy || document.hidden || !hasSession()) return;
+    busy = true;
+    try {
+      const active = await idpSessionActive(await authorizationEndpoint(), clientId, redirectUri);
+      if (active === false && hasSession()) onEnded();
+    } catch {
+      /* transient: try again later */
+    } finally {
+      busy = false;
+    }
+  };
+  const interval = setInterval(check, 30000);
+  document.addEventListener("visibilitychange", check);
+  window.addEventListener("focus", check);
+  return () => {
+    clearInterval(interval);
+    document.removeEventListener("visibilitychange", check);
+    window.removeEventListener("focus", check);
+  };
+}
+
+export const watchAosSession = (hasSession, onEnded) =>
+  watchIdpSession(
+    async () => `${ISSUER}/protocol/openid-connect/auth`,
+    CLIENT_ID,
+    redirectUri(),
+    hasSession,
+    onEnded,
+  );

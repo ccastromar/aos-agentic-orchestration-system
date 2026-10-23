@@ -8,7 +8,7 @@ import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
-import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso, markSignedOut } from './utils/oidc';
+import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso, markSignedOut, watchAosSession } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Button, Card, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
 import '@chestertown/design/styles.css';
@@ -80,6 +80,18 @@ function App() {
     };
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
+
+  // Another app of the suite signed out: the IdP session is gone, so drop the token we still hold.
+  useEffect(() => {
+    if (!ssoEnabled) return;
+    return watchAosSession(() => Boolean(getAuth()), () => {
+      clearAuth();
+      setNoRoles(false);
+      setActiveTaskId(null);
+      setPendingApproval(null);
+      setAuth(null);
+    });
   }, []);
 
   // Complete an SSO redirect (shared Chestertown IdP) on load, if one is in flight.
