@@ -10,7 +10,7 @@ import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
 import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
-import { Alert, Button, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
+import { Button, Card, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
 import '@chestertown/design/styles.css';
 import './index.css';
 
@@ -128,47 +128,60 @@ function App() {
     setView('chat');
   };
 
+  const topbar = (
+  <Topbar
+    vertex="operate"
+    name="AOS"
+    apps={APPS}
+    actions={
+      <>
+        <Identity
+          name={auth ? auth.userId : (devLoginEnabled ? 'demo-user' : null)}
+          detail={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous'}
+        />
+        {auth ? (
+          <Button size="sm" onClick={handleLogout} title="Sign out">
+            <LogOut size={14} /> Sign out
+          </Button>
+        ) : (
+          <>
+            {ssoEnabled && (
+              <Button size="sm" variant="primary" onClick={ssoLogin} title="Sign in with the shared identity provider">
+                <ShieldCheck size={14} /> Sign in
+              </Button>
+            )}
+            {devLoginEnabled && (
+              <Button size="sm" onClick={() => setShowLogin(true)} title="Development login">
+                <LogIn size={14} /> Dev login
+              </Button>
+            )}
+          </>
+        )}
+        <ThemeToggle storageKey="theme" />
+      </>
+    }
+  />
+  );
+
+  if (noRoles) {
+    return (
+      <div className="app-container">
+        {topbar}
+        <Card style={{ maxWidth: 480, margin: 'var(--sp-12) auto', textAlign: 'center' }}>
+          <h1 className="ct-title">No access to AOS</h1>
+          <p className="sub">
+            {auth?.userId || 'Your account'} is signed in but has no AOS role. Ask an administrator
+            to assign one, then sign in again.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
-      <Topbar
-        vertex="operate"
-        name="AOS"
-        apps={APPS}
-        actions={
-          <>
-            <Identity
-              name={auth ? auth.userId : (devLoginEnabled ? 'demo-user' : null)}
-              detail={auth ? `Roles: ${(auth.roles || []).join(', ')}` : 'Anonymous'}
-            />
-            {auth ? (
-              <Button size="sm" onClick={handleLogout} title="Sign out">
-                <LogOut size={14} /> Sign out
-              </Button>
-            ) : (
-              <>
-                {ssoEnabled && (
-                  <Button size="sm" variant="primary" onClick={ssoLogin} title="Sign in with the shared identity provider">
-                    <ShieldCheck size={14} /> Sign in
-                  </Button>
-                )}
-                {devLoginEnabled && (
-                  <Button size="sm" onClick={() => setShowLogin(true)} title="Development login">
-                    <LogIn size={14} /> Dev login
-                  </Button>
-                )}
-              </>
-            )}
-            <ThemeToggle storageKey="theme" />
-          </>
-        }
-      />
+      {topbar}
       <Tabs label="AOS sections" items={TAB_ITEMS} value={view} onChange={setView} />
-      {noRoles && (
-        <Alert tone="danger">
-          Your account is signed in but has no AOS role, so AOS cannot run anything for you. Ask an
-          administrator to assign one, then sign in again.
-        </Alert>
-      )}
 
       <AnimatePresence mode="wait">
         {view === 'chat' && (
