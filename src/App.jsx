@@ -35,6 +35,7 @@ function App() {
   const [auth, setAuth] = useState(() => getAuth());
   const [showLogin, setShowLogin] = useState(false);
   const [noRoles, setNoRoles] = useState(false);
+  const [ready, setReady] = useState(!ssoEnabled);
 
   useEffect(() => {
     const onNoRoles = () => setNoRoles(true);
@@ -83,6 +84,7 @@ function App() {
   // Complete an SSO redirect (shared Chestertown IdP) on load, if one is in flight.
   useEffect(() => {
     completeSso().then((a) => {
+      setReady(true);
       if (!a) return;
       handleLoggedIn(a);
       const taskId = sessionStorage.getItem(PENDING_TASK_KEY);
@@ -162,6 +164,29 @@ function App() {
     }
   />
   );
+
+  const signInFromGate = () => {
+    const taskId = new URLSearchParams(window.location.search).get('taskId');
+    if (taskId) sessionStorage.setItem(PENDING_TASK_KEY, taskId);
+    ssoLogin();
+  };
+
+  if (!ready) return null;
+
+  if (ssoEnabled && !auth) {
+    return (
+      <div className="app-container">
+        {topbar}
+        <Card style={{ maxWidth: 420, margin: 'var(--sp-12) auto', textAlign: 'center' }}>
+          <h1 className="ct-title">Sign in to AOS</h1>
+          <p className="sub">Running intents is a controlled function — sign in with your identity provider.</p>
+          <Button variant="primary" onClick={signInFromGate}>
+            <ShieldCheck size={14} /> Sign in with SSO
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   if (noRoles) {
     return (
