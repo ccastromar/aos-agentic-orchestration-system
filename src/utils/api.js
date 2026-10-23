@@ -47,10 +47,16 @@ export const apiFetch = async (endpoint, options = {}) => {
     clearAuth();
     window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
   }
+  if (res.status === 403 && auth?.token) {
+    // Signed in but without a role AOS maps: App explains it instead of a raw API error.
+    const text = await res.clone().text().catch(() => '');
+    if (text.includes('no roles assigned')) window.dispatchEvent(new CustomEvent(NO_ROLES_EVENT));
+  }
   return res;
 };
 
 export const UNAUTHORIZED_EVENT = 'aos:unauthorized';
+export const NO_ROLES_EVENT = 'aos:no-roles';
 
 // A prompt typed while signed out survives the sign-in round trip and is restored into the input.
 const PENDING_PROMPT_KEY = 'aosPendingPrompt';

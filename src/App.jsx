@@ -7,10 +7,10 @@ import ClarificationModal from './components/ClarificationModal';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
-import { getAuth, clearAuth, UNAUTHORIZED_EVENT } from './utils/api';
+import { getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
 import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
-import { Button, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
+import { Alert, Button, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
 import '@chestertown/design/styles.css';
 import './index.css';
 
@@ -34,8 +34,16 @@ function App() {
   const [view, setView] = useState('chat'); // 'chat' | 'settings' | 'history'
   const [auth, setAuth] = useState(() => getAuth());
   const [showLogin, setShowLogin] = useState(false);
+  const [noRoles, setNoRoles] = useState(false);
+
+  useEffect(() => {
+    const onNoRoles = () => setNoRoles(true);
+    window.addEventListener(NO_ROLES_EVENT, onNoRoles);
+    return () => window.removeEventListener(NO_ROLES_EVENT, onNoRoles);
+  }, []);
 
   const handleLoggedIn = (newAuth) => {
+    setNoRoles(false);
     setActiveTaskId(null);
     setPendingApproval(null);
     setAuth(newAuth);
@@ -44,6 +52,7 @@ function App() {
 
   const handleLogout = () => {
     clearAuth();
+    setNoRoles(false);
     setActiveTaskId(null);
     setPendingApproval(null);
     setAuth(null);
@@ -154,6 +163,12 @@ function App() {
         }
       />
       <Tabs label="AOS sections" items={TAB_ITEMS} value={view} onChange={setView} />
+      {noRoles && (
+        <Alert tone="danger">
+          Your account is signed in but has no AOS role, so AOS cannot run anything for you. Ask an
+          administrator to assign one, then sign in again.
+        </Alert>
+      )}
 
       <AnimatePresence mode="wait">
         {view === 'chat' && (
