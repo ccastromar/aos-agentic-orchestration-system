@@ -8,7 +8,7 @@ import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
-import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso, markSignedOut, watchAosSession } from './utils/oidc';
+import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso, markSignedOut, watchAosSession, trySilentSso } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Button, Card, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
 import '@chestertown/design/styles.css';
@@ -96,7 +96,12 @@ function App() {
 
   // Complete an SSO redirect (shared Chestertown IdP) on load, if one is in flight.
   useEffect(() => {
-    completeSso().then((a) => {
+    completeSso().then(async (a) => {
+      if (!a && !getAuth()) {
+        const taskId = new URLSearchParams(window.location.search).get('taskId');
+        if (taskId) sessionStorage.setItem(PENDING_TASK_KEY, taskId);
+        if (await trySilentSso()) return;
+      }
       setReady(true);
       if (!a) return;
       handleLoggedIn(a);

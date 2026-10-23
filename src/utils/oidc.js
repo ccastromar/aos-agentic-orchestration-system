@@ -27,6 +27,7 @@ function decodeJwt(t) {
   catch { return {}; }
 }
 
+const SILENT_TRIED_KEY = 'aos_silent_tried';
 const FORCE_LOGIN_KEY = 'aos_force_login';
 const ID_TOKEN_KEY = 'aos_id_token';
 // Explicit sign-out: the next sign-in must ask for credentials instead of reusing the IdP session.
@@ -41,7 +42,7 @@ export function markSignedOut() {
   window.location.assign(`${ISSUER}/protocol/openid-connect/logout?${p}`);
 }
 
-export async function ssoLogin() {
+export async function ssoLogin(silent = false) {
   if (!ssoEnabled) return;
   const verifier = rand(48), state = rand();
   sessionStorage.setItem(VERIFIER_KEY, verifier);
@@ -50,11 +51,23 @@ export async function ssoLogin() {
     response_type: 'code', client_id: CLIENT_ID, redirect_uri: redirectUri(),
     scope: 'openid profile email', state, code_challenge: await challenge(verifier), code_challenge_method: 'S256',
   });
-  if (sessionStorage.getItem(FORCE_LOGIN_KEY)) {
+  if (silent === true) p.set('prompt', 'none');
+  else if (sessionStorage.getItem(FORCE_LOGIN_KEY)) {
     p.set('prompt', 'login');
     sessionStorage.removeItem(FORCE_LOGIN_KEY);
   }
   window.location.assign(`${ISSUER}/protocol/openid-connect/auth?${p}`);
+}
+
+// Joins an existing IdP session (opened by another app of the suite) without showing a login.
+// Once per tab, and never right after an explicit sign-out. Returns true when it redirects.
+export async function trySilentSso() {
+  if (!ssoEnabled) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('code') || params.has('error')) return false;
+  if (sessionStorage.getItem(SILENT_TRIED_KEY) || sessionStorage.getItem(FORCE_LOGIN_KEY)) return false;
+  sessionStorage.setItem(SILENT_TRIED_KEY, 'true');
+  try { await ssoLogin(true); return true; } catch { return false; }
 }
 
 // If the URL carries ?code, exchange it and persist aosAuth. Returns the auth object or null.
@@ -62,7 +75,14 @@ export async function completeSso() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
-  if (!code) return null;
+  if (!code) {
+    // prompt=none came back without an IdP session: just show the sign-in card.
+    if (url.searchParams.has('error')) {
+      sessionStorage.removeItem(VERIFIER_KEY); sessionStorage.removeItem(STATE_KEY);
+      window.history.replaceState({}, '', url.origin + url.pathname);
+    }
+    return null;
+  }
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
   const expected = sessionStorage.getItem(STATE_KEY);
   sessionStorage.removeItem(VERIFIER_KEY); sessionStorage.removeItem(STATE_KEY);
