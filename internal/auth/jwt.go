@@ -14,6 +14,10 @@ type JWTConfig struct {
 	Issuer   string
 	Audience string
 	JWKURL   string // OIDC
+	// RoleClaim is the (dotted) claim holding the roles; RoleMap translates the identity
+	// provider's role names into AOS roles. Empty values keep the defaults.
+	RoleClaim string
+	RoleMap   map[string]string
 	// AllowDevFallback enables the mock identity and signing key for local tests.
 	AllowDevFallback bool
 }
@@ -73,14 +77,7 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	}
 
 	email, _ := claims["email"].(string)
-	rolesAny, _ := claims["roles"].([]interface{})
-
-	var roles []string
-	for _, rAny := range rolesAny {
-		if s, ok := rAny.(string); ok {
-			roles = append(roles, s)
-		}
-	}
+	roles := extractRoles(claims, a.cfg.RoleClaim, a.cfg.RoleMap)
 
 	if len(roles) == 0 {
 		return nil, &AuthError{Code: http.StatusForbidden, Message: "no roles assigned"}

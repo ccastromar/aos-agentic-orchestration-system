@@ -61,6 +61,10 @@ type EnvVars struct {
 	JWTIssuer   string `envconfig:"AOS_JWT_ISSUER" default:""`
 	JWTAudience string `envconfig:"AOS_JWT_AUDIENCE" default:""`
 	JWKURL      string `envconfig:"AOS_JWK_URL" default:""`
+	// AOS_ROLE_CLAIM names the (dotted) claim with the roles; AOS_ROLE_MAP is
+	// "idp-role=aos-role,..." and, when set, ignores any role it does not list.
+	RoleClaim string `envconfig:"AOS_ROLE_CLAIM" default:"roles"`
+	RoleMap   string `envconfig:"AOS_ROLE_MAP" default:""`
 	IAMURL      string `envconfig:"AOS_IAM_URL" default:"disabled"`
 }
 

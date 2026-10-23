@@ -75,20 +75,20 @@ permissions:
   governance-demo.credit_pre_screening:
     - admin
     - finance
-    - read-write
+    - operator
   governance-demo.social_scoring:
     - admin
-    - read-write
+    - operator
   governance-demo.translate_message:
     - admin
     - support
-    - read-write
+    - operator
 
   # Customer Support & Helpdesk
   customer-support.governed_lookup:
     - admin
     - support
-    - read-write
+    - operator
   customer-support.return_product:
     - admin
     - support

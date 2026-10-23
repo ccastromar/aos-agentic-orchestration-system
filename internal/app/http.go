@@ -55,6 +55,12 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 		jwtCfg.Issuer = a.env.JWTIssuer
 		jwtCfg.Audience = a.env.JWTAudience
 		jwtCfg.JWKURL = a.env.JWKURL
+		jwtCfg.RoleClaim = a.env.RoleClaim
+		roleMap, err := auth.ParseRoleMap(a.env.RoleMap)
+		if err != nil {
+			panic("invalid AOS_ROLE_MAP: " + err.Error())
+		}
+		jwtCfg.RoleMap = roleMap
 	}
 	authenticator := auth.NewJWTAuthenticator(jwtCfg)
 	authenticated := authMiddleware(mux, authenticator)
