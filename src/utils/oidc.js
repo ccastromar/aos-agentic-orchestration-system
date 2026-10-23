@@ -28,8 +28,18 @@ function decodeJwt(t) {
 }
 
 const FORCE_LOGIN_KEY = 'aos_force_login';
+const ID_TOKEN_KEY = 'aos_id_token';
 // Explicit sign-out: the next sign-in must ask for credentials instead of reusing the IdP session.
-export const markSignedOut = () => sessionStorage.setItem(FORCE_LOGIN_KEY, 'true');
+// It also ends the IdP session (RP-initiated logout) so the whole suite signs out.
+export function markSignedOut() {
+  const idToken = sessionStorage.getItem(ID_TOKEN_KEY) || '';
+  sessionStorage.removeItem(ID_TOKEN_KEY);
+  sessionStorage.setItem(FORCE_LOGIN_KEY, 'true');
+  if (!ssoEnabled) return;
+  const p = new URLSearchParams({ client_id: CLIENT_ID, post_logout_redirect_uri: redirectUri() });
+  if (idToken) p.set('id_token_hint', idToken);
+  window.location.assign(`${ISSUER}/protocol/openid-connect/logout?${p}`);
+}
 
 export async function ssoLogin() {
   if (!ssoEnabled) return;
@@ -70,6 +80,7 @@ export async function completeSso() {
   // AOS validates the SPA client audience. Keycloak puts that audience in the ID token for a
   // public PKCE client, whereas an access token's audience is normally `account` unless an
   // extra audience mapper is installed.
+  if (tok.id_token) sessionStorage.setItem(ID_TOKEN_KEY, tok.id_token);
   const bearer = tok.id_token || tok.access_token;
   if (!bearer) return null;
   const c = decodeJwt(bearer);
