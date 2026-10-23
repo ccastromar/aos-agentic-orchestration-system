@@ -27,6 +27,10 @@ function decodeJwt(t) {
   catch { return {}; }
 }
 
+const FORCE_LOGIN_KEY = 'aos_force_login';
+// Explicit sign-out: the next sign-in must ask for credentials instead of reusing the IdP session.
+export const markSignedOut = () => sessionStorage.setItem(FORCE_LOGIN_KEY, 'true');
+
 export async function ssoLogin() {
   if (!ssoEnabled) return;
   const verifier = rand(48), state = rand();
@@ -36,6 +40,10 @@ export async function ssoLogin() {
     response_type: 'code', client_id: CLIENT_ID, redirect_uri: redirectUri(),
     scope: 'openid profile email', state, code_challenge: await challenge(verifier), code_challenge_method: 'S256',
   });
+  if (sessionStorage.getItem(FORCE_LOGIN_KEY)) {
+    p.set('prompt', 'login');
+    sessionStorage.removeItem(FORCE_LOGIN_KEY);
+  }
   window.location.assign(`${ISSUER}/protocol/openid-connect/auth?${p}`);
 }
 

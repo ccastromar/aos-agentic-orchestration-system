@@ -8,7 +8,7 @@ import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
 import { getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
-import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso } from './utils/oidc';
+import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso, markSignedOut } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Button, Card, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
 import '@chestertown/design/styles.css';
@@ -53,6 +53,7 @@ function App() {
 
   const handleLogout = () => {
     clearAuth();
+    markSignedOut();
     setNoRoles(false);
     setActiveTaskId(null);
     setPendingApproval(null);
