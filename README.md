@@ -76,7 +76,7 @@ See also:
 
 ## Prerequisites
 
-- Go 1.24+ (see go.mod)
+- Go 1.26+ (see go.mod)
 - Optional: Redis (for persistent state). Otherwise, in-memory state is used.
 - One LLM backend:
   - Ollama running locally (recommended for local dev), or
