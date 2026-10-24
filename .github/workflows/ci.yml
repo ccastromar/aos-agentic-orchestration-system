@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   console:
-    name: Console (lint and build)
+    name: Console (lint, build and e2e)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,3 +38,10 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The specs mock every AOS endpoint they need, so no backend runs here.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests (Playwright)
+        run: npm run test:e2e
