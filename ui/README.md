@@ -49,4 +49,4 @@ npm run test:e2e   # Playwright, against a running dev server and backend
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Part of AOS: Apache License, Version 2.0. See [LICENSE](../LICENSE) and [NOTICE](../NOTICE) at the repository root.

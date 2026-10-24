@@ -7,7 +7,7 @@ if [[ -z "${AOS_WORKSPACE_ROOT:-}" || "${AOS_WORKSPACE_ROOT}" == "/" ]]; then
 else
   export AOS_WORKSPACE_ROOT
 fi
-UI_DIR="${AOS_UI_DIR:-${ROOT_DIR}/../aos-ui}"
+UI_DIR="${AOS_UI_DIR:-${ROOT_DIR}/ui}"
 AOS_PORT="${AOS_PORT:-8080}"
 MOCK_PORT="${AOS_MOCK_PORT:-9000}"
 UI_PORT="${AOS_UI_PORT:-5173}"
@@ -36,7 +36,7 @@ case "${1:-all}" in
     ;;
   ui)
     [[ -d "${UI_DIR}" ]] || { echo "UI directory not found: ${UI_DIR}" >&2; exit 1; }
-    (cd "${UI_DIR}" && AOS_BACKEND_URL="${AOS_BACKEND_URL:-http://127.0.0.1:${AOS_PORT}}" npm run dev -- --host 0.0.0.0 --port "${UI_PORT}")
+    (cd "${UI_DIR}" && { [[ -d node_modules ]] || npm ci; } && AOS_BACKEND_URL="${AOS_BACKEND_URL:-http://127.0.0.1:${AOS_PORT}}" npm run dev -- --host 0.0.0.0 --port "${UI_PORT}")
     ;;
   all)
     export AOS_CALLBACK_BASE_URL="${AOS_CALLBACK_BASE_URL:-http://127.0.0.1:${AOS_PORT}}"
@@ -45,7 +45,7 @@ case "${1:-all}" in
     go run ./cmd/mocks & MOCK_PID=$!
     go run ./cmd/aos -port "${AOS_PORT}" & AOS_PID=$!
     [[ -d "${UI_DIR}" ]] || { echo "UI directory not found: ${UI_DIR}" >&2; exit 1; }
-    (cd "${UI_DIR}" && AOS_BACKEND_URL="${AOS_BACKEND_URL:-http://127.0.0.1:${AOS_PORT}}" npm run dev -- --host 0.0.0.0 --port "${UI_PORT}") & UI_PID=$!
+    (cd "${UI_DIR}" && { [[ -d node_modules ]] || npm ci; } && AOS_BACKEND_URL="${AOS_BACKEND_URL:-http://127.0.0.1:${AOS_PORT}}" npm run dev -- --host 0.0.0.0 --port "${UI_PORT}") & UI_PID=$!
     echo "AOS:  http://localhost:${AOS_PORT}"
     echo "Mock: http://localhost:${MOCK_PORT}"
     echo "UI:   http://localhost:${UI_PORT}"
@@ -65,7 +65,7 @@ case "${1:-all}" in
     go run ./cmd/mocks & MOCK_PID=$!
     go run ./cmd/aos -port "${AOS_PORT}" & AOS_PID=$!
     if [[ -d "${UI_DIR}" ]]; then
-      (cd "${UI_DIR}" && AOS_BACKEND_URL="${AOS_BACKEND_URL:-http://127.0.0.1:${AOS_PORT}}" npm run dev -- --host 0.0.0.0 --port "${UI_PORT}") & UI_PID=$!
+      (cd "${UI_DIR}" && { [[ -d node_modules ]] || npm ci; } && AOS_BACKEND_URL="${AOS_BACKEND_URL:-http://127.0.0.1:${AOS_PORT}}" npm run dev -- --host 0.0.0.0 --port "${UI_PORT}") & UI_PID=$!
     fi
     echo "AOS:         http://localhost:${AOS_PORT}"
     echo "Mock tools:  http://localhost:${MOCK_PORT}"

@@ -137,6 +137,11 @@ go run ./cmd/aos -port 8080
 
 Without the flag, the server uses PORT from the environment (default 8080).
 
+The web console lives in [`ui/`](ui/README.md) (React + Vite). `./run.sh all` starts the mock
+tool servers, AOS and the console together (http://localhost:5173), installing the console's
+dependencies on first run; `./run.sh demo` does the same with the deterministic mock model
+instead of a real LLM.
+
 Docker (the image listens on 9090; set `PORT` to change it):
 ```bash
 docker build -t aos:local .

@@ -73,9 +73,44 @@ jobs:
           aos-linux-amd64
           aos-windows-amd64.exe
 
+  ui:
+    name: Console (lint, build and e2e)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: ui/package-lock.json
+
+    # @chestertown/design comes from the vendored tarball in ui/vendor/, so no registry login is needed.
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Build
+      run: npm run build
+
+    # The specs mock every AOS endpoint they need, so no backend runs here.
+    - name: Install Playwright browser
+      run: npx playwright install --with-deps chromium
+
+    - name: End-to-end tests (Playwright)
+      run: npm run test:e2e
+
   release:
     name: Create Release
-    needs: build
+    needs: [build, ui]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
