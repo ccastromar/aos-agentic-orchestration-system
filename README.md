@@ -46,3 +46,7 @@ an anonymous session send the simulated role (`X-Mock-Role`) chosen in the chat 
 npm run lint
 npm run test:e2e   # Playwright, against a running dev server and backend
 ```
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
