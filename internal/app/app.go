@@ -310,9 +310,9 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	if a.env != nil {
-		logx.Info("App", "AOS v0.3.0 started (env=%s)", a.env.AppEnv)
+		logx.Info("App", "AOS v0.4.0 started (env=%s)", a.env.AppEnv)
 	} else {
-		logx.Info("App", "AOS v0.3.0 started")
+		logx.Info("App", "AOS v0.4.0 started")
 	}
 
 	return g.Wait()
