@@ -27,7 +27,7 @@ governs, Ernest proves); see the README status.
 - [x] Deployed with Prudence and Ernest on the MVP server; the four cases verified from the AOS UI.
 - [x] Execution evidence to Ernest over Kafka: the audit journal is the outbox, a background shipper publishes it (TLS), governed `pipeline.started` events are tagged as executions of their AI system for Prudence's time-aware drift check.
 
-## Memory and history closure — codex/close-memory-history
+## Memory and history closure — feature/close-memory-history
 
 - [x] Fix missing-identity panic in `/ask`.
 - [x] Scope authenticated conversation and memory context to the user, ignoring caller-supplied session IDs.
