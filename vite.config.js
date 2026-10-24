@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // Keep the dev proxy aligned with AOS' default HTTP port. Override with
 // AOS_BACKEND_URL when the backend is started on another port/host.
-const AOS_BACKEND_URL = process.env.AOS_BACKEND_URL || 'http://localhost:9090';
+const AOS_BACKEND_URL = process.env.AOS_BACKEND_URL || 'http://localhost:8080';
 
 // https://vite.dev/config/
 export default defineConfig({

@@ -18,7 +18,7 @@ npm run dev
 ```
 
 The dev server proxies the API paths (`/ask`, `/task`, `/api`, …) to the AOS backend at
-`http://localhost:9090`; set `AOS_BACKEND_URL` to point elsewhere. `npm run build` writes the
+`http://localhost:8080` (what `go run ./cmd/aos` and `run.sh` start); set `AOS_BACKEND_URL` to point elsewhere. `npm run build` writes the
 production bundle to `dist/`, which the `Dockerfile` serves with nginx.
 
 ## Configuration
