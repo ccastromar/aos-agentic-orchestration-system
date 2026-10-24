@@ -137,11 +137,10 @@ go run ./cmd/aos -port 8080
 
 Without the flag, the server uses PORT from the environment (default 8080).
 
-Docker:
+Docker (the image listens on 9090; set `PORT` to change it):
 ```bash
 docker build -t aos:local .
-docker run --rm -p 8080:8080 \
-  -e PORT=8080 \
+docker run --rm -p 9090:9090 \
   -e LLM_ENGINE=ollama \
   -e LLM_MODEL=qwen3:0.6b \
   -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \

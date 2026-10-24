@@ -12,6 +12,9 @@ AOS_PORT="${AOS_PORT:-8080}"
 MOCK_PORT="${AOS_MOCK_PORT:-9000}"
 UI_PORT="${AOS_UI_PORT:-5173}"
 MOCK_OLLAMA_PORT="${MOCK_OLLAMA_PORT:-11435}"
+# The local mocks listen on 127.0.0.1, which the SSRF guard blocks by default. Allow exactly
+# that host (not ALLOW_LOCAL_TOOLS, which turns the guard off).
+export AOS_TOOL_INTERNAL_HOSTS="${AOS_TOOL_INTERNAL_HOSTS:-127.0.0.1}"
 
 cleanup() {
   trap - TERM INT EXIT

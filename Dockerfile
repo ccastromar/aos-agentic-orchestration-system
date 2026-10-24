@@ -49,12 +49,13 @@ COPY templates ./templates
 # Ensure files are owned by non-root user
 RUN chown -R app:app /app /usr/local/bin/aos /usr/local/bin/aos-mocks /usr/local/bin/aos-mock-llm
 
-# Expose default port used by the application
+# The image listens on 9090 (the binary defaults to 8080 when PORT is unset)
+ENV PORT=9090
 EXPOSE 9090
 
-# Healthcheck hitting the live endpoint
+# Healthcheck hitting the live endpoint on whatever PORT the container runs with
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget -q -O - http://127.0.0.1:9090/health/live >/dev/null 2>&1 || exit 1
+  CMD wget -q -O - "http://127.0.0.1:${PORT}/health/live" >/dev/null 2>&1 || exit 1
 
 # Run as non-root
 USER app
