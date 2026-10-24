@@ -32,8 +32,11 @@ local mocks, with the SSRF check on:
 
 ```bash
 AOS_MOCK_PORT=19000 AOS_MOCK_GRPC_PORT=19002 go run ./cmd/mocks &
+MOCK_OLLAMA_PORT=11435 go run ./cmd/mock-ollama &   # the final summary needs a model
 AOS_STATE_STORE=memory ALLOW_LOCAL_TOOLS=false AOS_TOOL_INTERNAL_HOSTS=127.0.0.1 \
   AOS_MOCK_BASE_URL=http://127.0.0.1:19000 AOS_MOCK_GRPC_TARGET=127.0.0.1:19002 \
+  LLM_ENGINE=ollama OLLAMA_BASE_URL=http://127.0.0.1:11435 \
+  LLM_MODEL=aos-demo:deterministic OLLAMA_INTENT_MODEL=aos-demo:deterministic \
   go run ./cmd/aos -port 18080 &
 curl -s -X POST http://127.0.0.1:18080/ask_structured -H 'Content-Type: application/json' \
   -H 'X-Mock-Role: admin' -d '{"operation":"protocols.customer_review","params":{"customerId":"CUST-42"}}'
