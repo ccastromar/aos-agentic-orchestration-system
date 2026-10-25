@@ -1,8 +1,9 @@
 # Security Policy
 
 AOS runs AI pipelines under control: governed pipelines ask Prudence's policy decision point
-before they start and fail closed when it is unreachable. It is a young project; review the
-deployment notes below before running it with real data.
+before they start and fail closed when it is unreachable. It is a young project; read
+[docs/threat-model.md](docs/threat-model.md) and the deployment notes below before running it with
+real data.
 
 ## Reporting a vulnerability
 
