@@ -1,0 +1,11 @@
+# Secret scanning (gitleaks, run in CI by .github/workflows/security.yml). The default rules apply;
+# the paths below hold known non-secrets and are excluded by path, so anything new still fails.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known non-secrets"
+paths = [
+  # the deterministic mock model's code (a comment matches the generic rule)
+  '''^mocks/ollama/react\.go$''',
+]

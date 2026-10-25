@@ -1,6 +1,6 @@
 name: Images
 
-# A release tag (v*) publishes the AOS server image to GHCR with an SBOM and build provenance
+# A release tag (v*) scans (Trivy) and publishes the AOS server image to GHCR with an SBOM and build provenance
 # attached, and signs it with Sigstore cosign (keyless: the identity is this workflow run).
 # Run by hand it only builds, unless "publish" is ticked. The console (ui/) is not published:
 # its identity provider and URLs are build arguments, so each deployment builds its own.
@@ -49,6 +49,27 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+
+      # Scan before publishing: a critical vulnerability with a fix available stops the release.
+      - name: Build for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          load: true
+          tags: scan/aos:local
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha
+
+      - name: Scan the image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: scan/aos:local
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
 
       - name: Build (and push)
         id: build

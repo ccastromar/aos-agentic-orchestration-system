@@ -34,6 +34,12 @@ Security-sensitive areas include:
 - Keep `ALLOW_LOCAL_TOOLS=false` and the SSRF protection on.
 - Store secrets (PDP client secret, LLM keys, Kafka credentials) in a secrets manager.
 
+## Automated checks
+
+Every push and pull request runs CodeQL static analysis and a secret scan of the whole history
+(`.github/workflows/security.yml`); Dependabot proposes dependency updates weekly; release images
+are scanned with Trivy and not published if a critical vulnerability with a fix is found.
+
 ## Verifying release images
 
 Release tags publish images to GHCR, each signed with Sigstore cosign (keyless, by the release
