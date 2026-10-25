@@ -236,13 +236,17 @@ the demo. The step-by-step script is `prudence-governance/docs/functional/06-dem
   - Body: { "operation": "...", "params": { ... } }
   - Performs mapping directly without the intent step
 - GET /task?id=... — Fetch task status/result
-- GET /task/approve?id=... Approve task
-- GET /task/reject?id
-- GET /ui — Minimal UI to submit requests and observe events
+- POST /task/approve?id=...&gate=... and POST /task/reject?id=...&gate=... — Decide a human step
+  (`oversight`, or the requester unless the governance model makes them incompatible)
+- POST /task/reply?id=... — Answer a clarification (the requester only)
+- GET /api/v1/tasks — Your tasks (everyone's with `oversight` or `audit`)
+- GET /api/v1/events/stream — Server-sent events for the console
+- GET /intents, GET /api/v1/memories, POST /api/v1/callbacks/{token}
 - GET /health/live — Liveness
 - GET /health/ready — Readiness (depends on loaded specs and LLM client state)
 - GET /metrics — Prometheus metrics
-- GET /static/* — Static assets
+
+The server has no UI of its own: the console is in [`ui/`](ui/README.md).
 
 Note: Some routes may enforce auth if configured. APIAgent supports JWT/API-Key style authentication when enabled via environment/IAM settings.
 
@@ -255,7 +259,7 @@ The repository includes mock handlers under mocks/* (a dev harness, not part of 
 go run ./cmd/mocks
 ```
 
-- Use the UI at http://localhost:8080/ui
+- Use the console (`./run.sh all`, http://localhost:5173)
 - Or call the API directly. Examples:
 
 Asynchronous, natural-language-like (planner selects intent/pipeline):
