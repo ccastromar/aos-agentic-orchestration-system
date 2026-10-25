@@ -7,7 +7,7 @@ import ClarificationModal from './components/ClarificationModal';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import LoginModal from './components/LoginModal';
-import { getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
+import { apiFetch, getAuth, clearAuth, UNAUTHORIZED_EVENT, NO_ROLES_EVENT } from './utils/api';
 import { ssoEnabled, devLoginEnabled, ssoLogin, completeSso, markSignedOut, watchAosSession, trySilentSso } from './utils/oidc';
 import { Bot, Settings as SettingsIcon, MessageSquare, Clock, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Button, Card, Identity, Tabs, ThemeToggle, Topbar, chestertownApps } from '@chestertown/design';
@@ -42,6 +42,13 @@ function App() {
     window.addEventListener(NO_ROLES_EVENT, onNoRoles);
     return () => window.removeEventListener(NO_ROLES_EVENT, onNoRoles);
   }, []);
+
+  // A signed-in person whose token grants no function in AOS is told so at once, not at their
+  // first request: any API call answers 403 and apiFetch raises NO_ROLES_EVENT.
+  useEffect(() => {
+    if (!ssoEnabled || !auth?.token) return;
+    apiFetch('/api/v1/tasks').catch(() => {});
+  }, [auth]);
 
   const handleLoggedIn = (newAuth) => {
     setNoRoles(false);
