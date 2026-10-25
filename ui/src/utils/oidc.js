@@ -105,6 +105,8 @@ export async function completeSso() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
+  // The IdP session this sign-in belongs to (OIDC `session_state`; Keycloak and Entra send it).
+  const session = url.searchParams.get('session_state');
   if (!code) {
     // prompt=none came back without an IdP session: just show the sign-in card.
     if (url.searchParams.has('error')) {
@@ -134,7 +136,7 @@ export async function completeSso() {
   const bearer = tok.id_token || tok.access_token;
   if (!bearer) return null;
   const c = decodeJwt(bearer);
-  const auth = { token: bearer, userId: c.preferred_username || c.email || c.sub, roles: c.roles || [] };
+  const auth = { token: bearer, userId: c.preferred_username || c.email || c.sub, roles: c.roles || [], session };
   saveStoredAuth(auth);
   return auth;
 }
@@ -159,7 +161,13 @@ export function reportIdpSessionIfFramed() {
   const state = params.get('state') ?? '';
   if (!state.startsWith(CHECK_PREFIX)) return false;
   window.parent.postMessage(
-    { type: 'idp-check', state, active: !params.has('error'), code: params.get('code') },
+    {
+      type: 'idp-check',
+      state,
+      active: !params.has('error'),
+      code: params.get('code'),
+      session: params.get('session_state'),
+    },
     window.location.origin,
   );
   return true;
@@ -186,7 +194,7 @@ function idpCheck(
     };
     const onMessage = (event) => {
       if (event.origin !== window.location.origin || event.data?.type !== 'idp-check' || event.data.state !== state) return;
-      finish({ active: Boolean(event.data.active), code: event.data.code ?? null });
+      finish({ active: Boolean(event.data.active), code: event.data.code ?? null, session: event.data.session ?? null });
     };
     const timer = setTimeout(() => finish(null), 8000);
     window.addEventListener('message', onMessage);
@@ -221,8 +229,11 @@ export function watchIdpSession(w) {
       const { verifier, challenge } = await w.pkce();
       const result = await idpCheck(await w.authorizationEndpoint(), w.clientId, w.redirectUri, challenge);
       if (!result || !w.hasSession()) return;
-      if (!result.active) w.onEnded();
-      else if (result.code && w.expiresAt() - Date.now() < RENEW_WINDOW_MS) await w.exchange(result.code, verifier);
+      // No IdP session, or another one (someone else signed in after a sign-out elsewhere).
+      const known = w.session();
+      const switched = Boolean(known && result.session && result.session !== known);
+      if (!result.active || switched) w.onEnded();
+      else if (result.code && w.expiresAt() - Date.now() < RENEW_WINDOW_MS) await w.exchange(result.code, verifier, result.session);
     } catch {
       /* transient: try again later */
     } finally {
@@ -239,7 +250,7 @@ export function watchIdpSession(w) {
   };
 }
 
-async function renewWithCode(code, verifier) {
+async function renewWithCode(code, verifier, session) {
   const res = await fetch((await endpoints()).token_endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -253,7 +264,12 @@ async function renewWithCode(code, verifier) {
   const bearer = tok.id_token || tok.access_token;
   if (!bearer) return;
   const c = decodeJwt(bearer);
-  saveStoredAuth({ token: bearer, userId: c.preferred_username || c.email || c.sub, roles: c.roles || [] });
+  saveStoredAuth({
+    token: bearer,
+    userId: c.preferred_username || c.email || c.sub,
+    roles: c.roles || [],
+    session: session || getStoredAuth()?.session || null,
+  });
 }
 
 export const watchAosSession = (hasSession, onEnded) =>
@@ -262,6 +278,7 @@ export const watchAosSession = (hasSession, onEnded) =>
     clientId: CLIENT_ID,
     redirectUri: redirectUri(),
     hasSession,
+    session: () => getStoredAuth()?.session || null,
     expiresAt: () => jwtExpiryMs(getStoredAuth()?.token || ''),
     pkce: async () => {
       const verifier = rand(48);
