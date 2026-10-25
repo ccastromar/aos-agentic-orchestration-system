@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/governance"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -20,6 +21,8 @@ type JWTConfig struct {
 	RoleMap   map[string]string
 	// AllowDevFallback enables the mock identity and signing key for local tests.
 	AllowDevFallback bool
+	// Governance resolves the token's governance functions in AOS; nil resolves none.
+	Governance *governance.Model
 }
 
 // IsDevelopmentEnvironment reports whether mock authentication is acceptable.
@@ -83,11 +86,17 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 		return nil, &AuthError{Code: http.StatusForbidden, Message: "no roles assigned"}
 	}
 
+	var functions []string
+	if a.cfg.Governance != nil {
+		functions = a.cfg.Governance.Resolve(claims, "aos")
+	}
+
 	return &Identity{
-		UserID: sub,
-		Email:  email,
-		Roles:  roles,
-		Source: "jwt",
+		UserID:    sub,
+		Email:     email,
+		Roles:     roles,
+		Source:    "jwt",
+		Functions: functions,
 	}, nil
 }
 

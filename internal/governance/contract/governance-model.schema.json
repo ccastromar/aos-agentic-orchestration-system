@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ccastromar/prudence-governance/contract/governance/governance-model.schema.json",
+  "title": "Chestertown governance model v1",
+  "description": "Syntax of a governance model. README.md adds the semantic rules (known functions, apps, floors) and their error codes.",
+  "type": "object",
+  "required": [
+    "version",
+    "rules",
+    "identity",
+    "map"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "chestertown.governance/v1"
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approvals": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "HIGH",
+              "LIMITED",
+              "MINIMAL"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "count"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "distinct": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "incompatible": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "accountable": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "HIGH",
+              "LIMITED",
+              "MINIMAL"
+            ]
+          },
+          "additionalProperties": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "OWNER",
+                "SUPERVISOR",
+                "COMPLIANCE",
+                "DPO",
+                "SECURITY"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": [
+        "people",
+        "machines"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "people": {
+          "$ref": "#/$defs/claim"
+        },
+        "machines": {
+          "$ref": "#/$defs/claim"
+        }
+      }
+    },
+    "map": {
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "#/$defs/grant"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "required": [
+        "claim"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "grant": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-z]+)?(:([a-z0-9][a-z0-9_-]*|\\*))?(@[a-z]+)?$"
+    }
+  }
+}

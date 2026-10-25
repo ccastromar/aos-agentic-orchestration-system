@@ -125,6 +125,8 @@ AOS_SQLITE_PATH=./data/aos-state.db
 Optional auth/identity (if you enable it in your environment):
 - AOS_JWT_ISSUER, AOS_JWT_AUDIENCE, AOS_JWK_URL: JWT validation
 - AOS_IAM_URL: external IAM integration (set to "disabled" to turn off)
+- AOS_ROLE_CLAIM, AOS_ROLE_MAP: the claim with the roles and how the IdP's names translate to AOS roles
+- AOS_GOVERNANCE_MODEL: the organization's governance model (Chestertown governance functions, contract v1 in `internal/governance/contract/`); empty loads the contract's default model, which reproduces the roles above. An invalid model stops AOS at start
 
 You can place these in a .env file at the repo root; the binary loads .env automatically if present.
 

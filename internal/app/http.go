@@ -14,6 +14,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/agent"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/governance"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/health"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
@@ -62,6 +63,15 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 		}
 		jwtCfg.RoleMap = roleMap
 	}
+	modelPath := ""
+	if a.env != nil {
+		modelPath = a.env.GovernanceModel
+	}
+	model, err := governance.LoadModel(modelPath)
+	if err != nil {
+		panic("invalid AOS_GOVERNANCE_MODEL: " + err.Error())
+	}
+	jwtCfg.Governance = model
 	authenticator := auth.NewJWTAuthenticator(jwtCfg)
 	authenticated := authMiddleware(mux, authenticator)
 	hardened := secureMiddleware(observabilityMiddleware(authenticated))

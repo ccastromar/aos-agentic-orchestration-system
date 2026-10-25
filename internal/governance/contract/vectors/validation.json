@@ -1,0 +1,41 @@
+{
+  "version": "chestertown.governance/v1",
+  "description": "Models an app must accept, or refuse with this error code (README.md, section 4). Each invalid model breaks exactly one rule; `base` is the valid model it starts from and `patch` what changes.",
+  "base": {
+    "version": "chestertown.governance/v1",
+    "rules": {
+      "approvals": {"HIGH": {"count": 2, "distinct": true}, "LIMITED": {"count": 1}},
+      "incompatible": [["system.declare", "system.approve"]],
+      "accountable": {"HIGH": ["OWNER", "SUPERVISOR"]}
+    },
+    "identity": {"people": {"claim": "groups"}, "machines": {"claim": "scope"}},
+    "map": {"ai-audit": ["audit"], "pdp.decide": ["runtime.decide@prudence"]}
+  },
+  "cases": [
+    {"name": "the default model is valid", "model": {"file": "../default-model.yaml"}, "valid": true},
+    {"name": "the base model is valid", "patch": {}, "valid": true},
+    {"name": "stricter than the floor is valid", "patch": {"rules": {"approvals": {"HIGH": {"count": 3, "distinct": true}, "LIMITED": {"count": 2, "distinct": true}, "MINIMAL": {"count": 1}}}}, "valid": true},
+    {"name": "no incompatible pairs is valid", "patch": {"rules": {"incompatible": null}}, "valid": true},
+    {"name": "wrong version", "patch": {"version": "chestertown.governance/v2"}, "error": "model.version"},
+    {"name": "missing people claim", "patch": {"identity": {"people": null}}, "error": "model.identity"},
+    {"name": "empty machines claim", "patch": {"identity": {"machines": {"claim": ""}}}, "error": "model.identity"},
+    {"name": "empty grant list", "patch": {"map": {"ai-empty": []}}, "error": "model.map"},
+    {"name": "grant that does not parse", "patch": {"map": {"ai-bad": ["Audit!"]}}, "error": "grant.syntax"},
+    {"name": "unknown function", "patch": {"map": {"ai-bad": ["system.delete"]}}, "error": "grant.unknown_function"},
+    {"name": "domain on a function that has none", "patch": {"map": {"ai-bad": ["audit:finance"]}}, "error": "grant.domain_not_allowed"},
+    {"name": "ai.use without a domain", "patch": {"map": {"ai-bad": ["ai.use"]}}, "error": "grant.domain_required"},
+    {"name": "unknown app", "patch": {"map": {"ai-bad": ["audit@crm"]}}, "error": "grant.unknown_app"},
+    {"name": "function scoped to an app where it does not exist", "patch": {"map": {"ai-bad": ["evidence.write@aos"]}}, "error": "grant.app_not_applicable"},
+    {"name": "one key grants person and machine functions", "patch": {"map": {"ai-bad": ["audit", "runtime.decide"]}}, "error": "grant.mixed_kinds"},
+    {"name": "PROHIBITED is not an approvals tier", "patch": {"rules": {"approvals": {"PROHIBITED": {"count": 1}}}}, "error": "rules.approvals"},
+    {"name": "a tier needs at least one approval", "patch": {"rules": {"approvals": {"LIMITED": {"count": 0}}}}, "error": "rules.approvals"},
+    {"name": "floor: one approval for HIGH", "patch": {"rules": {"approvals": {"HIGH": {"count": 1, "distinct": true}}}}, "error": "floor.approvals.HIGH"},
+    {"name": "floor: HIGH approvers need not be distinct", "patch": {"rules": {"approvals": {"HIGH": {"count": 2, "distinct": false}}}}, "error": "floor.approvals.HIGH"},
+    {"name": "floor: no HIGH approvals rule", "patch": {"rules": {"approvals": {"HIGH": null}}}, "error": "floor.approvals.HIGH"},
+    {"name": "incompatible pair with an unknown function", "patch": {"rules": {"incompatible": [["system.declare", "system.delete"]]}}, "error": "rules.incompatible"},
+    {"name": "incompatible pair with the same function twice", "patch": {"rules": {"incompatible": [["audit", "audit"]]}}, "error": "rules.incompatible"},
+    {"name": "incompatible pair with a machine function", "patch": {"rules": {"incompatible": [["system.approve", "runtime.decide"]]}}, "error": "rules.incompatible"},
+    {"name": "unknown accountability", "patch": {"rules": {"accountable": {"HIGH": ["SUPERVISOR", "CEO"]}}}, "error": "rules.accountable"},
+    {"name": "floor: HIGH without a SUPERVISOR", "patch": {"rules": {"accountable": {"HIGH": ["OWNER", "COMPLIANCE"]}}}, "error": "floor.accountable.HIGH"}
+  ]
+}

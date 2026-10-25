@@ -1,0 +1,136 @@
+{
+  "version": "chestertown.governance/v1",
+  "description": "Token claims + model + app -> the functions that app grants (README.md, section 5). Each app must resolve every case to exactly `expect`.",
+  "models": {
+    "default": {"file": "../default-model.yaml"},
+    "dex": {
+      "inline": {
+        "version": "chestertown.governance/v1",
+        "rules": {
+          "approvals": {"HIGH": {"count": 2, "distinct": true}, "LIMITED": {"count": 1}},
+          "incompatible": [["system.declare", "system.approve"]],
+          "accountable": {"HIGH": ["OWNER", "SUPERVISOR", "COMPLIANCE"]}
+        },
+        "identity": {"people": {"claim": "groups"}, "machines": {"claim": "groups"}},
+        "map": {
+          "prudence-author": ["system.declare@prudence", "policy.author@prudence"],
+          "ernest-editor": ["evidence.write"],
+          "pdp-decide": ["runtime.decide"]
+        }
+      }
+    },
+    "entra": {
+      "inline": {
+        "version": "chestertown.governance/v1",
+        "rules": {
+          "approvals": {"HIGH": {"count": 2, "distinct": true}},
+          "accountable": {"HIGH": ["SUPERVISOR"]}
+        },
+        "identity": {"people": {"claim": "roles"}, "machines": {"claim": "roles"}},
+        "map": {
+          "Governance.Author": ["system.declare", "policy.author", "incident.handle"],
+          "Governance.Approver": ["system.approve"],
+          "Workload.Decide": ["runtime.decide", "runtime.report"]
+        }
+      }
+    },
+    "suite": {
+      "inline": {
+        "version": "chestertown.governance/v1",
+        "rules": {
+          "approvals": {"HIGH": {"count": 3, "distinct": true}, "LIMITED": {"count": 1}, "MINIMAL": {"count": 1}},
+          "incompatible": [["system.declare", "system.approve"], ["ai.use", "oversight"]],
+          "accountable": {"HIGH": ["OWNER", "SUPERVISOR", "COMPLIANCE", "DPO"], "LIMITED": ["OWNER"]}
+        },
+        "identity": {"people": {"claim": "realm_access.roles"}, "machines": {"claim": "scp"}},
+        "map": {
+          "ai-audit": ["audit"],
+          "ai-platform": ["platform.admin"],
+          "ai-human-oversight": ["oversight", "incident.handle"],
+          "ai-power-users": ["ai.use:*"],
+          "ai-users-finance": ["ai.use:finance"],
+          "ai-users-support": ["ai.use:support", "ai.use:finance@aos"],
+          "runtime": ["runtime.decide@prudence"]
+        }
+      }
+    }
+  },
+  "cases": [
+    {"name": "keycloak person with several suite roles, in Prudence", "model": "default", "app": "prudence",
+     "claims": {"roles": ["prudence-author", "prudence-system-approver", "ernest-editor", "aos-operator"]},
+     "expect": ["incident.handle", "oversight", "policy.author", "system.approve", "system.declare"]},
+    {"name": "the same person, in AOS", "model": "default", "app": "aos",
+     "claims": {"roles": ["prudence-author", "prudence-system-approver", "ernest-editor", "aos-operator"]},
+     "expect": ["ai.use:operator"]},
+    {"name": "the same person, in Ernest", "model": "default", "app": "ernest",
+     "claims": {"roles": ["prudence-author", "prudence-system-approver", "ernest-editor", "aos-operator"]},
+     "expect": ["evidence.write", "platform.admin"]},
+    {"name": "auditor in Prudence", "model": "default", "app": "prudence",
+     "claims": {"roles": ["prudence-reader", "ernest-reader", "aos-auditor"]}, "expect": ["audit"]},
+    {"name": "auditor in AOS", "model": "default", "app": "aos",
+     "claims": {"roles": ["prudence-reader", "ernest-reader", "aos-auditor"]}, "expect": ["ai.use:guest"]},
+    {"name": "auditor in Ernest", "model": "default", "app": "ernest",
+     "claims": {"roles": ["prudence-reader", "ernest-reader", "aos-auditor"]}, "expect": ["audit"]},
+    {"name": "admin in Prudence publishes but neither approves systems nor reviews policies", "model": "default", "app": "prudence",
+     "claims": {"roles": ["prudence-admin"]},
+     "expect": ["incident.handle", "oversight", "platform.admin", "policy.author", "system.declare"]},
+    {"name": "admin in AOS", "model": "default", "app": "aos",
+     "claims": {"roles": ["aos-admin"]}, "expect": ["ai.use:admin", "platform.admin"]},
+    {"name": "no roles claim at all", "model": "default", "app": "prudence",
+     "claims": {"sub": "u1"}, "expect": []},
+    {"name": "a role the model does not know is ignored", "model": "default", "app": "prudence",
+     "claims": {"roles": ["finance-team", "prudence-reader"]}, "expect": ["audit"]},
+    {"name": "a claim given as a string is split on whitespace", "model": "default", "app": "prudence",
+     "claims": {"roles": "prudence-reader  prudence-system-approver"}, "expect": ["audit", "system.approve"]},
+    {"name": "non-string elements in the claim are skipped", "model": "default", "app": "prudence",
+     "claims": {"roles": [1, null, {"name": "prudence-admin"}, "prudence-reader"]}, "expect": ["audit"]},
+    {"name": "a claim that is an object grants nothing", "model": "default", "app": "prudence",
+     "claims": {"roles": {"prudence-reader": true}}, "expect": []},
+    {"name": "matching is case-sensitive", "model": "default", "app": "prudence",
+     "claims": {"roles": ["Prudence-Reader"]}, "expect": []},
+    {"name": "keycloak workload: scope string", "model": "default", "app": "prudence",
+     "claims": {"scope": "openid profile pdp.decide execution.report"}, "expect": ["runtime.decide", "runtime.report"]},
+    {"name": "a workload's scope grants nothing in AOS", "model": "default", "app": "aos",
+     "claims": {"scope": "pdp.decide"}, "expect": []},
+    {"name": "a person never gets a machine function through the people claim", "model": "default", "app": "prudence",
+     "claims": {"roles": ["pdp.decide"]}, "expect": []},
+    {"name": "a workload never gets a person function through the machine claim", "model": "default", "app": "prudence",
+     "claims": {"scope": "prudence-admin"}, "expect": []},
+    {"name": "a token with both claims gets both kinds", "model": "default", "app": "prudence",
+     "claims": {"roles": ["prudence-reader"], "scope": "pdp.decide"}, "expect": ["audit", "runtime.decide"]},
+    {"name": "dex person: groups, grant scoped to Prudence", "model": "dex", "app": "prudence",
+     "claims": {"groups": ["prudence-author", "ernest-editor"]}, "expect": ["policy.author", "system.declare"]},
+    {"name": "dex person: unscoped grant lands only where the function exists", "model": "dex", "app": "ernest",
+     "claims": {"groups": ["prudence-author", "ernest-editor"]}, "expect": ["evidence.write"]},
+    {"name": "dex workload: client_credentials groups, no scope claim needed", "model": "dex", "app": "prudence",
+     "claims": {"groups": ["pdp-decide"]}, "expect": ["runtime.decide"]},
+    {"name": "entra person: app roles", "model": "entra", "app": "prudence",
+     "claims": {"roles": ["Governance.Author"]}, "expect": ["incident.handle", "policy.author", "system.declare"]},
+    {"name": "entra workload: app roles in the same claim", "model": "entra", "app": "prudence",
+     "claims": {"roles": ["Workload.Decide"]}, "expect": ["runtime.decide", "runtime.report"]},
+    {"name": "entra delegated scopes (scp) are not read when the model names roles", "model": "entra", "app": "prudence",
+     "claims": {"scp": "Workload.Decide", "roles": ["Governance.Approver"]}, "expect": ["system.approve"]},
+    {"name": "nested claim name", "model": "suite", "app": "prudence",
+     "claims": {"realm_access": {"roles": ["ai-human-oversight"]}}, "expect": ["incident.handle", "oversight"]},
+    {"name": "nested claim missing on the way", "model": "suite", "app": "prudence",
+     "claims": {"realm_access": "ai-audit"}, "expect": []},
+    {"name": "suite-wide audit lands in Prudence", "model": "suite", "app": "prudence",
+     "claims": {"realm_access": {"roles": ["ai-audit"]}}, "expect": ["audit"]},
+    {"name": "suite-wide audit lands in AOS", "model": "suite", "app": "aos",
+     "claims": {"realm_access": {"roles": ["ai-audit"]}}, "expect": ["audit"]},
+    {"name": "suite-wide audit lands in Ernest", "model": "suite", "app": "ernest",
+     "claims": {"realm_access": {"roles": ["ai-audit"]}}, "expect": ["audit"]},
+    {"name": "oversight exists in AOS and Prudence, incident.handle only in Prudence", "model": "suite", "app": "aos",
+     "claims": {"realm_access": {"roles": ["ai-human-oversight"]}}, "expect": ["oversight"]},
+    {"name": "ai.use with every domain", "model": "suite", "app": "aos",
+     "claims": {"realm_access": {"roles": ["ai-power-users"]}}, "expect": ["ai.use:*"]},
+    {"name": "domains from several groups are united and deduplicated", "model": "suite", "app": "aos",
+     "claims": {"realm_access": {"roles": ["ai-users-finance", "ai-users-support"]}}, "expect": ["ai.use:finance", "ai.use:support"]},
+    {"name": "ai.use grants nothing in Prudence", "model": "suite", "app": "prudence",
+     "claims": {"realm_access": {"roles": ["ai-users-finance"]}}, "expect": []},
+    {"name": "machine claim scp, string", "model": "suite", "app": "prudence",
+     "claims": {"scp": "runtime other"}, "expect": ["runtime.decide"]},
+    {"name": "platform admin is suite-wide too", "model": "suite", "app": "ernest",
+     "claims": {"realm_access": {"roles": ["ai-platform"]}}, "expect": ["platform.admin"]}
+  ]
+}

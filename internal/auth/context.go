@@ -7,6 +7,10 @@ type Identity struct {
 	Roles  []string
 	Email  string
 	Source string // "jwt" | "apikey"
+	// Functions are the governance functions (contract v1) the token grants in AOS. Nothing
+	// authorizes by them yet: they ride along with the roles until each check moves to its
+	// function.
+	Functions []string
 }
 
 type contextKey string

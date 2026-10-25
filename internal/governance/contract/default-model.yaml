@@ -1,0 +1,29 @@
+# The suite as deployed before governance functions: the dev realm's roles (Keycloak `roles`
+# claim) and Keycloak's `scope` claim for workloads. Loading it changes no behaviour; see
+# README.md, section 6.
+version: chestertown.governance/v1
+rules:
+  approvals:
+    HIGH: {count: 2, distinct: true}
+    LIMITED: {count: 1}
+    MINIMAL: {count: 1}
+  incompatible:
+    - [policy.author, policy.approve]
+  accountable:
+    HIGH: [SUPERVISOR]
+identity:
+  people: {claim: roles}
+  machines: {claim: scope}
+map:
+  prudence-reader: [audit@prudence]
+  prudence-author: [system.declare@prudence, policy.author@prudence, incident.handle@prudence, oversight@prudence]
+  prudence-system-approver: [system.approve@prudence]
+  prudence-policy-reviewer: [policy.approve@prudence]
+  prudence-admin: [system.declare@prudence, policy.author@prudence, incident.handle@prudence, oversight@prudence, platform.admin@prudence]
+  ernest-editor: [evidence.write@ernest, platform.admin@ernest]
+  ernest-reader: [audit@ernest]
+  aos-admin: ["ai.use:admin@aos", platform.admin@aos]
+  aos-operator: ["ai.use:operator@aos"]
+  aos-auditor: ["ai.use:guest@aos"]
+  pdp.decide: [runtime.decide@prudence]
+  execution.report: [runtime.report@prudence]

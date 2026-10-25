@@ -65,6 +65,9 @@ type EnvVars struct {
 	// "idp-role=aos-role,..." and, when set, ignores any role it does not list.
 	RoleClaim string `envconfig:"AOS_ROLE_CLAIM" default:"roles"`
 	RoleMap   string `envconfig:"AOS_ROLE_MAP" default:""`
+	// AOS_GOVERNANCE_MODEL is the organization's governance model (contract v1); empty loads
+	// the contract's default model, which reproduces the roles above.
+	GovernanceModel string `envconfig:"AOS_GOVERNANCE_MODEL" default:""`
 	IAMURL      string `envconfig:"AOS_IAM_URL" default:"disabled"`
 }
 
