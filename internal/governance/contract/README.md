@@ -227,11 +227,13 @@ ct_model.py check MODEL [--strict]        # valid? which function has no holder 
 ct_model.py keycloak MODEL -o realm.json  # dev realm: roles, one persona per role, workload clients
 ct_model.py entra MODEL -o roles.json     # appRoles for an Entra ID app registration
 ct_model.py env MODEL                     # where each app reads the model from
+ct_model.py explain MODEL TOKEN           # the functions each app grants to a token (no signature check)
 ```
 
 `check` warns about a function no role grants in an app, a role holding both sides of an
 incompatible pair, and a pair no app enforces; `--strict` fails on warnings, and CI runs it on
-every template. The Keycloak realm is for local testing only: personas sign in with their
+every template. `explain` decodes a token from any provider and shows what the model gives it;
+`docs/design/idp-interoperability.md` uses it to validate Dex and Entra ID. The Keycloak realm is for local testing only: personas sign in with their
 username as password, and workload clients have development secrets. In Entra, person roles are
 for users and groups and machine roles for applications, so a person cannot hold `runtime.decide`.
 
