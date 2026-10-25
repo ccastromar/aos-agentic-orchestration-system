@@ -111,9 +111,19 @@ func verifyAndParseJWT(tokenString string, cfg JWTConfig) (map[string]interface{
 	// OIDC path (shared Chestertown IdP): when a JWKS URL is configured, validate RS256 against the
 	// realm's published keys and the expected issuer. Keycloak tokens carry sub/email/roles.
 	if cfg.JWKURL != "" {
-		opts := []jwt.ParserOption{jwt.WithValidMethods([]string{"RS256"})}
+		// A token must carry an expiry (30 s leeway for clock skew) and, when an audience is
+		// configured (AOS_JWT_AUDIENCE), be issued for it: a token for another app of the suite is
+		// not a token for AOS.
+		opts := []jwt.ParserOption{
+			jwt.WithValidMethods([]string{"RS256"}),
+			jwt.WithExpirationRequired(),
+			jwt.WithLeeway(30 * time.Second),
+		}
 		if cfg.Issuer != "" {
 			opts = append(opts, jwt.WithIssuer(cfg.Issuer))
+		}
+		if cfg.Audience != "" {
+			opts = append(opts, jwt.WithAudience(cfg.Audience))
 		}
 		oidcToken, err := jwt.Parse(tokenString, rsaKeyfunc(cfg.JWKURL), opts...)
 		if err != nil {
