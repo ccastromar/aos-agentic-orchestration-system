@@ -15,10 +15,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Copy the rest of the source
 COPY . .
 
-# Build a static binary
+# Build a static binary; the release workflow passes the tag and commit (aos -version).
+ARG VERSION=dev
+ARG COMMIT=none
 RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags "-s -w" -o /out/aos ./cmd/aos
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/aos ./cmd/aos
 RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -trimpath -ldflags "-s -w" -o /out/aos-mocks ./cmd/mocks
