@@ -83,6 +83,7 @@ type grant struct {
 type Model struct {
 	peopleClaim, machinesClaim string
 	grants                     map[string][]grant
+	incompatible               [][2]string
 }
 
 // LoadModel reads the model at path, or the contract's default model when path is empty.
@@ -151,7 +152,26 @@ func NewModel(raw any) (*Model, error) {
 	if err := validateAccountable(rules["accountable"]); err != nil {
 		return nil, err
 	}
+	pairs, _ := rules["incompatible"].([]any)
+	for _, p := range pairs {
+		pair := p.([]any)
+		m.incompatible = append(m.incompatible, [2]string{pair[0].(string), pair[1].(string)})
+	}
 	return m, nil
+}
+
+// Incompatible reports whether one identity may not exercise both functions on the same
+// system, draft or task (rules.incompatible). A nil model sets no rules.
+func (m *Model) Incompatible(a, b string) bool {
+	if m == nil {
+		return false
+	}
+	for _, pair := range m.incompatible {
+		if (pair[0] == a && pair[1] == b) || (pair[0] == b && pair[1] == a) {
+			return true
+		}
+	}
+	return false
 }
 
 // Resolve returns the functions app grants to a token with these claims, sorted

@@ -15,6 +15,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/governance"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
@@ -26,6 +27,8 @@ type APIAgent struct {
 	state    *state.StateManager
 	inbox    chan bus.Message
 	eventBus *bus.Bus // <-- nuevo
+	// governance holds the organization's rules (rules.incompatible); nil sets none.
+	governance *governance.Model
 	// minimal auth and rate limiting
 	apiKey        string
 	authChain     *auth.Chain
@@ -42,6 +45,11 @@ type APIAgent struct {
 // NewAPIAgent creates the API agent. Backward-compatible signature:
 // - NewAPIAgent(b, env, uiStore, cfg, stateManager)
 // - NewAPIAgent(b, uiStore)
+// SetGovernance gives the agent the organization's governance model, whose rules it applies.
+func (a *APIAgent) SetGovernance(m *governance.Model) {
+	a.governance = m
+}
+
 func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 	var (
 		env *config.EnvVars
@@ -894,6 +902,11 @@ func (a *APIAgent) handleHumanDecision(w http.ResponseWriter, r *http.Request, d
 	}
 	st, ok := a.requireTaskAccess(w, r, id, "oversight")
 	if !ok {
+		return
+	}
+	if identity, _ := auth.IdentityFromContext(r.Context()); identity != nil &&
+		identity.UserID == st.UserID && a.governance.Incompatible("ai.use", "oversight") {
+		http.Error(w, "whoever started a task cannot decide its human step (ai.use and oversight are incompatible in the governance model)", http.StatusForbidden)
 		return
 	}
 	if st.Gate != gate {

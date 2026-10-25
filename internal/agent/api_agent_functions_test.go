@@ -10,6 +10,7 @@ import (
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/governance"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 )
 
@@ -88,5 +89,49 @@ func TestOversightAndAuditListEveryonesTasks(t *testing.T) {
 	}
 	if n := count("oversight"); n != 2 {
 		t.Fatalf("oversight sees %d tasks, want 2", n)
+	}
+}
+
+func TestIncompatibleAiUseAndOversightStopsTheRequesterDecidingTheirOwnStep(t *testing.T) {
+	api, manager, _, _ := securityTestAgent()
+	model, err := governance.NewModel(strictModel())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Save(context.Background(), &state.ExecutionState{ID: "task-s", UserID: "alice", Gate: "manager_review"}); err != nil {
+		t.Fatal(err)
+	}
+	approve := func(userID string, functions ...string) int {
+		rec := httptest.NewRecorder()
+		api.handleHumanApprove(rec, requestWithFunctions(http.MethodPost, "/task/approve?id=task-s&gate=manager_review", userID, functions...))
+		return rec.Code
+	}
+
+	// Without the rule the requester may decide their own step (today's behaviour).
+	api.SetGovernance(nil)
+	if code := approve("alice", "ai.use:operator", "oversight"); code != http.StatusOK {
+		t.Fatalf("without the rule: status = %d, want 200", code)
+	}
+
+	api.SetGovernance(model)
+	if code := approve("alice", "ai.use:operator", "oversight"); code != http.StatusForbidden {
+		t.Fatalf("requester with the rule: status = %d, want 403", code)
+	}
+	if code := approve("olga", "oversight"); code != http.StatusOK {
+		t.Fatalf("independent overseer: status = %d, want 200", code)
+	}
+}
+
+// strictModel is the default model plus [ai.use, oversight] as an incompatible pair.
+func strictModel() map[string]any {
+	return map[string]any{
+		"version": governance.ModelVersion,
+		"rules": map[string]any{
+			"approvals":    map[string]any{"HIGH": map[string]any{"count": 2, "distinct": true}},
+			"incompatible": []any{[]any{"ai.use", "oversight"}},
+			"accountable":  map[string]any{"HIGH": []any{"SUPERVISOR"}},
+		},
+		"identity": map[string]any{"people": map[string]any{"claim": "roles"}, "machines": map[string]any{"claim": "scope"}},
+		"map":      map[string]any{"aos-operator": []any{"ai.use:operator@aos"}},
 	}
 }

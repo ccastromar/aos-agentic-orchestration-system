@@ -72,6 +72,7 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 		panic("invalid AOS_GOVERNANCE_MODEL: " + err.Error())
 	}
 	jwtCfg.Governance = model
+	apiAgent.SetGovernance(model)
 	authenticator := auth.NewJWTAuthenticator(jwtCfg)
 	authenticated := authMiddleware(mux, authenticator)
 	hardened := secureMiddleware(observabilityMiddleware(authenticated))

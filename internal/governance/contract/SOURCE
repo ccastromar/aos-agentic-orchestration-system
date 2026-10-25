@@ -1,6 +1,6 @@
-# Copied from prudence-governance contract/governance at ad9c857a18ae by sync.sh. Do not edit:
+# Copied from prudence-governance contract/governance at bdba8497389d by sync.sh. Do not edit:
 # change the contract there and run sync.sh again. The app's tests check these sums.
-3584813cd5a5dd9155ba3797ef8c89aa2dec8c0f664eb5afa326a370e8706ce8  README.md
+76fa393c1dd7cfe9f12e2b03cc83a8937e30d3904fc99f070d138d4e8d02e576  README.md
 5302d8840829a0f8d02b5815ecf1a024b6ba2a324d96d705d3fe0c8d5c1f7cff  default-model.yaml
 c420cc2a2e4768bdd054307ac9726df59803314e733a6c293089d13c98798f61  governance-model.schema.json
 eaf2a228e4be3e5c4186025c9e792de5c778e8f55c0b2494cb674aa2e3ee1058  vectors/resolution.json

@@ -133,6 +133,20 @@ map:                         # claim value → grants
 A prohibited system can never be approved, so `PROHIBITED` is not a valid approvals tier.
 Missing `approvals.HIGH` or `accountable.HIGH` is a floor error, not a default.
 
+### Where each rule applies
+
+| Rule | App | What it does |
+| --- | --- | --- |
+| `approvals` | Prudence | Sign-offs before a system of that tier is approved or renewed. A tier left out needs one. Prudence records a first and a final sign-off, so it refuses to start with a `count` above 2. |
+| `accountable` | Prudence | Accountabilities assigned, with current training, before a system is submitted. A `SUPERVISOR` must also be able to override or stop the system. |
+| `incompatible: [system.declare, system.approve]` | Prudence | Whoever registered a system, or submitted its current review, cannot approve, reject or renew it. Systems registered before Prudence recorded declarers are not covered. |
+| `incompatible: [policy.author, policy.approve]` | Prudence | A policy draft's contributors never approve it. Prudence enforces this even when the model leaves the pair out. |
+| `incompatible: [ai.use, oversight]` | AOS | Whoever started a task cannot decide its human step; another person with `oversight` must. |
+
+Other pairs are valid but have no object in the suite where one identity exercises both, so no
+app enforces them yet. Rules only tighten the suite: Prudence keeps its own invariants (an owner
+never reviews their own system; a policy's contributors never approve it) whatever the model says.
+
 ## 5. Resolution
 
 Given a validated model, a token's claims and an app, the functions that app grants are:
