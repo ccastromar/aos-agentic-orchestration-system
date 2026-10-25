@@ -48,6 +48,21 @@ func (c *Config) IsAllowed(intent string, userRoles []string) (bool, []string) {
 	return len(match) > 0, match
 }
 
+// IsAllowedForFunctions authorizes an intent by the caller's ai.use domains (governance
+// functions, contract v1): a domain is one of the roles permissions.yaml lists for the intent,
+// and "*" stands for any of them.
+func (c *Config) IsAllowedForFunctions(intent string, domains []string) (bool, []string) {
+	for _, d := range domains {
+		if d == "*" {
+			if allowed, ok := c.Permissions[intent]; ok {
+				return true, allowed
+			}
+			return c.Defaults.UnknownIntent == "allow", nil
+		}
+	}
+	return c.IsAllowed(intent, domains)
+}
+
 func intersect(a, b []string) []string {
 	m := make(map[string]struct{}, len(a))
 	for _, x := range a {

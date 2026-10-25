@@ -156,11 +156,12 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// Identity travels with the task from the APIAgent; extract it up front so
 	// clarification saves and RBAC both see the same user.
 	var userID string
-	var userRoles []string
+	var userRoles, useDomains []string
 	if idVal, ok := msg.Payload["identity"]; ok && idVal != nil {
 		if identity, ok := idVal.(*auth.Identity); ok {
 			userID = identity.UserID
 			userRoles = identity.Roles
+			useDomains = identity.UseDomains()
 		}
 	}
 
@@ -352,10 +353,10 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// ---------------------------------------------------------
 	var rbacDenied bool
 	if p.cfg.RBAC != nil {
-		allowed, _ := p.cfg.RBAC.IsAllowed(detectedType, userRoles)
+		allowed, _ := p.cfg.RBAC.IsAllowedForFunctions(detectedType, useDomains)
 		if !allowed {
 			rbacDenied = true
-			logx.Warn("Planner", "[%s] RBAC denied intent '%s' for roles %v", id, detectedType, userRoles)
+			logx.Warn("Planner", "[%s] RBAC denied intent '%s' for ai.use domains %v", id, detectedType, useDomains)
 		}
 	}
 

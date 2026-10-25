@@ -50,7 +50,10 @@ export const apiFetch = async (endpoint, options = {}) => {
   if (res.status === 403 && auth?.token) {
     // Signed in but without a role AOS maps: App explains it instead of a raw API error.
     const text = await res.clone().text().catch(() => '');
-    if (text.includes('no roles assigned')) window.dispatchEvent(new CustomEvent(NO_ROLES_EVENT));
+    // The backend refuses a token that grants no governance function in AOS (older builds: no role).
+    if (text.includes('no governance functions assigned') || text.includes('no roles assigned')) {
+      window.dispatchEvent(new CustomEvent(NO_ROLES_EVENT));
+    }
   }
   return res;
 };

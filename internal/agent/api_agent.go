@@ -312,7 +312,7 @@ func (a *APIAgent) handleEventStream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "valid task_id query parameter required", http.StatusBadRequest)
 		return
 	}
-	if _, ok := a.requireOwnedTask(w, r, id); !ok {
+	if _, ok := a.requireTaskAccess(w, r, id, "oversight", "audit"); !ok {
 		return
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -346,7 +346,9 @@ func (a *APIAgent) handleEventStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *APIAgent) requireOwnedTask(w http.ResponseWriter, r *http.Request, id string) (*state.ExecutionState, bool) {
+// requireTaskAccess loads a task its owner may act on, or anyone holding one of the given
+// governance functions (oversight, audit) on any task. Anyone else gets 404, as if it did not exist.
+func (a *APIAgent) requireTaskAccess(w http.ResponseWriter, r *http.Request, id string, functions ...string) (*state.ExecutionState, bool) {
 	identity, ok := auth.IdentityFromContext(r.Context())
 	if !ok || identity == nil || identity.UserID == "" {
 		http.Error(w, "identity required", http.StatusUnauthorized)
@@ -361,11 +363,20 @@ func (a *APIAgent) requireOwnedTask(w http.ResponseWriter, r *http.Request, id s
 		http.Error(w, "state unavailable", http.StatusServiceUnavailable)
 		return nil, false
 	}
-	if st == nil || st.UserID == "" || st.UserID != identity.UserID {
+	if st == nil || st.UserID == "" || (st.UserID != identity.UserID && !holdsAny(identity, functions)) {
 		http.Error(w, "task not found", http.StatusNotFound)
 		return nil, false
 	}
 	return st, true
+}
+
+func holdsAny(identity *auth.Identity, functions []string) bool {
+	for _, f := range functions {
+		if identity.HasFunction(f) {
+			return true
+		}
+	}
+	return false
 }
 
 // handleCallback receives an asynchronous provider result and routes it to the
@@ -623,9 +634,11 @@ func (a *APIAgent) HandleListTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Oversight and audit see everyone's tasks; anyone else only their own.
+	everyone := holdsAny(identity, []string{"oversight", "audit"})
 	owned := []*state.ExecutionState{}
 	for _, st := range states {
-		if st.UserID == identity.UserID {
+		if everyone || st.UserID == identity.UserID {
 			owned = append(owned, st)
 		}
 	}
@@ -760,7 +773,8 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 		}
 		if st != nil {
 			identity, _ := auth.IdentityFromContext(r.Context())
-			if identity == nil || identity.UserID == "" || st.UserID != identity.UserID {
+			if identity == nil || identity.UserID == "" ||
+				(st.UserID != identity.UserID && !holdsAny(identity, []string{"oversight", "audit"})) {
 				http.Error(w, "task not found", http.StatusNotFound)
 				return
 			}
@@ -878,7 +892,7 @@ func (a *APIAgent) handleHumanDecision(w http.ResponseWriter, r *http.Request, d
 		http.Error(w, "valid task id and human gate required", http.StatusBadRequest)
 		return
 	}
-	st, ok := a.requireOwnedTask(w, r, id)
+	st, ok := a.requireTaskAccess(w, r, id, "oversight")
 	if !ok {
 		return
 	}
@@ -950,7 +964,7 @@ func (a *APIAgent) handleClarifyReply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "valid id query param required", http.StatusBadRequest)
 		return
 	}
-	st, ok := a.requireOwnedTask(w, r, id)
+	st, ok := a.requireTaskAccess(w, r, id) // only the requester answers a clarification
 	if !ok {
 		return
 	}

@@ -69,7 +69,9 @@ func (a *APIKeyAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	return &Identity{
 		UserID: body.UserID,
 		Roles:  body.Roles,
-		Email:  body.Email,
-		Source: "apikey",
+		// IAM keys are not IdP tokens: their AOS roles imply their functions.
+		Functions: LegacyFunctions(body.Roles),
+		Email:     body.Email,
+		Source:    "apikey",
 	}, nil
 }

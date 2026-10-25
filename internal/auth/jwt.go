@@ -56,7 +56,9 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 				UserID: "demo-user",
 				Email:  "demo@example.com",
 				Roles:  []string{mockRole},
-				Source: "mock",
+				// The development mock is not an IdP token: its role implies its functions.
+				Functions: LegacyFunctions([]string{mockRole}),
+				Source:    "mock",
 			}, nil
 		}
 		if os.Getenv("JWT_SECRET") == "" {
@@ -82,13 +84,16 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (*Identity, error) {
 	email, _ := claims["email"].(string)
 	roles := extractRoles(claims, a.cfg.RoleClaim, a.cfg.RoleMap)
 
-	if len(roles) == 0 {
-		return nil, &AuthError{Code: http.StatusForbidden, Message: "no roles assigned"}
-	}
-
+	// A token from the identity provider (JWKS configured) gets its governance functions from
+	// the model; a development token signed with JWT_SECRET from its AOS roles.
 	var functions []string
-	if a.cfg.Governance != nil {
+	if a.cfg.JWKURL != "" && a.cfg.Governance != nil {
 		functions = a.cfg.Governance.Resolve(claims, "aos")
+	} else {
+		functions = LegacyFunctions(roles)
+	}
+	if len(functions) == 0 {
+		return nil, &AuthError{Code: http.StatusForbidden, Message: "no governance functions assigned"}
 	}
 
 	return &Identity{
