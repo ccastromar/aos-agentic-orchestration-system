@@ -16,6 +16,8 @@ This directory is the contract the three apps implement:
 | `vectors/resolution.json` | Claims + model + app → the functions that app must grant |
 | `vectors/validation.json` | Models that must be accepted or refused, with the error code |
 | `reference/` | A small Python implementation that checks the vectors (`check_vectors.py`) |
+| `templates/` | Starting models for a small or medium organization, a bank and a public body (informative) |
+| `ct-model/` | `ct_model.py`: checks a model and generates a Keycloak realm, Entra app roles and app settings (informative) |
 
 An app conforms when it loads every model the vectors name, refuses exactly the invalid ones
 with the same error code, and resolves every case to exactly the expected functions.
@@ -206,3 +208,30 @@ Approved with the vectors on 2026-10-25; changing one is a change to this contra
 4. **`ai.use` domains are AOS's RBAC role names** (`finance`, `support`, `operator`…), so phase 2
    needs no change to `permissions.yaml`.
 5. **`audit` reads policies in Prudence** (section 6).
+
+## 9. Templates and ct-model
+
+The templates are starting points, not defaults: copy one, rename its roles to the ones your
+identity provider issues, and adjust the rules (never below the floor).
+
+| Template | For | Rules beyond the floor |
+| --- | --- | --- |
+| `templates/sme.yaml` | Few people with several hats each | Declarers and policy authors never approve their own work; a high-risk system needs an `OWNER` |
+| `templates/banking.yaml` | Three lines of defence | Two distinct approvals for limited risk too; no one approves what they declared or decides the human step of their own task; every accountability for high risk |
+| `templates/public-sector.yaml` | Decisions about citizens | No one approves what they declared or decides the human step of their own task; `DPO` and `COMPLIANCE` for high risk |
+
+`ct-model/ct_model.py` (Python 3.10+, `pip install pyyaml`):
+
+```bash
+ct_model.py check MODEL [--strict]        # valid? which function has no holder in which app?
+ct_model.py keycloak MODEL -o realm.json  # dev realm: roles, one persona per role, workload clients
+ct_model.py entra MODEL -o roles.json     # appRoles for an Entra ID app registration
+ct_model.py env MODEL                     # where each app reads the model from
+```
+
+`check` warns about a function no role grants in an app, a role holding both sides of an
+incompatible pair, and a pair no app enforces; `--strict` fails on warnings, and CI runs it on
+every template. The Keycloak realm is for local testing only: personas sign in with their
+username as password, and workload clients have development secrets. In Entra, person roles are
+for users and groups and machine roles for applications, so a person cannot hold `runtime.decide`.
+
