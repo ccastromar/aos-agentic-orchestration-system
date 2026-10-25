@@ -1,13 +1,38 @@
-// SSO for AOS — Authorization Code + PKCE against the shared Chestertown IdP (Keycloak, client
-// aos-spa). On return it stores the same `aosAuth` shape the rest of the app already uses
-// ({token, userId, roles}), so api.js sends the Keycloak access token as a bearer and the
-// AOS backend validates it via JWKS. Opt-in: enabled when VITE_OIDC_ISSUER is set.
+// SSO for AOS — Authorization Code + PKCE against the shared Chestertown IdP (any OIDC provider:
+// Keycloak, Entra, Dex…; client aos-spa). Endpoints come from the issuer's discovery document.
+// On return it stores the same `aosAuth` shape the rest of the app already uses
+// ({token, userId, roles}), so api.js sends the IdP's token as a bearer and the AOS backend
+// validates it via JWKS. Opt-in: enabled when VITE_OIDC_ISSUER is set.
 import { getStoredAuth, saveStoredAuth } from './authStorage';
 
 const ISSUER = (import.meta.env.VITE_OIDC_ISSUER || '').replace(/\/$/, '');
 const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'aos-spa';
+// Some IdPs only put roles or groups in the token when asked (Dex: `groups`).
+const SCOPE = (import.meta.env.VITE_OIDC_SCOPE || '').trim() || 'openid profile email';
 
 export const ssoEnabled = Boolean(ISSUER && CLIENT_ID);
+
+// The issuer's endpoints, read once from its discovery document. A failed read is not cached,
+// so the next attempt tries again.
+let discovery = null;
+function endpoints() {
+  if (!discovery) {
+    discovery = fetch(`${ISSUER}/.well-known/openid-configuration`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`OIDC discovery failed (${res.status})`);
+        return res.json();
+      })
+      .then((d) => {
+        if (!d.authorization_endpoint || !d.token_endpoint) throw new Error('OIDC discovery is missing endpoints');
+        return d;
+      })
+      .catch((err) => {
+        discovery = null;
+        throw err;
+      });
+  }
+  return discovery;
+}
 
 // The username/role modal exists only to exercise the backend's deliberately insecure
 // development authenticator. Do not expose it merely because OIDC is absent: it must be
@@ -32,31 +57,36 @@ const FORCE_LOGIN_KEY = 'aos_force_login';
 const ID_TOKEN_KEY = 'aos_id_token';
 // Explicit sign-out: the next sign-in must ask for credentials instead of reusing the IdP session.
 // It also ends the IdP session (RP-initiated logout) so the whole suite signs out.
-export function markSignedOut() {
+// An IdP without end_session_endpoint (Dex) only gets the local sign-out.
+export async function markSignedOut() {
   const idToken = sessionStorage.getItem(ID_TOKEN_KEY) || '';
   sessionStorage.removeItem(ID_TOKEN_KEY);
   sessionStorage.setItem(FORCE_LOGIN_KEY, 'true');
   if (!ssoEnabled) return;
+  let endSession;
+  try { endSession = (await endpoints()).end_session_endpoint; } catch { return; }
+  if (!endSession) return;
   const p = new URLSearchParams({ client_id: CLIENT_ID, post_logout_redirect_uri: redirectUri() });
   if (idToken) p.set('id_token_hint', idToken);
-  window.location.assign(`${ISSUER}/protocol/openid-connect/logout?${p}`);
+  window.location.assign(`${endSession}?${p}`);
 }
 
 export async function ssoLogin(silent = false) {
   if (!ssoEnabled) return;
+  const { authorization_endpoint: authorize } = await endpoints();
   const verifier = rand(48), state = rand();
   sessionStorage.setItem(VERIFIER_KEY, verifier);
   sessionStorage.setItem(STATE_KEY, state);
   const p = new URLSearchParams({
     response_type: 'code', client_id: CLIENT_ID, redirect_uri: redirectUri(),
-    scope: 'openid profile email', state, code_challenge: await challenge(verifier), code_challenge_method: 'S256',
+    scope: SCOPE, state, code_challenge: await challenge(verifier), code_challenge_method: 'S256',
   });
   if (silent === true) p.set('prompt', 'none');
   else if (sessionStorage.getItem(FORCE_LOGIN_KEY)) {
     p.set('prompt', 'login');
     sessionStorage.removeItem(FORCE_LOGIN_KEY);
   }
-  window.location.assign(`${ISSUER}/protocol/openid-connect/auth?${p}`);
+  window.location.assign(`${authorize}?${p}`);
 }
 
 // Joins an existing IdP session (opened by another app of the suite) without showing a login.
@@ -92,7 +122,7 @@ export async function completeSso() {
   const body = new URLSearchParams({
     grant_type: 'authorization_code', code, redirect_uri: redirectUri(), client_id: CLIENT_ID, code_verifier: verifier,
   });
-  const res = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+  const res = await fetch((await endpoints()).token_endpoint, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
   });
   if (!res.ok) return null;
@@ -164,7 +194,7 @@ function idpCheck(
     url.search = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
-      scope: 'openid profile email',
+      scope: SCOPE,
       redirect_uri: redirectUri,
       prompt: 'none',
       state,
@@ -210,7 +240,7 @@ export function watchIdpSession(w) {
 }
 
 async function renewWithCode(code, verifier) {
-  const res = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+  const res = await fetch((await endpoints()).token_endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -228,7 +258,7 @@ async function renewWithCode(code, verifier) {
 
 export const watchAosSession = (hasSession, onEnded) =>
   watchIdpSession({
-    authorizationEndpoint: async () => `${ISSUER}/protocol/openid-connect/auth`,
+    authorizationEndpoint: async () => (await endpoints()).authorization_endpoint,
     clientId: CLIENT_ID,
     redirectUri: redirectUri(),
     hasSession,

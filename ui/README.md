@@ -27,8 +27,9 @@ Build-time variables (also `ARG`s in the `Dockerfile`):
 
 | Variable | Purpose |
 |---|---|
-| `VITE_OIDC_ISSUER` | Keycloak realm URL; enables SSO (OIDC + PKCE) when set |
+| `VITE_OIDC_ISSUER` | OIDC issuer URL (a Keycloak realm, an Entra tenant, Dex…); enables SSO (OIDC + PKCE) when set. Endpoints come from its discovery document |
 | `VITE_OIDC_CLIENT_ID` | OIDC client, default `aos-spa` |
+| `VITE_OIDC_SCOPE` | Scopes requested, default `openid profile email`; add what your IdP needs to put roles in the token (Dex: `groups`) |
 | `VITE_AOS_URL`, `VITE_PRUDENCE_URL`, `VITE_ERNEST_URL` | App switcher and deep links between the three consoles |
 | `VITE_ENABLE_DEV_LOGIN` | `true` enables the development login (dev server only) |
 
