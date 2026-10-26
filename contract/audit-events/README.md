@@ -7,13 +7,13 @@ consumes it.
 | File | What it is |
 | --- | --- |
 | `README.md` | This contract (normative) |
-| `vectors.json` | Journal records → the exact Kafka record → what Ernest derives |
+| `vectors.json` | Journal records → the exact Kafka record and HTTP request → what Ernest derives |
 | `sync.sh` | Copies this directory into Ernest's event-ingestor with a `SOURCE` of SHA-256 sums |
 
 | Side | Test |
 | --- | --- |
 | Producer: AOS (`internal/audit`, `JournalRecord`) | `contract_test.go`: every case gives exactly its `record`, and no `forbidden` string leaves AOS |
-| Consumer: Ernest's event-ingestor (`kafkasource`, `events.Normalize`) | `kafkasource/contract_test.go`: every `record` is read as its `ernest` says |
+| Consumer: Ernest's event-ingestor (`kafkasource`, `ingest`, `events.Normalize`) | `kafkasource/contract_test.go`: every `record` is read as its `ernest` says; `ingest/aos_contract_test.go`: every `http` request is accepted (signature) and read as its `ernestHttp` says |
 
 ## 1. The record
 
@@ -29,8 +29,14 @@ after the entry is durable and hash-chained on disk:
   `modelId` = its Prudence AI system and `aiSystem` = `{id, systemOfRecord: "prudence"}`; others
   go under `modelId` = `aos-agentic-orchestration-system`.
 
-Over HTTP (`POST /events` on the ingestor) the same value travels, with the headers as
-`X-Ernest-Event-Source`, `X-Ernest-Event-Type` and `X-Ernest-Source-Event-Id`.
+Over HTTP (`ERNEST_INGESTOR_URL`, `POST /events` on the ingestor) the same body shape travels, with
+the headers as `X-Ernest-Event-Source`, `X-Ernest-Event-Type` and `X-Ernest-Source-Event-Id`.
+There is no journal record there, so the event is identified by the SHA-256 of its own JSON (in
+UTC) instead of the record hash, and `journalSequence` and `transport` are absent. With
+`ERNEST_INGESTOR_HMAC_SECRET` set, AOS signs the body: `X-Ernest-Provider-Timestamp` and
+`X-Ernest-Provider-Signature` = `sha256=` HMAC-SHA256 of `<timestamp>.<body>`. The vectors pin
+each request (`http`, signed with a test secret at a fixed time) and what Ernest makes of it
+(`ernestHttp`, verified as `provider_hmac`).
 
 ## 2. What never leaves AOS
 

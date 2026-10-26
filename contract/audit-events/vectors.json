@@ -2,6 +2,60 @@
   "cases": [
     {
       "aiSystemId": "sys-credit",
+      "ernest": {
+        "canonicalType": "external_event",
+        "eventType": "aos.audit.event.pipeline.started",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-7f3a9c:pipeline.started::h41",
+        "metadata": {
+          "aiSystemId": "sys-credit",
+          "phase": "pipeline.started",
+          "pipeline": "credit_prescreening",
+          "result": "success",
+          "stage": "execution",
+          "traceId": "trace-7f3a9c"
+        },
+        "modelId": "sys-credit",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-7f3a9c:pipeline.started::h41"
+      },
+      "http": {
+        "body": {
+          "aiSystem": {
+            "id": "sys-credit",
+            "systemOfRecord": "prudence"
+          },
+          "eventType": "aos.audit.event.pipeline.started",
+          "metadata": {
+            "aiSystemId": "sys-credit",
+            "eventHash": "6d6c177a6c60e37bf494639e8340c82b02f1ccf7ab3821a3954cc7f8eda4c99a",
+            "intent": "credit.prescreen",
+            "latencyMs": 12,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "pipeline.started",
+            "pipeline": "credit_prescreening",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "execution",
+            "traceId": "trace-7f3a9c"
+          },
+          "modelId": "sys-credit",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-7f3a9c:pipeline.started::6d6c177a6c60e37bf494639e8340c82b02f1ccf7ab3821a3954cc7f8eda4c99a"
+        },
+        "headers": {
+          "X-Ernest-Event-Source": "aos",
+          "X-Ernest-Event-Type": "aos.audit.event.pipeline.started",
+          "X-Ernest-Provider-Signature": "sha256=ea447007e955b42de9f65e61fe7a5251fc6f93d8c5bc82bf86591d9ca7be7cdf",
+          "X-Ernest-Provider-Timestamp": "1793000000",
+          "X-Ernest-Source-Event-Id": "trace-7f3a9c:pipeline.started::6d6c177a6c60e37bf494639e8340c82b02f1ccf7ab3821a3954cc7f8eda4c99a"
+        },
+        "method": "POST",
+        "path": "/events"
+      },
       "journal": {
         "event": {
           "details": {
@@ -66,27 +120,83 @@
           "sourceEventId": "trace-7f3a9c:pipeline.started::h41"
         }
       },
-      "ernest": {
-        "source": "aos",
-        "eventType": "aos.audit.event.pipeline.started",
-        "sourceEventId": "trace-7f3a9c:pipeline.started::h41",
-        "evidenceEventId": "aos.audit.event.pipeline.started:trace-7f3a9c:pipeline.started::h41",
-        "modelId": "sys-credit",
-        "modelName": "",
+      "ernestHttp": {
         "canonicalType": "external_event",
-        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "eventType": "aos.audit.event.pipeline.started",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-7f3a9c:pipeline.started::6d6c177a6c60e37bf494639e8340c82b02f1ccf7ab3821a3954cc7f8eda4c99a",
         "metadata": {
-          "stage": "execution",
           "aiSystemId": "sys-credit",
           "phase": "pipeline.started",
           "pipeline": "credit_prescreening",
-          "traceId": "trace-7f3a9c",
-          "result": "success"
-        }
+          "result": "success",
+          "stage": "execution",
+          "traceId": "trace-7f3a9c"
+        },
+        "modelId": "sys-credit",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-7f3a9c:pipeline.started::6d6c177a6c60e37bf494639e8340c82b02f1ccf7ab3821a3954cc7f8eda4c99a",
+        "verificationStatus": "provider_hmac"
       }
     },
     {
       "aiSystemId": "sys-credit",
+      "ernest": {
+        "canonicalType": "external_event",
+        "eventType": "aos.audit.event.tool.completed",
+        "evidenceEventId": "aos.audit.event.tool.completed:trace-7f3a9c:tool.completed:score:h42",
+        "metadata": {
+          "aiSystemId": "sys-credit",
+          "phase": "tool.completed",
+          "pipeline": "credit_prescreening",
+          "result": "success",
+          "stage": "lifecycle",
+          "traceId": "trace-7f3a9c"
+        },
+        "modelId": "sys-credit",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-7f3a9c:tool.completed:score:h42"
+      },
+      "http": {
+        "body": {
+          "aiSystem": {
+            "id": "sys-credit",
+            "systemOfRecord": "prudence"
+          },
+          "eventType": "aos.audit.event.tool.completed",
+          "metadata": {
+            "aiSystemId": "sys-credit",
+            "eventHash": "cbe7b083009115e6b1a321112b55002c2afb706f2ae78f6a09c68b6b4d3c8516",
+            "intent": "credit.prescreen",
+            "latencyMs": 12,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "tool.completed",
+            "pipeline": "credit_prescreening",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "step": "score",
+            "traceId": "trace-7f3a9c"
+          },
+          "modelId": "sys-credit",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-7f3a9c:tool.completed:score:cbe7b083009115e6b1a321112b55002c2afb706f2ae78f6a09c68b6b4d3c8516"
+        },
+        "headers": {
+          "X-Ernest-Event-Source": "aos",
+          "X-Ernest-Event-Type": "aos.audit.event.tool.completed",
+          "X-Ernest-Provider-Signature": "sha256=74d76464982b36bb52ce5d141ed1620a5e1149ade80b1196ebcdc622e949d6fd",
+          "X-Ernest-Provider-Timestamp": "1793000000",
+          "X-Ernest-Source-Event-Id": "trace-7f3a9c:tool.completed:score:cbe7b083009115e6b1a321112b55002c2afb706f2ae78f6a09c68b6b4d3c8516"
+        },
+        "method": "POST",
+        "path": "/events"
+      },
       "journal": {
         "event": {
           "details": {
@@ -153,27 +263,77 @@
           "sourceEventId": "trace-7f3a9c:tool.completed:score:h42"
         }
       },
-      "ernest": {
-        "source": "aos",
-        "eventType": "aos.audit.event.tool.completed",
-        "sourceEventId": "trace-7f3a9c:tool.completed:score:h42",
-        "evidenceEventId": "aos.audit.event.tool.completed:trace-7f3a9c:tool.completed:score:h42",
-        "modelId": "sys-credit",
-        "modelName": "",
+      "ernestHttp": {
         "canonicalType": "external_event",
-        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "eventType": "aos.audit.event.tool.completed",
+        "evidenceEventId": "aos.audit.event.tool.completed:trace-7f3a9c:tool.completed:score:cbe7b083009115e6b1a321112b55002c2afb706f2ae78f6a09c68b6b4d3c8516",
         "metadata": {
-          "stage": "lifecycle",
           "aiSystemId": "sys-credit",
           "phase": "tool.completed",
           "pipeline": "credit_prescreening",
-          "traceId": "trace-7f3a9c",
-          "result": "success"
-        }
+          "result": "success",
+          "stage": "lifecycle",
+          "traceId": "trace-7f3a9c"
+        },
+        "modelId": "sys-credit",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-7f3a9c:tool.completed:score:cbe7b083009115e6b1a321112b55002c2afb706f2ae78f6a09c68b6b4d3c8516",
+        "verificationStatus": "provider_hmac"
       }
     },
     {
       "aiSystemId": "",
+      "ernest": {
+        "canonicalType": "external_event",
+        "eventType": "aos.audit.event.pipeline.started",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-1b2c:pipeline.started::h43",
+        "metadata": {
+          "aiSystemId": null,
+          "phase": "pipeline.started",
+          "pipeline": "support_lookup",
+          "result": "success",
+          "stage": "lifecycle",
+          "traceId": "trace-1b2c"
+        },
+        "modelId": "aos-agentic-orchestration-system",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-1b2c:pipeline.started::h43"
+      },
+      "http": {
+        "body": {
+          "eventType": "aos.audit.event.pipeline.started",
+          "metadata": {
+            "eventHash": "2a035c19516eee2d074537105205241c5bb36e0736da0c1d776ee7b51de19dca",
+            "intent": "credit.prescreen",
+            "latencyMs": 12,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "pipeline.started",
+            "pipeline": "support_lookup",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "traceId": "trace-1b2c"
+          },
+          "modelId": "aos-agentic-orchestration-system",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-1b2c:pipeline.started::2a035c19516eee2d074537105205241c5bb36e0736da0c1d776ee7b51de19dca"
+        },
+        "headers": {
+          "X-Ernest-Event-Source": "aos",
+          "X-Ernest-Event-Type": "aos.audit.event.pipeline.started",
+          "X-Ernest-Provider-Signature": "sha256=e2b942a8e255eedce5fa830c449f9e85f76a0b58609830b7ac8dd36868baebb9",
+          "X-Ernest-Provider-Timestamp": "1793000000",
+          "X-Ernest-Source-Event-Id": "trace-1b2c:pipeline.started::2a035c19516eee2d074537105205241c5bb36e0736da0c1d776ee7b51de19dca"
+        },
+        "method": "POST",
+        "path": "/events"
+      },
       "journal": {
         "event": {
           "details": {
@@ -233,27 +393,82 @@
           "sourceEventId": "trace-1b2c:pipeline.started::h43"
         }
       },
-      "ernest": {
-        "source": "aos",
-        "eventType": "aos.audit.event.pipeline.started",
-        "sourceEventId": "trace-1b2c:pipeline.started::h43",
-        "evidenceEventId": "aos.audit.event.pipeline.started:trace-1b2c:pipeline.started::h43",
-        "modelId": "aos-agentic-orchestration-system",
-        "modelName": "",
+      "ernestHttp": {
         "canonicalType": "external_event",
-        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "eventType": "aos.audit.event.pipeline.started",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-1b2c:pipeline.started::2a035c19516eee2d074537105205241c5bb36e0736da0c1d776ee7b51de19dca",
         "metadata": {
-          "stage": "lifecycle",
           "aiSystemId": null,
           "phase": "pipeline.started",
           "pipeline": "support_lookup",
-          "traceId": "trace-1b2c",
-          "result": "success"
-        }
+          "result": "success",
+          "stage": "lifecycle",
+          "traceId": "trace-1b2c"
+        },
+        "modelId": "aos-agentic-orchestration-system",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-1b2c:pipeline.started::2a035c19516eee2d074537105205241c5bb36e0736da0c1d776ee7b51de19dca",
+        "verificationStatus": "provider_hmac"
       }
     },
     {
       "aiSystemId": "sys-credit",
+      "ernest": {
+        "canonicalType": "external_event",
+        "eventType": "aos.audit.event.intent.denied",
+        "evidenceEventId": "aos.audit.event.intent.denied:trace-9d8e:intent.denied::h44",
+        "metadata": {
+          "aiSystemId": "sys-credit",
+          "phase": "intent.denied",
+          "pipeline": "credit_prescreening",
+          "result": "denied",
+          "stage": "lifecycle",
+          "traceId": "trace-9d8e"
+        },
+        "modelId": "sys-credit",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-9d8e:intent.denied::h44"
+      },
+      "http": {
+        "body": {
+          "aiSystem": {
+            "id": "sys-credit",
+            "systemOfRecord": "prudence"
+          },
+          "eventType": "aos.audit.event.intent.denied",
+          "metadata": {
+            "aiSystemId": "sys-credit",
+            "eventHash": "8e2e5c20ffefb18a878943b0bc4ec3a41970a4a3956d2bcc33969c2a0827e3cf",
+            "intent": "credit.prescreen",
+            "latencyMs": 0,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "intent.denied",
+            "pipeline": "credit_prescreening",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "denied",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "traceId": "trace-9d8e"
+          },
+          "modelId": "sys-credit",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-9d8e:intent.denied::8e2e5c20ffefb18a878943b0bc4ec3a41970a4a3956d2bcc33969c2a0827e3cf"
+        },
+        "headers": {
+          "X-Ernest-Event-Source": "aos",
+          "X-Ernest-Event-Type": "aos.audit.event.intent.denied",
+          "X-Ernest-Provider-Signature": "sha256=56cf44932b7aaab6222c2c7507579635fcf6b5704c6472e4049da12460b66888",
+          "X-Ernest-Provider-Timestamp": "1793000000",
+          "X-Ernest-Source-Event-Id": "trace-9d8e:intent.denied::8e2e5c20ffefb18a878943b0bc4ec3a41970a4a3956d2bcc33969c2a0827e3cf"
+        },
+        "method": "POST",
+        "path": "/events"
+      },
       "journal": {
         "event": {
           "details": {
@@ -318,27 +533,77 @@
           "sourceEventId": "trace-9d8e:intent.denied::h44"
         }
       },
-      "ernest": {
-        "source": "aos",
-        "eventType": "aos.audit.event.intent.denied",
-        "sourceEventId": "trace-9d8e:intent.denied::h44",
-        "evidenceEventId": "aos.audit.event.intent.denied:trace-9d8e:intent.denied::h44",
-        "modelId": "sys-credit",
-        "modelName": "",
+      "ernestHttp": {
         "canonicalType": "external_event",
-        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "eventType": "aos.audit.event.intent.denied",
+        "evidenceEventId": "aos.audit.event.intent.denied:trace-9d8e:intent.denied::8e2e5c20ffefb18a878943b0bc4ec3a41970a4a3956d2bcc33969c2a0827e3cf",
         "metadata": {
-          "stage": "lifecycle",
           "aiSystemId": "sys-credit",
           "phase": "intent.denied",
           "pipeline": "credit_prescreening",
-          "traceId": "trace-9d8e",
-          "result": "denied"
-        }
+          "result": "denied",
+          "stage": "lifecycle",
+          "traceId": "trace-9d8e"
+        },
+        "modelId": "sys-credit",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "trace-9d8e:intent.denied::8e2e5c20ffefb18a878943b0bc4ec3a41970a4a3956d2bcc33969c2a0827e3cf",
+        "verificationStatus": "provider_hmac"
       }
     },
     {
       "aiSystemId": "",
+      "ernest": {
+        "canonicalType": "external_event",
+        "eventType": "aos.audit.event.intent.accepted",
+        "evidenceEventId": "aos.audit.event.intent.accepted:h45",
+        "metadata": {
+          "aiSystemId": null,
+          "phase": "intent.accepted",
+          "pipeline": "",
+          "result": "success",
+          "stage": "lifecycle",
+          "traceId": ""
+        },
+        "modelId": "aos-agentic-orchestration-system",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "h45"
+      },
+      "http": {
+        "body": {
+          "eventType": "aos.audit.event.intent.accepted",
+          "metadata": {
+            "eventHash": "bcbbe6a4f860d80d4c591f1aa3872db883d7def8574bf83da21995ff8f18c143",
+            "intent": "credit.prescreen",
+            "latencyMs": 0,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "intent.accepted",
+            "pipeline": "",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "traceId": ""
+          },
+          "modelId": "aos-agentic-orchestration-system",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "bcbbe6a4f860d80d4c591f1aa3872db883d7def8574bf83da21995ff8f18c143"
+        },
+        "headers": {
+          "X-Ernest-Event-Source": "aos",
+          "X-Ernest-Event-Type": "aos.audit.event.intent.accepted",
+          "X-Ernest-Provider-Signature": "sha256=d5b6c55068b20656c780887571d62be44a19db7ece2234a00c2c39c5c5c81697",
+          "X-Ernest-Provider-Timestamp": "1793000000",
+          "X-Ernest-Source-Event-Id": "bcbbe6a4f860d80d4c591f1aa3872db883d7def8574bf83da21995ff8f18c143"
+        },
+        "method": "POST",
+        "path": "/events"
+      },
       "journal": {
         "event": {
           "details": {
@@ -397,29 +662,35 @@
           "sourceEventId": "h45"
         }
       },
-      "ernest": {
-        "source": "aos",
-        "eventType": "aos.audit.event.intent.accepted",
-        "sourceEventId": "h45",
-        "evidenceEventId": "aos.audit.event.intent.accepted:h45",
-        "modelId": "aos-agentic-orchestration-system",
-        "modelName": "",
+      "ernestHttp": {
         "canonicalType": "external_event",
-        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "eventType": "aos.audit.event.intent.accepted",
+        "evidenceEventId": "aos.audit.event.intent.accepted:bcbbe6a4f860d80d4c591f1aa3872db883d7def8574bf83da21995ff8f18c143",
         "metadata": {
-          "stage": "lifecycle",
           "aiSystemId": null,
           "phase": "intent.accepted",
           "pipeline": "",
-          "traceId": "",
-          "result": "success"
-        }
+          "result": "success",
+          "stage": "lifecycle",
+          "traceId": ""
+        },
+        "modelId": "aos-agentic-orchestration-system",
+        "modelName": "",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "source": "aos",
+        "sourceEventId": "bcbbe6a4f860d80d4c591f1aa3872db883d7def8574bf83da21995ff8f18c143",
+        "verificationStatus": "provider_hmac"
       }
     }
   ],
-  "description": "AOS audit journal record -> the Kafka record AOS publishes (`record`, exact) -> what Ernest's event-ingestor makes of it (`ernest`; a null metadata value means the field must be absent). `forbidden` strings must never leave AOS. See README.md.",
+  "description": "AOS audit journal record -> the Kafka record AOS publishes (`record`, exact) -> what Ernest's event-ingestor makes of it (`ernest`; a null metadata value means the field must be absent). `forbidden` strings must never leave AOS. See README.md. `http` is the same event posted to the ingestor's POST /events, and `ernestHttp` what Ernest makes of that.",
   "forbidden": [
     "SECRET"
   ],
+  "http": {
+    "description": "POST /events on the ingestor, signed with X-Ernest-Provider-Signature (HMAC-SHA256 of \"<timestamp>.<body>\") under this test secret at this fixed time.",
+    "hmacSecret": "contract-hmac-secret",
+    "timestamp": "1793000000"
+  },
   "version": "aos.audit-events/v1"
 }

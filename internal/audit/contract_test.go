@@ -56,14 +56,40 @@ func TestAuditEventsContract(t *testing.T) {
 					t.Errorf("%q leaves AOS: %s", f, kr.Value)
 				}
 			}
+			// Over HTTP: the same body shape, identified by the event's own hash, signed.
+			evidence, err := HTTPEvidence(rec.Event, c["aiSystemId"].(string))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range forbidden {
+				if strings.Contains(string(evidence.Body), f) {
+					t.Errorf("%q leaves AOS over HTTP: %s", f, evidence.Body)
+				}
+			}
+			httpSpec := doc["http"].(map[string]any)
+			request := map[string]any{
+				"method": "POST",
+				"path":   "/events",
+				"headers": map[string]string{
+					"X-Ernest-Event-Source":       "aos",
+					"X-Ernest-Event-Type":         evidence.EventType,
+					"X-Ernest-Source-Event-Id":    evidence.SourceEventID,
+					"X-Ernest-Provider-Timestamp": httpSpec["timestamp"].(string),
+					"X-Ernest-Provider-Signature": ProviderSignature(httpSpec["hmacSecret"].(string), httpSpec["timestamp"].(string), evidence.Body),
+				},
+				"body": json.RawMessage(evidence.Body),
+			}
 			if *updateContract {
 				c["record"] = got
+				c["http"] = request
 				return
 			}
-			want, _ := json.Marshal(c["record"])
-			have, _ := json.Marshal(got)
-			if !jsonEqual(t, want, have) {
-				t.Errorf("record changed:\n got  %s\n want %s\nA change Ernest must see is a new contract version (README.md); otherwise run with -update-contract", have, want)
+			for name, pair := range map[string][2]any{"record": {c["record"], got}, "http": {c["http"], request}} {
+				want, _ := json.Marshal(pair[0])
+				have, _ := json.Marshal(pair[1])
+				if !jsonEqual(t, want, have) {
+					t.Errorf("%s changed:\n got  %s\n want %s\nA change Ernest must see is a new contract version (README.md); otherwise run with -update-contract", name, have, want)
+				}
 			}
 		})
 	}

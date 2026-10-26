@@ -81,16 +81,8 @@ func (l *ErnestLogger) Close() error {
 func (l *ErnestLogger) send(event Event) error {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now().UTC()
-	} else {
-		event.Timestamp = event.Timestamp.UTC()
 	}
-	canonical, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("marshal AOS audit evidence: %w", err)
-	}
-	eventSum := sha256.Sum256(canonical)
-	eventHash := hex.EncodeToString(eventSum[:])
-	evidence, err := BuildEvidence(event, eventHash, l.aiSystems[event.Pipeline], nil)
+	evidence, err := HTTPEvidence(event, l.aiSystems[event.Pipeline])
 	if err != nil {
 		return err
 	}
@@ -113,12 +105,8 @@ func (l *ErnestLogger) send(event Event) error {
 		}
 		if l.hmacKey != "" {
 			timestamp := fmt.Sprintf("%d", time.Now().Unix())
-			mac := hmac.New(sha256.New, []byte(l.hmacKey))
-			_, _ = mac.Write([]byte(timestamp))
-			_, _ = mac.Write([]byte("."))
-			_, _ = mac.Write(body)
 			req.Header.Set("X-Ernest-Provider-Timestamp", timestamp)
-			req.Header.Set("X-Ernest-Provider-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
+			req.Header.Set("X-Ernest-Provider-Signature", ProviderSignature(l.hmacKey, timestamp, body))
 		}
 		resp, requestErr := l.client.Do(req)
 		if requestErr == nil {
@@ -149,4 +137,26 @@ func (l *ErnestLogger) send(event Event) error {
 		return fmt.Errorf("Ernest event ingestion timed out: %w", lastErr)
 	}
 	return lastErr
+}
+
+// HTTPEvidence is the body AOS posts to Ernest's ingestor for one audit event
+// (contract/audit-events): the event is identified by the SHA-256 of its JSON form in UTC,
+// since over HTTP there is no journal record hash.
+func HTTPEvidence(event Event, aiSystemID string) (Evidence, error) {
+	event.Timestamp = event.Timestamp.UTC()
+	canonical, err := json.Marshal(event)
+	if err != nil {
+		return Evidence{}, fmt.Errorf("marshal AOS audit evidence: %w", err)
+	}
+	eventSum := sha256.Sum256(canonical)
+	return BuildEvidence(event, hex.EncodeToString(eventSum[:]), aiSystemID, nil)
+}
+
+// ProviderSignature is X-Ernest-Provider-Signature: HMAC-SHA256 over "<timestamp>.<body>".
+func ProviderSignature(key, timestamp string, body []byte) string {
+	mac := hmac.New(sha256.New, []byte(key))
+	_, _ = mac.Write([]byte(timestamp))
+	_, _ = mac.Write([]byte("."))
+	_, _ = mac.Write(body)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
