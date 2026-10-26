@@ -41,6 +41,13 @@ higher than the suite's because v0.3.0 is already public.
 
 ### Changed
 
+- **Prudence continues AOS's traces.** The decision request and the execution report carry a W3C
+  `traceparent` whose trace id is the task's id (a UUID without its dashes), so Prudence's spans
+  for a task are found in the tracing backend by that id, and AOS's log line for the call
+  (`trace_id=`) links to them. AOS records no spans of its own yet.
+- **HTTP metrics label routes, not ids.** `aos_http_requests_total` and
+  `aos_http_request_seconds` labelled the full path, so a callback's token (a secret) was stored in
+  the metrics and every id made a new series; the path is now the route, with `{token}` and `{id}`.
 - **Logs carry no user content.** At `info` AOS logged every user message in full, and every
   pipeline's parameters with their values; unknown bus messages were dumped whole at `warn`. Logs
   reach whoever operates the platform (Loki, in the suite's deployment) and outlive the request.

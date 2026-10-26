@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"time"
@@ -219,7 +220,7 @@ func observabilityMiddleware(next http.Handler) http.Handler {
 		// Record basic HTTP metrics
 		labels := map[string]string{
 			"method": r.Method,
-			"path":   r.URL.Path,
+			"path":   routeLabel(r.URL.Path),
 			"status": strconv.Itoa(rw.status),
 		}
 		metrics.HTTPRequests.Inc(labels)
@@ -319,4 +320,36 @@ func sanitizeUserAgent(ua string) string {
 		return ua[:200]
 	}
 	return ua
+}
+
+// idChars is what identifiers and tokens are made of.
+var idChars = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// isID says whether a path segment is an identifier or a token rather than part of a route: a
+// number, or 16 characters or more with a digit among them (UUIDs, random tokens), which a route
+// word such as governance_blocked does not have.
+func isID(segment string) bool {
+	if segment == "" || !idChars.MatchString(segment) {
+		return false
+	}
+	if strings.Trim(segment, "0123456789") == "" {
+		return true
+	}
+	return len(segment) >= 16 && strings.ContainsAny(segment, "0123456789")
+}
+
+// routeLabel is the path as a metrics label: the route, not its ids. A callback's path carries
+// its token, a secret, and every id would make a new time series; so the token becomes {token}
+// and any segment that looks like an id or a number {id}.
+func routeLabel(path string) string {
+	if strings.HasPrefix(path, "/api/v1/callbacks/") {
+		return "/api/v1/callbacks/{token}"
+	}
+	segments := strings.Split(path, "/")
+	for i, s := range segments {
+		if isID(s) {
+			segments[i] = "{id}"
+		}
+	}
+	return strings.Join(segments, "/")
 }

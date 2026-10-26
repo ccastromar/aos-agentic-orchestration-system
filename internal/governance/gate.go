@@ -75,6 +75,9 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 		return Decision{}, fmt.Errorf("governance: cannot build PDP request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if tp := traceparentFrom(ctx); tp != "" {
+		req.Header.Set("traceparent", tp)
+	}
 
 	// When the PDP is secured (PRUDENCE_PDP_* set), authenticate as a machine client with a
 	// client-credentials token carrying the `pdp.decide` scope. Fail closed if it can't be

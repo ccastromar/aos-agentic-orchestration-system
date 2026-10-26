@@ -497,7 +497,10 @@ func (p *Planner) governanceGate(taskCtx context.Context, id, sessionID, userID,
 	if configured := strings.TrimSpace(os.Getenv("PRUDENCE_PDP_SUBJECT")); configured != "" {
 		subject = configured
 	}
-	dec, err := governance.Evaluate(taskCtx, pdpURL, subject, pipeName, pipe.AiSystem, "run")
+	if traceID := governance.TraceID(id); traceID != "" {
+		logx.L(id, "Governance", "asking Prudence for pipeline=%s trace_id=%s", pipeName, traceID)
+	}
+	dec, err := governance.Evaluate(governance.WithTrace(taskCtx, id), pdpURL, subject, pipeName, pipe.AiSystem, "run")
 	if err != nil {
 		logx.L(id, "Governance", "%v", err)
 		storeResult(id, Result{Status: "error", Err: err.Error()})

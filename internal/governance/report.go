@@ -79,6 +79,9 @@ func reportExecution(ctx context.Context, pdpURL string, r ExecutionReport) (boo
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if tp := traceparent(r.ExecutionID); tp != "" {
+		req.Header.Set("traceparent", tp)
+	}
 	// The same machine identity as the gate: its token carries `execution.report` as a
 	// default client scope alongside `pdp.decide`.
 	if auth := pdpAuthFromEnv(); auth != nil {
