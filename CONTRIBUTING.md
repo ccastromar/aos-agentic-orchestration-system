@@ -36,6 +36,11 @@ and open the matching change in Ernest. A change to a field Ernest reads is a ne
   ids or tool output.
 - No secrets, real personal data or local paths in code, fixtures or docs.
 
+## Conduct
+
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md); report problems to
+conduct@ccmlab.cc.
+
 ## Security
 
 Report vulnerabilities privately, as `SECURITY.md` describes, never in a public issue.
