@@ -47,6 +47,8 @@ higher than the suite's because v0.3.0 is already public.
   the calls to Prudence, which continue the trace (`traceparent`). The execution report, sent in
   the background, is a span of its own linked to the run. Without an endpoint nothing is
   recorded, and an incoming `traceparent` is still passed on.
+- **Runtime and process metrics on `/metrics`**: goroutines, heap, GC, CPU, start time, and on
+  Linux resident memory and file descriptors, under Prometheus's usual names.
 - **Exemplars on `/metrics`**: served as OpenMetrics when the scraper asks for it, the gate, run
   and step histograms tie each bucket to the trace of a recent, sampled measurement.
 - **Domain metrics** on `/metrics`: run, step and gate duration histograms (buckets chosen for

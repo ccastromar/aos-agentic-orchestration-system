@@ -273,7 +273,9 @@ the demo. The step-by-step script is `prudence-governance/docs/functional/06-dem
   `aos_evidence_backlog_bytes` (journal not yet shipped over Kafka). Histogram buckets include
   the thresholds the service-level objectives are measured on. Asked for OpenMetrics (as
   Prometheus asks), the gate, run and step buckets carry exemplars: the trace id of a recent
-  measurement, so a dashboard opens the trace behind a slow bucket.
+  measurement, so a dashboard opens the trace behind a slow bucket. Runtime and process metrics
+  use Prometheus's usual names: `go_goroutines`, `go_memstats_*`, `go_gc_*`, `process_cpu_seconds_total`,
+  `process_start_time_seconds`, and on Linux `process_resident_memory_bytes` and `process_*_fds`.
 
 The server has no UI of its own: the console is in [`ui/`](ui/README.md).
 

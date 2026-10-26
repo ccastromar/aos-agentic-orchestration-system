@@ -73,3 +73,19 @@ func TestOpenMetricsCarriesExemplars(t *testing.T) {
 		t.Error("the classic format must not carry exemplars")
 	}
 }
+
+// The runtime and process metrics are there, under Prometheus's usual names, in both formats.
+func TestRuntimeMetricsAreExposed(t *testing.T) {
+	for _, accept := range []string{"", "application/openmetrics-text"} {
+		req := httptest.NewRequest("GET", "/metrics", nil)
+		req.Header.Set("Accept", accept)
+		rec := httptest.NewRecorder()
+		ServeHTTP(rec, req)
+		body := rec.Body.String()
+		for _, want := range []string{"go_goroutines ", "go_memstats_heap_alloc_bytes ", "go_gc_cycles_total ", "process_cpu_seconds_total ", "process_start_time_seconds "} {
+			if !strings.Contains(body, want) {
+				t.Errorf("Accept %q: missing %s", accept, want)
+			}
+		}
+	}
+}

@@ -301,4 +301,5 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
     dumpHistogram(GateDuration)
     dumpCounter(EvidenceShipped)
     dumpGauge(EvidenceBacklog)
+    writeRuntime(w, openMetrics)
 }
