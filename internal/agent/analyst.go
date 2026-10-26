@@ -79,7 +79,7 @@ func (a *Analyst) dispatch(msg bus.Message) {
 	case "summarize":
 		a.handleSummarize(msg)
 	default:
-		logx.Warn("Analyst", "unknown message: %#v", msg)
+		logx.Warn("Analyst", "unknown message: %T", msg)
 	}
 
 }

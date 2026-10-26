@@ -41,6 +41,11 @@ higher than the suite's because v0.3.0 is already public.
 
 ### Changed
 
+- **Logs carry no user content.** At `info` AOS logged every user message in full, and every
+  pipeline's parameters with their values; unknown bus messages were dumped whole at `warn`. Logs
+  reach whoever operates the platform (Loki, in the suite's deployment) and outlive the request.
+  They now log a message's length, parameter names (`logx.Keys`) and a message's type; the values
+  stay in the audit journal. `debug` still logs content, for local development only.
 - **Audit evidence carries a keyed digest, not the bare hash** (audit events contract v2,
   `schemaVersion` 3). The hash of a journal record covers the user and the parameters, and the
   rest of what goes into it travels to Ernest, so a reader of Ernest could confirm a guess of who

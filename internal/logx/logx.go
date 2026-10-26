@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
+	"sort"
 	"time"
 )
 
@@ -96,4 +98,20 @@ func G(agent, msg string, args ...any) {
 		agent,
 	)
 	log.Printf(prefix+msg, args...)
+}
+
+// Keys returns a map's keys, sorted: what to log about parameters instead of their values, which
+// are the user's input. Logs reach whoever operates the platform and outlive the request; values
+// stay in the audit journal, where they belong.
+func Keys(m any) []string {
+	v := reflect.ValueOf(m)
+	if v.Kind() != reflect.Map {
+		return nil
+	}
+	keys := make([]string, 0, v.Len())
+	for _, k := range v.MapKeys() {
+		keys = append(keys, fmt.Sprint(k.Interface()))
+	}
+	sort.Strings(keys)
+	return keys
 }

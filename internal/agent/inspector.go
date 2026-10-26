@@ -104,7 +104,7 @@ func (i *Inspector) dispatch(msg bus.Message) {
 		})
 
 	default:
-		logx.Warn("Inspector", "unknown message: %#v", msg)
+		logx.Warn("Inspector", "unknown message: %T", msg)
 	}
 
 }

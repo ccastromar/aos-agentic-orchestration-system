@@ -182,7 +182,7 @@ func (v *Verifier) dispatch(msg bus.Message) {
 	case "callback_received":
 		v.handleCallback(msg)
 	default:
-		logx.Warn("Verifier", "unknown message: %#v", msg)
+		logx.Warn("Verifier", "unknown message: %T", msg)
 	}
 }
 
@@ -368,8 +368,8 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		}
 	}
 
-	logx.Info("Verifier", "executing pipeline=%s id=%s intent=%s params=%#v",
-		pipe.Name, id, intentType, baseParams)
+	logx.Info("Verifier", "executing pipeline=%s id=%s intent=%s params=%v",
+		pipe.Name, id, intentType, logx.Keys(baseParams))
 
 	// ============================================================
 	// 2) Create PipelineContext

@@ -221,7 +221,7 @@ Path policy: pass paths relative to the workspace root. Use "." for the whole pr
 			}
 		}
 
-		logx.Info("Verifier", "[ReAct %s] Executing %s with params %v", id, step.Action, callParams)
+		logx.Info("Verifier", "[ReAct %s] Executing %s with params %v", id, step.Action, logx.Keys(callParams))
 		if err := v.logLifecycleAudit(execState, "tool.started", "pending", map[string]any{
 			"step": pipelineStep.ID, "tool": step.Action, "decision": "invoke",
 			"input_digest": audit.Digest(audit.SanitizeMap(stringMapToAny(callParams))),

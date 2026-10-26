@@ -122,7 +122,7 @@ func (p *Planner) dispatch(msg bus.Message) {
 		})
 
 	default:
-		logx.Warn("Planner", "unknown message: %#v", msg)
+		logx.Warn("Planner", "unknown message: %T", msg)
 	}
 
 }
@@ -429,7 +429,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// ---------------------------------------------------------
 	// 6) Log + UI event
 	// ---------------------------------------------------------
-	logx.Info("Planner", "id=%s intent=%s pipeline=%s params=%v", id, detectedType, pipeName, params)
+	logx.Info("Planner", "id=%s intent=%s pipeline=%s params=%v", id, detectedType, pipeName, logx.Keys(params))
 	p.eventBus.PublishEvent(id, "Planner", "intent", detectedType, "")
 
 	// ---------------------------------------------------------

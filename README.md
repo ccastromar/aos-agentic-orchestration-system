@@ -114,7 +114,9 @@ Optional state and logging:
 - REDIS_PASSWORD: password for Redis
 - Session values expire after 24 hours. Execution records, including callbacks awaiting a response, are stored without a TTL by all durable backends.
 - The state backend is selected behind the `StateStore` interface, so additional adapters can be added without changing pipeline or agent code. Vector memory remains a separate `VectorStore` concern.
-- LOG_LEVEL: info
+- LOG_LEVEL: info. At `info` and above AOS logs ids, intents, pipelines and parameter **names**, never
+  what users type or tools return. `debug` also logs messages, LLM responses and tool outputs:
+  for local development only, never where logs are collected.
 
 For local durable state without a Redis service, set:
 ```bash

@@ -592,7 +592,8 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logx.Info("Api", "new request lang=%s session=%s id=%s message='%s'", req.Lang, req.SessionID, id, req.Message)
+	// The message is the user's own words: logged by length, never by content.
+	logx.Info("Api", "new request lang=%s session=%s id=%s message_chars=%d", req.Lang, req.SessionID, id, len(req.Message))
 	a.eventBus.PublishEvent(id, "Api", "request", req.Message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
@@ -937,7 +938,7 @@ func (a *APIAgent) DispatchAskInternal(message string, lang string) (string, err
 
 	id := randomID()
 
-	logx.Info("Api", "internal UI request id=%s message='%s'", id, message)
+	logx.Info("Api", "internal UI request id=%s message_chars=%d", id, len(message))
 	a.eventBus.PublishEvent(id, "UI", "request", message, "")
 
 	_ = NewTaskContext(context.Background(), id, 0)
@@ -1001,7 +1002,7 @@ func (a *APIAgent) handleClarifyReply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logx.Info("Api", "clarification reply for id=%s message='%s'", id, req.Message)
+	logx.Info("Api", "clarification reply for id=%s message_chars=%d", id, len(req.Message))
 	if a.eventBus != nil {
 		a.eventBus.PublishEvent(id, "Api", "reply", req.Message, "")
 	}
