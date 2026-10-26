@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: Prudence Decision API
   version: 1.0.0
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
   summary: Ask Prudence whether a governed AI system may run, before running it.
   description: |
     The Policy Decision Point (PDP) that a runtime gate (the Policy Enforcement Point) calls

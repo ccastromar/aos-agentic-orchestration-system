@@ -1,8 +1,8 @@
-# Copied from prudence-governance (contract/decision, docs/api/decision-api-v1.yaml) at 42559e720c2f
+# Copied from prudence-governance (contract/decision, docs/api/decision-api-v1.yaml) at cfeed1c6bfc5
 # by contract/decision/sync.sh. Do not edit: change the contract there and sync again.
 # The app's tests check these sums.
 3fa50ac8db3241d63dda209011605ed5a17635bff5bfa74c7aee7ee16d3fa128  README.md
-39220147d68ca652125d523c6c0e92147495796375e4a23445a0c74a761b366c  decision-api-v1.yaml
+4151aa4a4fc0ccb7bf45ca6e4c7ec2ec0b137cc162233d85239789c83b720489  decision-api-v1.yaml
 21921a2997d1bd98ecb817d492790da8bb298dba0a201c509b81a533ab4a0cf5  vectors/gate.json
 2943c3cf800acfb9c7a1b0d3030a40d85b6760fd9d2512cc4cef19a522045953  vectors/report.json
 03274df99748d8ab1fdae6b820a57c609c6c6b45909063d01e61c09e60d2ee87  vectors/provider.json
