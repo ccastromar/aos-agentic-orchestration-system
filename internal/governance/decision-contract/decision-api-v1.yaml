@@ -274,6 +274,15 @@ components:
         action:
           type: string
           description: What the runtime wants to do with it, e.g. `run`.
+        correlationId:
+          type: [string, 'null']
+          maxLength: 128
+          pattern: '^[A-Za-z0-9._:-]+$'
+          description: |
+            Optional. The caller's business flow (an AOS task, a LangGraph run), recorded with the
+            decision and carried with its evidence to Ernest. Not a trace id: trace context
+            travels in the W3C `traceparent` header (contract/observability). The
+            `X-Correlation-Id` header is used when the field is absent.
     DecisionResponse:
       type: object
       required: [decision, decisionId]

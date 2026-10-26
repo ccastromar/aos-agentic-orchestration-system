@@ -30,6 +30,11 @@ should run `vectors/gate.json` and `vectors/report.json` before it calls a real 
 spell out behaviour v1 already had. A gate must ignore fields it does not know. Anything that
 would change what an existing vector expects is v2, served alongside v1.
 
+A gate may send `correlationId`, its own id for the business flow (AOS sends its task id): Prudence
+records it with the decision and it travels with the decision's evidence. It is optional, never a
+trace id (trace context travels as W3C `traceparent`), and only a plain token
+(`[A-Za-z0-9._:-]`, at most 128); anything else is a `400`.
+
 ## 2. When a step runs (fail closed)
 
 A gate lets the step run **only** when all of these hold:
