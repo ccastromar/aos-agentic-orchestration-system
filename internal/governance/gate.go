@@ -74,7 +74,7 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 	if err != nil {
 		verdict = "ERROR" // fail closed: no verdict AOS may act on
 	}
-	metrics.GateDuration.Observe(map[string]string{"verdict": verdict}, time.Since(started).Seconds())
+	metrics.GateDuration.ObserveWithTrace(map[string]string{"verdict": verdict}, time.Since(started).Seconds(), telemetry.SampledTraceID(ctx))
 	return dec, err
 }
 

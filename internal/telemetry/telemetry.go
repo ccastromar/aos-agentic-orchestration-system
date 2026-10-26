@@ -114,6 +114,15 @@ func TraceID(ctx context.Context) string {
 	return ""
 }
 
+// SampledTraceID is ctx's trace id when its span is sampled (recorded and exported), else "":
+// the exemplar a measurement carries, so a histogram bucket leads to a trace that exists.
+func SampledTraceID(ctx context.Context) string {
+	if sc := trace.SpanContextFromContext(ctx); sc.IsSampled() {
+		return sc.TraceID().String()
+	}
+	return ""
+}
+
 // LinkTo is the span option that links a new span to a stored traceparent: the delivery of a
 // record is a new span, linked to the one that wrote it, never a span kept open while it waits.
 func LinkTo(traceparent string) trace.SpanStartOption {

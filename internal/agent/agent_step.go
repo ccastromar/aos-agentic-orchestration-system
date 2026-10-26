@@ -25,7 +25,7 @@ func (v *Verifier) runAgentStep(ctx context.Context, executionID string, definit
 			outcome = "failure"
 			span.SetStatus(codes.Error, "agent failed")
 		}
-		metrics.StepDuration.Observe(map[string]string{"tool_type": "agent", "outcome": outcome}, time.Since(started).Seconds())
+		metrics.StepDuration.ObserveWithTrace(map[string]string{"tool_type": "agent", "outcome": outcome}, time.Since(started).Seconds(), telemetry.SampledTraceID(ctx))
 		span.End()
 	}()
 	if step.TimeoutMs > 0 {

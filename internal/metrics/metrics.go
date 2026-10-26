@@ -6,6 +6,7 @@ import (
     "sort"
     "strings"
     "sync"
+    "time"
 )
 
 // A very small in-process metrics registry that exports Prometheus-like text.
@@ -90,16 +91,47 @@ type HistogramVec struct {
     labelNames []string
     counts  map[labelsKey][]float64 // per bucket, then +Inf
     sum     map[labelsKey]float64
+    // exemplars: per bucket, the trace of its latest measurement (OpenMetrics only).
+    exemplars map[labelsKey][]exemplar
+}
+
+// exemplar ties a bucket to one measurement's trace: from a histogram to the trace behind it.
+type exemplar struct {
+    traceID string
+    value   float64
+    at      time.Time
 }
 
 func NewHistogramVec(name, help string, buckets []float64, labelNames ...string) *HistogramVec {
     return &HistogramVec{Name: name, Help: help, Buckets: buckets, labelNames: labelNames,
-        counts: make(map[labelsKey][]float64), sum: make(map[labelsKey]float64)}
+        counts: make(map[labelsKey][]float64), sum: make(map[labelsKey]float64),
+        exemplars: make(map[labelsKey][]exemplar)}
 }
 
 func (hv *HistogramVec) Observe(lbls map[string]string, v float64) {
+    hv.ObserveWithTrace(lbls, v, "")
+}
+
+// ObserveWithTrace is Observe that keeps traceID (a W3C trace id, hex) as the exemplar of the
+// bucket v falls in, when it is not empty.
+func (hv *HistogramVec) ObserveWithTrace(lbls map[string]string, v float64, traceID string) {
     key := makeKey(lbls)
     hv.mu.Lock()
+    if traceID != "" {
+        ex, ok := hv.exemplars[key]
+        if !ok {
+            ex = make([]exemplar, len(hv.Buckets)+1)
+            hv.exemplars[key] = ex
+        }
+        i := len(hv.Buckets)
+        for j, upper := range hv.Buckets {
+            if v <= upper {
+                i = j
+                break
+            }
+        }
+        ex[i] = exemplar{traceID: traceID, value: v, at: time.Now()}
+    }
     counts, ok := hv.counts[key]
     if !ok {
         counts = make([]float64, len(hv.Buckets)+1)
@@ -167,12 +199,25 @@ var (
 
 // ServeHTTP exposes all metrics in Prometheus text format.
 func ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+    // OpenMetrics when the scraper asks for it (Prometheus does): the only format that carries
+    // exemplars. Otherwise the classic text format.
+    openMetrics := strings.Contains(r.Header.Get("Accept"), "application/openmetrics-text")
+    if openMetrics {
+        w.Header().Set("Content-Type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
+        defer fmt.Fprint(w, "# EOF\n")
+    } else {
+        w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+    }
 
     // helper to dump counter vec
     dumpCounter := func(cv *CounterVec) {
-        fmt.Fprintf(w, "# HELP %s %s\n", cv.Name, cv.Help)
-        fmt.Fprintf(w, "# TYPE %s counter\n", cv.Name)
+        // In OpenMetrics a counter's family name has no _total; its samples keep it.
+        family := cv.Name
+        if openMetrics {
+            family = strings.TrimSuffix(cv.Name, "_total")
+        }
+        fmt.Fprintf(w, "# HELP %s %s\n", family, cv.Help)
+        fmt.Fprintf(w, "# TYPE %s counter\n", family)
         cv.mu.RLock()
         for key, val := range cv.values {
             if key == "" {
@@ -211,10 +256,17 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
             if key != "" {
                 sep = string(key) + ","
             }
-            for i, upper := range hv.Buckets {
-                fmt.Fprintf(w, "%s_bucket{%sle=\"%g\"} %g\n", hv.Name, sep, upper, counts[i])
+            ex := hv.exemplars[key]
+            suffix := func(i int) string {
+                if !openMetrics || i >= len(ex) || ex[i].traceID == "" {
+                    return ""
+                }
+                return fmt.Sprintf(" # {trace_id=\"%s\"} %g %.3f", ex[i].traceID, ex[i].value, float64(ex[i].at.UnixMilli())/1000)
             }
-            fmt.Fprintf(w, "%s_bucket{%sle=\"+Inf\"} %g\n", hv.Name, sep, counts[len(hv.Buckets)])
+            for i, upper := range hv.Buckets {
+                fmt.Fprintf(w, "%s_bucket{%sle=\"%g\"} %g%s\n", hv.Name, sep, upper, counts[i], suffix(i))
+            }
+            fmt.Fprintf(w, "%s_bucket{%sle=\"+Inf\"} %g%s\n", hv.Name, sep, counts[len(hv.Buckets)], suffix(len(hv.Buckets)))
             if key == "" {
                 fmt.Fprintf(w, "%s_sum %g\n%s_count %g\n", hv.Name, hv.sum[key], hv.Name, counts[len(hv.Buckets)])
             } else {

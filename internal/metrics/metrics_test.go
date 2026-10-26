@@ -43,3 +43,33 @@ func TestDomainMetricsAreExposed(t *testing.T) {
 		}
 	}
 }
+
+// Asked for OpenMetrics (as Prometheus does), a bucket carries the trace of its latest
+// measurement: the way from the histogram to the trace. The classic format has no exemplars.
+func TestOpenMetricsCarriesExemplars(t *testing.T) {
+	h := NewHistogramVec("x_seconds", "x", []float64{0.1, 0.25}, "verdict")
+	h.ObserveWithTrace(map[string]string{"verdict": "ALLOW"}, 0.2, "0af7651916cd43dd8448eb211c80319c")
+	GateDuration.ObserveWithTrace(map[string]string{"verdict": "ALLOW"}, 0.2, "0af7651916cd43dd8448eb211c80319c")
+
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	req.Header.Set("Accept", "application/openmetrics-text;version=1.0.0,text/plain;version=0.0.4;q=0.5")
+	rec := httptest.NewRecorder()
+	ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/openmetrics-text") {
+		t.Fatalf("content type %q", ct)
+	}
+	if !strings.Contains(body, `aos_gate_duration_seconds_bucket{verdict="ALLOW",le="0.25"} `) ||
+		!strings.Contains(body, `# {trace_id="0af7651916cd43dd8448eb211c80319c"} 0.2 `) {
+		t.Errorf("no exemplar on the 0.25 bucket:\n%s", body)
+	}
+	if !strings.Contains(body, "# TYPE aos_http_requests counter") || !strings.HasSuffix(body, "# EOF\n") {
+		t.Error("not OpenMetrics: counter family or # EOF")
+	}
+
+	rec = httptest.NewRecorder()
+	ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", nil))
+	if strings.Contains(rec.Body.String(), "trace_id") || strings.Contains(rec.Body.String(), "# EOF") {
+		t.Error("the classic format must not carry exemplars")
+	}
+}

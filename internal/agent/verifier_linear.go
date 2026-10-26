@@ -528,7 +528,7 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 	started := time.Now()
 	outcome := "failure"
 	defer func() {
-		metrics.StepDuration.Observe(map[string]string{"tool_type": toolTypeLabel(t.Type), "outcome": outcome}, time.Since(started).Seconds())
+		metrics.StepDuration.ObserveWithTrace(map[string]string{"tool_type": toolTypeLabel(t.Type), "outcome": outcome}, time.Since(started).Seconds(), telemetry.SampledTraceID(ctx))
 	}()
 
 	var lastErr error

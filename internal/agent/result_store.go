@@ -2,6 +2,7 @@ package agent
 
 import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"strings"
 	"sync"
 	"time"
@@ -56,7 +57,11 @@ func observeRun(id, status string) {
 		return
 	}
 	if started, ok := runStarts.LoadAndDelete(id); ok {
-		metrics.RunDuration.Observe(map[string]string{"outcome": outcome}, time.Since(started.(time.Time)).Seconds())
+		traceID := ""
+		if taskCtx, ok := GetTaskContext(id); ok {
+			traceID = telemetry.SampledTraceID(taskCtx)
+		}
+		metrics.RunDuration.ObserveWithTrace(map[string]string{"outcome": outcome}, time.Since(started.(time.Time)).Seconds(), traceID)
 	}
 }
 
