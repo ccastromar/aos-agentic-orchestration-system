@@ -1,0 +1,205 @@
+{
+  "version": "prudence.decision-api/v1",
+  "description": "HTTP response of POST /api/policy/decisions -> whether a gate lets the step run (README.md, section 2). Every gate must agree on `run` for every case; when it stops on a well-formed APPROVAL_REQUIRED or DENY it must report that decision, and when it runs it must keep `decisionId` for the execution report. A case marked `future` is a body from a later v1 Prudence, with fields this schema does not know yet.",
+  "cases": [
+    {
+      "name": "ALLOW on 200 runs",
+      "status": 200,
+      "body": "{\"decision\": \"ALLOW\", \"reason\": null, \"approver\": null, \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\", \"policyVersion\": \"lab\", \"policyDigest\": \"sha256:ab\"}",
+      "expect": {
+        "run": true,
+        "decisionId": "4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90"
+      }
+    },
+    {
+      "name": "ALLOW with only the required fields runs",
+      "status": 200,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": true,
+        "decisionId": "4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90"
+      }
+    },
+    {
+      "name": "unknown fields are ignored",
+      "status": 200,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\", \"addedInV1_3\": {\"x\": 1}}",
+      "expect": {
+        "run": true,
+        "decisionId": "4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90"
+      },
+      "future": true
+    },
+    {
+      "name": "APPROVAL_REQUIRED on 202 stops and names the approver",
+      "status": 202,
+      "body": "{\"decision\": \"APPROVAL_REQUIRED\", \"reason\": \"high-risk system awaiting governance approval\", \"approver\": \"risk-officer\", \"decisionId\": \"0b7e3d21-55a4-4f0e-9c3b-1a2d3e4f5a6b\", \"policyVersion\": \"lab\"}",
+      "expect": {
+        "run": false,
+        "decision": "APPROVAL_REQUIRED",
+        "approver": "risk-officer"
+      }
+    },
+    {
+      "name": "DENY on 403 stops",
+      "status": 403,
+      "body": "{\"decision\": \"DENY\", \"reason\": \"prohibited AI system\", \"approver\": null, \"decisionId\": \"7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d\", \"policyVersion\": \"lab\"}",
+      "expect": {
+        "run": false,
+        "decision": "DENY"
+      }
+    },
+    {
+      "name": "ERROR on 503 stops",
+      "status": 503,
+      "body": "{\"decision\": \"ERROR\", \"reason\": \"policy engine unavailable\", \"approver\": null, \"decisionId\": \"9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a\", \"policyVersion\": \"lab\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "403 without a body (token lacks pdp.decide) stops",
+      "status": 403,
+      "body": "",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "401 stops",
+      "status": 401,
+      "body": "",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "400 stops",
+      "status": 400,
+      "body": "{\"status\": 400, \"error\": \"Bad Request\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW on 500 stops",
+      "status": 500,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW on 201 stops",
+      "status": 201,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW on 202 stops",
+      "status": 202,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW on 403 stops",
+      "status": 403,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW without decisionId stops",
+      "status": 200,
+      "body": "{\"decision\": \"ALLOW\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW with a blank decisionId stops",
+      "status": 200,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": \"  \"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "ALLOW with a non-string decisionId stops",
+      "status": 200,
+      "body": "{\"decision\": \"ALLOW\", \"decisionId\": 42}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "a lowercase allow stops",
+      "status": 200,
+      "body": "{\"decision\": \"allow\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "an unknown decision stops",
+      "status": 200,
+      "body": "{\"decision\": \"MAYBE\", \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "a null decision stops",
+      "status": 200,
+      "body": "{\"decision\": null, \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "a decision that is not a string stops",
+      "status": 200,
+      "body": "{\"decision\": true, \"decisionId\": \"4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90\"}",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "an HTML page on 200 stops",
+      "status": 200,
+      "body": "<html><body>Sign in</body></html>",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "an empty 200 stops",
+      "status": 200,
+      "body": "",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "a JSON array stops",
+      "status": 200,
+      "body": "[]",
+      "expect": {
+        "run": false
+      }
+    },
+    {
+      "name": "a JSON string stops",
+      "status": 200,
+      "body": "\"ALLOW\"",
+      "expect": {
+        "run": false
+      }
+    }
+  ]
+}

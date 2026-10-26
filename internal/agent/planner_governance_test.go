@@ -23,6 +23,26 @@ type governanceFixture struct {
 	subject *atomic.Value
 }
 
+// prudenceAnswer answers like Prudence (Decision API contract): the status that pairs with the
+// decision, and a decisionId. A body that is not a decision object goes back as it is, on 200.
+func prudenceAnswer(body string) (int, string) {
+	var d map[string]any
+	if json.Unmarshal([]byte(body), &d) != nil {
+		return http.StatusOK, body
+	}
+	if _, ok := d["decisionId"]; !ok {
+		d["decisionId"] = "decision-test"
+	}
+	out, _ := json.Marshal(d)
+	switch d["decision"] {
+	case "DENY":
+		return http.StatusForbidden, string(out)
+	case "APPROVAL_REQUIRED":
+		return http.StatusAccepted, string(out)
+	}
+	return http.StatusOK, string(out)
+}
+
 func newGovernanceFixture(t *testing.T, body string) governanceFixture {
 	t.Helper()
 	// Keep a developer's local m2m settings out of the test: the PDP stub is unauthenticated.
@@ -38,8 +58,10 @@ func newGovernanceFixture(t *testing.T, body string) governanceFixture {
 		}
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 		subject.Store(req.Subject)
+		status, answer := prudenceAnswer(body)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(body))
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(answer))
 	}))
 	t.Cleanup(srv.Close)
 	t.Setenv("PRUDENCE_PDP_URL", srv.URL)

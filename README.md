@@ -196,10 +196,14 @@ subject, pipeline, AI system and action:
 
 | Verdict | What AOS does |
 |---|---|
-| `ALLOW` | Runs the pipeline. |
-| `DENY` | Stops before any step; the task ends as `governance_blocked`. |
-| `APPROVAL_REQUIRED` | Same: approval happens only in Prudence's review workflow, never via a local AOS click. |
-| PDP unreachable, unreadable or unexpected answer | Stops with an `error` (fail-closed). |
+| `ALLOW` (status 200, with a `decisionId`) | Runs the pipeline. |
+| `DENY` (403) | Stops before any step; the task ends as `governance_blocked`. |
+| `APPROVAL_REQUIRED` (202) | Same: approval happens only in Prudence's review workflow, never via a local AOS click. |
+| PDP unreachable, unreadable or unexpected answer (an `ALLOW` under any other status, no `decisionId`, `ERROR`) | Stops with an `error` (fail-closed). |
+
+The gate runs Prudence's Decision API contract in its tests: the vectors in
+`internal/governance/decision-contract/`, copied from prudence-governance `contract/decision/`
+by its `sync.sh` and checked against their SHA-256 sums.
 
 A `governance_blocked` result carries the verdict (`decision`, `reason`, `approver`,
 `aiSystemId`, `pipeline`, `message`) and is persisted, so `/task` still shows it after the

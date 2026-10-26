@@ -1,0 +1,117 @@
+{
+  "version": "prudence.decision-api/v1",
+  "description": "What Prudence must answer (README.md, section 4). `decide`: the PDP's outcome -> status and body of POST /api/policy/decisions. `invalid`: requests refused with 400 before anything is decided. `report`: a sequence of execution reports -> statuses. Every body must match the schema in decision-api-v1.yaml.",
+  "request": {
+    "subject": "ignored-when-authenticated",
+    "pipeline": "credit_prescreening",
+    "aiSystemId": "68bf42c1-7b02-46b7-a7d9-68d696620b8a",
+    "action": "run"
+  },
+  "decide": [
+    {
+      "outcome": "allow",
+      "status": 200,
+      "decision": "ALLOW"
+    },
+    {
+      "outcome": "approval_required",
+      "reason": "high-risk system awaiting governance approval",
+      "approver": "risk-officer",
+      "status": 202,
+      "decision": "APPROVAL_REQUIRED"
+    },
+    {
+      "outcome": "deny",
+      "reason": "prohibited AI system",
+      "status": 403,
+      "decision": "DENY"
+    },
+    {
+      "outcome": "error",
+      "reason": "policy engine unavailable",
+      "status": 503,
+      "decision": "ERROR"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "pipeline missing",
+      "patch": {
+        "pipeline": null
+      }
+    },
+    {
+      "name": "aiSystemId blank",
+      "patch": {
+        "aiSystemId": " "
+      }
+    },
+    {
+      "name": "action missing",
+      "patch": {
+        "action": null
+      }
+    }
+  ],
+  "report": {
+    "report": {
+      "runtime": "aos",
+      "executionId": "trace-7f3a9c",
+      "decisionId": "4f1c2a5e-9b0d-4c67-8a21-3e5f6d7c8b90",
+      "aiSystemId": "68bf42c1-7b02-46b7-a7d9-68d696620b8a",
+      "pipeline": "credit_prescreening",
+      "startedAt": "2026-10-19T10:15:30.120Z"
+    },
+    "steps": [
+      {
+        "name": "first report",
+        "patch": {},
+        "status": 201
+      },
+      {
+        "name": "the same report again (a retry)",
+        "patch": {},
+        "status": 200
+      },
+      {
+        "name": "same execution, other facts",
+        "patch": {
+          "pipeline": "other_pipeline"
+        },
+        "status": 409
+      },
+      {
+        "name": "startedAt in the future",
+        "patch": {
+          "executionId": "trace-future",
+          "startedAt": "2999-01-01T00:00:00Z"
+        },
+        "status": 400
+      },
+      {
+        "name": "startedAt not an instant",
+        "patch": {
+          "executionId": "trace-bad-time",
+          "startedAt": "yesterday"
+        },
+        "status": 400
+      },
+      {
+        "name": "runtime missing",
+        "patch": {
+          "executionId": "trace-no-runtime",
+          "runtime": null
+        },
+        "status": 400
+      },
+      {
+        "name": "no decision cited",
+        "patch": {
+          "executionId": "trace-no-decision",
+          "decisionId": null
+        },
+        "status": 201
+      }
+    ]
+  }
+}

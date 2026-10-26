@@ -125,9 +125,15 @@ func TestDefaultModelLoads(t *testing.T) {
 	}
 }
 
-// The contract is a copy synced from prudence-governance; an edit made here fails this test.
+// The contracts are copies synced from prudence-governance; an edit made here fails this test.
 func TestContractCopyIsUnmodified(t *testing.T) {
-	f, err := os.Open(filepath.Join("contract", "SOURCE"))
+	for _, dir := range []string{"contract", "decision-contract"} {
+		t.Run(dir, func(t *testing.T) { checkSyncedCopy(t, dir) })
+	}
+}
+
+func checkSyncedCopy(t *testing.T, dir string) {
+	f, err := os.Open(filepath.Join(dir, "SOURCE"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,12 +149,12 @@ func TestContractCopyIsUnmodified(t *testing.T) {
 		if !ok {
 			t.Fatalf("bad SOURCE line %q", line)
 		}
-		data, err := os.ReadFile(filepath.Join("contract", name))
+		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got := sha256.Sum256(data); hex.EncodeToString(got[:]) != sum {
-			t.Errorf("contract/%s differs from the synced copy: change the contract in prudence-governance and run its sync.sh", name)
+			t.Errorf("%s/%s differs from the synced copy: change the contract in prudence-governance and run its sync.sh", dir, name)
 		}
 		checked++
 	}

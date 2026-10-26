@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -37,7 +38,7 @@ type Decision struct {
 	Reason   string
 	Approver string
 	// DecisionID is the id Prudence recorded the decision under (Decision API v1); the
-	// execution report cites it. Empty against an older PDP.
+	// execution report cites it. Never empty: a decision without one is refused.
 	DecisionID string
 }
 
@@ -96,10 +97,22 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 	if decErr := json.NewDecoder(resp.Body).Decode(&dr); decErr != nil {
 		return Decision{}, fmt.Errorf("governance: unreadable PDP response (status %d)", resp.StatusCode)
 	}
-	switch dr.Decision {
-	case Allow, Deny, ApprovalRequired:
-		return Decision{Status: dr.Decision, Reason: dr.Reason, Approver: dr.Approver, DecisionID: dr.DecisionID}, nil
-	default:
-		return Decision{}, fmt.Errorf("governance: unexpected PDP decision %q", dr.Decision)
+	// The status and the decision come in pairs (Decision API contract, section 2): an ALLOW
+	// under any status but 200, or a decision without the id it was recorded under, is not a
+	// decision AOS may act on.
+	if want, ok := decisionForStatus[resp.StatusCode]; !ok || dr.Decision != want {
+		return Decision{}, fmt.Errorf("governance: unexpected PDP answer: status %d with decision %q", resp.StatusCode, dr.Decision)
 	}
+	if strings.TrimSpace(dr.DecisionID) == "" {
+		return Decision{}, fmt.Errorf("governance: PDP decision %s without a decisionId", dr.Decision)
+	}
+	return Decision{Status: dr.Decision, Reason: dr.Reason, Approver: dr.Approver, DecisionID: dr.DecisionID}, nil
+}
+
+// decisionForStatus is the only decision each status may carry. 503 (ERROR: Prudence could
+// not decide) is not listed: it is never a decision AOS acts on, so it stops as an error.
+var decisionForStatus = map[int]string{
+	http.StatusOK:        Allow,
+	http.StatusAccepted:  ApprovalRequired,
+	http.StatusForbidden: Deny,
 }

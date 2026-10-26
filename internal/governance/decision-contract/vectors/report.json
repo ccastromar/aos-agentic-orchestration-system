@@ -1,0 +1,46 @@
+{
+  "version": "prudence.decision-api/v1",
+  "description": "HTTP status of POST /api/executions -> what a runtime does with the report (README.md, section 3): recorded, retry later, or drop (log it: retrying cannot help).",
+  "cases": [
+    {
+      "status": 201,
+      "expect": "recorded"
+    },
+    {
+      "status": 200,
+      "expect": "recorded"
+    },
+    {
+      "status": 400,
+      "expect": "drop"
+    },
+    {
+      "status": 401,
+      "expect": "drop"
+    },
+    {
+      "status": 403,
+      "expect": "drop"
+    },
+    {
+      "status": 409,
+      "expect": "drop"
+    },
+    {
+      "status": 500,
+      "expect": "retry"
+    },
+    {
+      "status": 502,
+      "expect": "retry"
+    },
+    {
+      "status": 503,
+      "expect": "retry"
+    },
+    {
+      "status": 504,
+      "expect": "retry"
+    }
+  ]
+}

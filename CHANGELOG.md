@@ -37,6 +37,10 @@ higher than the suite's because v0.3.0 is already public.
 
 ### Changed
 
+- **The governance gate pairs the status with the decision.** It runs a pipeline only on status
+  200 with `ALLOW` and a `decisionId`; before, an `ALLOW` body under an error status, or without
+  a `decisionId`, ran it. Checked by the vectors of Prudence's Decision API contract
+  (`internal/governance/decision-contract/`).
 - **The console is part of AOS again**, in `ui/` (React, on the shared `@chestertown/design`),
   imported with its history from the former aos-ui repository. It follows AOS's version, has its
   own CI job and starts from `run.sh`. It signs in with OIDC (discovery, configurable scope) and
