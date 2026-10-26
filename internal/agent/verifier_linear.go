@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -498,6 +499,19 @@ func clearPreparedCallbackWait(v *Verifier, st *state.ExecutionState, id string,
 	_ = v.stateManager.Save(context.Background(), st)
 }
 
+// toolTypeLabel keeps the step metric's tool_type to a fixed set: a configured type outside
+// it would make a new series per name.
+func toolTypeLabel(toolType string) string {
+	switch t := strings.ToLower(strings.TrimSpace(toolType)); t {
+	case "http", "grpc", "mcp", "a2a", "cli":
+		return t
+	case "":
+		return "local"
+	default:
+		return "other"
+	}
+}
+
 func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[string]string, step config.PipelineStep) (map[string]any, error) {
 	retries := step.Retries
 	if retries < 0 {
@@ -511,6 +525,11 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 	ctx, span := telemetry.Tracer().Start(ctx, "aos.step", trace.WithAttributes(
 		attribute.String("aos.tool.name", t.Name), attribute.String("aos.tool.type", t.Type)))
 	defer span.End()
+	started := time.Now()
+	outcome := "failure"
+	defer func() {
+		metrics.StepDuration.Observe(map[string]string{"tool_type": toolTypeLabel(t.Type), "outcome": outcome}, time.Since(started).Seconds())
+	}()
 
 	var lastErr error
 	var out map[string]any
@@ -540,6 +559,7 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 		cancel()
 
 		if lastErr == nil {
+			outcome = "success"
 			return out, nil
 		}
 		span.AddEvent("attempt failed", trace.WithAttributes(attribute.Int("aos.attempt", i+1)))

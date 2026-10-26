@@ -265,7 +265,13 @@ the demo. The step-by-step script is `prudence-governance/docs/functional/06-dem
 - GET /intents, GET /api/v1/memories, POST /api/v1/callbacks/{token}
 - GET /health/live — Liveness
 - GET /health/ready — Readiness (depends on loaded specs and LLM client state)
-- GET /metrics — Prometheus metrics
+- GET /metrics — Prometheus metrics: HTTP (`aos_http_*`, by route), bus and LLM counters, and the
+  domain metrics of the Chestertown observability conventions: `aos_run_duration_seconds`
+  (`outcome`: completed, blocked, error, timeout; time waiting for a person excluded),
+  `aos_step_duration_seconds` (`tool_type`, `outcome`), `aos_gate_duration_seconds` (`verdict`,
+  `ERROR` when Prudence gave none), `aos_evidence_shipped_total` (`transport`, `outcome`) and
+  `aos_evidence_backlog_bytes` (journal not yet shipped over Kafka). Histogram buckets include
+  the thresholds the service-level objectives are measured on.
 
 The server has no UI of its own: the console is in [`ui/`](ui/README.md).
 

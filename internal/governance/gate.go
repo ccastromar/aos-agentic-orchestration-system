@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"net/http"
 	"strings"
 	"time"
@@ -67,6 +68,17 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 	if pdpURL == "" || aiSystem == "" {
 		return Decision{Status: Allow}, nil // not governed
 	}
+	started := time.Now()
+	dec, err := evaluate(ctx, pdpURL, subject, pipeline, aiSystem, action)
+	verdict := dec.Status
+	if err != nil {
+		verdict = "ERROR" // fail closed: no verdict AOS may act on
+	}
+	metrics.GateDuration.Observe(map[string]string{"verdict": verdict}, time.Since(started).Seconds())
+	return dec, err
+}
+
+func evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action string) (Decision, error) {
 	if action == "" {
 		action = "run"
 	}

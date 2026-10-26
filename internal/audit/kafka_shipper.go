@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"io"
 	"os"
 	"path/filepath"
@@ -190,10 +191,22 @@ func (s *KafkaShipper) ShipOnce(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("open audit journal: %w", err)
 	}
 	defer file.Close()
-	if info, err := file.Stat(); err == nil && info.Size() < cur.Offset {
+	var size int64 = -1
+	if info, err := file.Stat(); err == nil {
+		size = info.Size()
+	}
+	// What is left to ship, in bytes of journal, once this pass is done.
+	shipped := cur.Offset
+	defer func() {
+		if size >= 0 {
+			metrics.EvidenceBacklog.Set(map[string]string{"transport": "kafka"}, float64(max(size-shipped, 0)))
+		}
+	}()
+	if size >= 0 && size < cur.Offset {
 		// The journal was replaced. Ernest deduplicates on sourceEventId, so re-reading it is safe.
 		logx.Warn("Evidence", "audit journal is shorter than the shipped offset; re-reading it from the start")
 		cur = kafkaCursor{}
+		shipped = 0
 	}
 	if _, err := file.Seek(cur.Offset, io.SeekStart); err != nil {
 		return 0, fmt.Errorf("seek audit journal: %w", err)
@@ -228,18 +241,24 @@ func (s *KafkaShipper) ShipOnce(ctx context.Context) (int, error) {
 	}
 	if len(records) == 0 {
 		if next.Offset != cur.Offset {
-			return 0, s.writeCursor(next)
+			if err := s.writeCursor(next); err != nil {
+				return 0, err
+			}
+			shipped = next.Offset
 		}
 		return 0, nil
 	}
 	produceCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if err := s.client.ProduceSync(produceCtx, records...).FirstErr(); err != nil {
+		metrics.EvidenceShipped.Add(map[string]string{"transport": "kafka", "outcome": "failure"}, float64(len(records)))
 		return 0, fmt.Errorf("publish %d audit records: %w", len(records), err)
 	}
+	metrics.EvidenceShipped.Add(map[string]string{"transport": "kafka", "outcome": "success"}, float64(len(records)))
 	if err := s.writeCursor(next); err != nil {
 		return 0, err
 	}
+	shipped = next.Offset
 	return len(records), nil
 }
 

@@ -468,6 +468,7 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 		_ = NewTaskContext(taskCtx, id, 0)
 		logx.Info("Verifier", "[%s] regenerated fresh task context (resume)", id)
 	}
+	markRunStart(id)
 	// A resume (a human decision, a callback) happens later: a new trace for the same task.
 	taskCtx, span := telemetry.Tracer().Start(taskCtx, "aos.run.resume", trace.WithNewRoot(), trace.WithAttributes(
 		attribute.String(telemetry.CorrelationKey, id), attribute.String("aos.pipeline", pipe.Name)))

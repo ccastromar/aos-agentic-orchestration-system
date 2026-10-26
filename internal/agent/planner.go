@@ -151,6 +151,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	if taskCtx == nil {
 		taskCtx = NewTaskContext(context.Background(), id, 0)
 	}
+	markRunStart(id)
 	taskCtx, span := telemetry.Tracer().Start(taskCtx, "aos.plan",
 		trace.WithAttributes(attribute.String(telemetry.CorrelationKey, id)))
 	defer span.End()

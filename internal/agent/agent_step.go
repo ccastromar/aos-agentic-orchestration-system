@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -17,10 +18,14 @@ import (
 func (v *Verifier) runAgentStep(ctx context.Context, executionID string, definition config.AgentDefinition, params map[string]string, step config.PipelineStep) (out map[string]any, err error) {
 	ctx, span := telemetry.Tracer().Start(ctx, "aos.step", trace.WithAttributes(
 		attribute.String("aos.tool.name", definition.Name), attribute.String("aos.tool.type", "agent")))
+	started := time.Now()
 	defer func() {
+		outcome := "success"
 		if err != nil {
+			outcome = "failure"
 			span.SetStatus(codes.Error, "agent failed")
 		}
+		metrics.StepDuration.Observe(map[string]string{"tool_type": "agent", "outcome": outcome}, time.Since(started).Seconds())
 		span.End()
 	}()
 	if step.TimeoutMs > 0 {

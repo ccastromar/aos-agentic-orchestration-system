@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"io"
 	"net/http"
 	"net/url"
@@ -70,6 +71,11 @@ func (l *ErnestLogger) WithAISystems(aiSystems map[string]string) *ErnestLogger 
 
 func (l *ErnestLogger) Log(event Event) {
 	err := l.send(event)
+	outcome := "success"
+	if err != nil {
+		outcome = "failure"
+	}
+	metrics.EvidenceShipped.Inc(map[string]string{"transport": "http", "outcome": outcome})
 	l.mu.Lock()
 	l.lastErr = err
 	l.mu.Unlock()

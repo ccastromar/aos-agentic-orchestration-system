@@ -47,9 +47,13 @@ func NewCounterVec(name, help string, labelNames ...string) *CounterVec {
 }
 
 func (cv *CounterVec) Inc(lbls map[string]string) {
+    cv.Add(lbls, 1)
+}
+
+func (cv *CounterVec) Add(lbls map[string]string, v float64) {
     key := makeKey(lbls)
     cv.mu.Lock()
-    cv.values[key] += 1
+    cv.values[key] += v
     cv.mu.Unlock()
 }
 
@@ -75,6 +79,72 @@ func (sv *SummaryVec) Observe(lbls map[string]string, v float64) {
     sv.mu.Unlock()
 }
 
+// HistogramVec counts observations in cumulative buckets (upper bounds, in the metric's unit),
+// exported as name_bucket{le=...}, name_sum and name_count. The bounds are chosen so the
+// service-level indicators can be read from the buckets (Chestertown observability, section 8).
+type HistogramVec struct {
+    Name    string
+    Help    string
+    Buckets []float64
+    mu      sync.RWMutex
+    labelNames []string
+    counts  map[labelsKey][]float64 // per bucket, then +Inf
+    sum     map[labelsKey]float64
+}
+
+func NewHistogramVec(name, help string, buckets []float64, labelNames ...string) *HistogramVec {
+    return &HistogramVec{Name: name, Help: help, Buckets: buckets, labelNames: labelNames,
+        counts: make(map[labelsKey][]float64), sum: make(map[labelsKey]float64)}
+}
+
+func (hv *HistogramVec) Observe(lbls map[string]string, v float64) {
+    key := makeKey(lbls)
+    hv.mu.Lock()
+    counts, ok := hv.counts[key]
+    if !ok {
+        counts = make([]float64, len(hv.Buckets)+1)
+        hv.counts[key] = counts
+    }
+    for i, upper := range hv.Buckets {
+        if v <= upper {
+            counts[i]++
+        }
+    }
+    counts[len(hv.Buckets)]++
+    hv.sum[key] += v
+    hv.mu.Unlock()
+}
+
+// GaugeVec holds the latest value per label set.
+type GaugeVec struct {
+    Name   string
+    Help   string
+    mu     sync.RWMutex
+    labelNames []string
+    values map[labelsKey]float64
+}
+
+func NewGaugeVec(name, help string, labelNames ...string) *GaugeVec {
+    return &GaugeVec{Name: name, Help: help, labelNames: labelNames, values: make(map[labelsKey]float64)}
+}
+
+func (gv *GaugeVec) Set(lbls map[string]string, v float64) {
+    key := makeKey(lbls)
+    gv.mu.Lock()
+    gv.values[key] = v
+    gv.mu.Unlock()
+}
+
+// Buckets (seconds) of the domain histograms.
+var (
+    // A decision: Prudence answers within the gate's 5 s timeout.
+    GateBuckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
+    // One tool call.
+    StepBuckets = []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
+    // A governed run, from the request to its result (time waiting for a person excluded).
+    RunBuckets = []float64{0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300, 600}
+)
+
 // Global metrics we care about
 var (
     HTTPRequests = NewCounterVec("aos_http_requests_total", "Total HTTP requests", "method", "path", "status")
@@ -85,6 +155,14 @@ var (
     LLMPings     = NewCounterVec("aos_llm_pings_total", "LLM Ping calls", "provider", "outcome") // outcome=ok|error
     LLMChats     = NewCounterVec("aos_llm_chats_total", "LLM Chat calls", "provider", "outcome")
     LLMChatDur   = NewSummaryVec("aos_llm_chat_seconds", "LLM Chat duration seconds", "provider", "outcome")
+
+    // Domain metrics (Chestertown observability, section 6). Labels take a small, fixed set of
+    // values: never a task, user, pipeline or tool name.
+    RunDuration  = NewHistogramVec("aos_run_duration_seconds", "One run, from its request (or resume) to its result or a wait for a person", RunBuckets, "outcome") // completed|blocked|error|timeout
+    StepDuration = NewHistogramVec("aos_step_duration_seconds", "One tool call, retries included", StepBuckets, "tool_type", "outcome")
+    GateDuration = NewHistogramVec("aos_gate_duration_seconds", "The call to Prudence's decision API", GateBuckets, "verdict") // ALLOW|DENY|APPROVAL_REQUIRED|ERROR
+    EvidenceShipped = NewCounterVec("aos_evidence_shipped_total", "Audit records sent to Ernest", "transport", "outcome") // kafka|http, success|failure
+    EvidenceBacklog = NewGaugeVec("aos_evidence_backlog_bytes", "Audit journal bytes not yet shipped to Ernest over Kafka", "transport")
 )
 
 // ServeHTTP exposes all metrics in Prometheus text format.
@@ -124,10 +202,51 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
         sv.mu.RUnlock()
     }
 
+    dumpHistogram := func(hv *HistogramVec) {
+        fmt.Fprintf(w, "# HELP %s %s\n", hv.Name, hv.Help)
+        fmt.Fprintf(w, "# TYPE %s histogram\n", hv.Name)
+        hv.mu.RLock()
+        for key, counts := range hv.counts {
+            sep := ""
+            if key != "" {
+                sep = string(key) + ","
+            }
+            for i, upper := range hv.Buckets {
+                fmt.Fprintf(w, "%s_bucket{%sle=\"%g\"} %g\n", hv.Name, sep, upper, counts[i])
+            }
+            fmt.Fprintf(w, "%s_bucket{%sle=\"+Inf\"} %g\n", hv.Name, sep, counts[len(hv.Buckets)])
+            if key == "" {
+                fmt.Fprintf(w, "%s_sum %g\n%s_count %g\n", hv.Name, hv.sum[key], hv.Name, counts[len(hv.Buckets)])
+            } else {
+                fmt.Fprintf(w, "%s_sum{%s} %g\n%s_count{%s} %g\n", hv.Name, key, hv.sum[key], hv.Name, key, counts[len(hv.Buckets)])
+            }
+        }
+        hv.mu.RUnlock()
+    }
+
+    dumpGauge := func(gv *GaugeVec) {
+        fmt.Fprintf(w, "# HELP %s %s\n", gv.Name, gv.Help)
+        fmt.Fprintf(w, "# TYPE %s gauge\n", gv.Name)
+        gv.mu.RLock()
+        for key, val := range gv.values {
+            if key == "" {
+                fmt.Fprintf(w, "%s %g\n", gv.Name, val)
+            } else {
+                fmt.Fprintf(w, "%s{%s} %g\n", gv.Name, key, val)
+            }
+        }
+        gv.mu.RUnlock()
+    }
+
     dumpCounter(HTTPRequests)
     dumpSummary(HTTPDuration)
     dumpCounter(BusMessages)
     dumpCounter(LLMPings)
     dumpCounter(LLMChats)
     dumpSummary(LLMChatDur)
+    dumpHistogram(RunDuration)
+    dumpHistogram(StepDuration)
+    dumpHistogram(GateDuration)
+    dumpCounter(EvidenceShipped)
+    dumpGauge(EvidenceBacklog)
 }

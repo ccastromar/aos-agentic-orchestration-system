@@ -47,6 +47,9 @@ higher than the suite's because v0.3.0 is already public.
   the calls to Prudence, which continue the trace (`traceparent`). The execution report, sent in
   the background, is a span of its own linked to the run. Without an endpoint nothing is
   recorded, and an incoming `traceparent` is still passed on.
+- **Domain metrics** on `/metrics`: run, step and gate duration histograms (buckets chosen for
+  the suite's service-level indicators), evidence shipped to Ernest by transport and outcome, and
+  the journal backlog not yet shipped over Kafka. Labels are fixed sets, never ids or names.
 - **JSON logs with the suite's fields** (`LOG_FORMAT`, JSON by default outside development): one
   object per line with `timestamp`, `severity`, `service.*`, `deployment.environment.name`,
   `message`, and a task's `correlation_id`, `trace_id` and `span_id`. The access log is an

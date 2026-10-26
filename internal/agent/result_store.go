@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,9 +21,43 @@ var (
 )
 
 func storeResult(id string, res Result) {
+	observeRun(id, res.Status)
 	resultsMu.Lock()
 	defer resultsMu.Unlock()
 	results[id] = res
+}
+
+// runStarts holds when each run started, or resumed after waiting for a person or a callback.
+var runStarts sync.Map
+
+// markRunStart starts the clock of run id's aos_run_duration_seconds.
+func markRunStart(id string) {
+	runStarts.Store(id, time.Now())
+}
+
+// runOutcome is the outcome label of a final status, or "" for one that is not final.
+var runOutcome = map[string]string{
+	"completed":          "completed",
+	"ok":                 "completed",
+	"governance_blocked": "blocked",
+	"error":              "error",
+	"timeout":            "timeout",
+}
+
+// observeRun records a run when its result is final. A wait for a person or a callback stops
+// the clock without recording: that time is theirs, and the resume starts it again.
+func observeRun(id, status string) {
+	if strings.HasPrefix(status, "await_") {
+		runStarts.Delete(id)
+		return
+	}
+	outcome, final := runOutcome[status]
+	if !final {
+		return
+	}
+	if started, ok := runStarts.LoadAndDelete(id); ok {
+		metrics.RunDuration.Observe(map[string]string{"outcome": outcome}, time.Since(started.(time.Time)).Seconds())
+	}
 }
 
 // getResult retrieves a stored result by id.
