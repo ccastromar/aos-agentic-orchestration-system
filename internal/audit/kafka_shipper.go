@@ -42,6 +42,8 @@ type KafkaShipperConfig struct {
 	Security    KafkaSecurity
 	// AISystems maps a pipeline name to the Prudence AI system it runs as.
 	AISystems map[string]string
+	// EvidenceKey digests each record hash before it leaves AOS (LoadEvidenceKey).
+	EvidenceKey []byte
 }
 
 // KafkaSecurity mirrors Ernest's consumer options: PLAINTEXT, SSL, SASL_PLAINTEXT or SASL_SSL,
@@ -60,6 +62,9 @@ type kafkaCursor struct {
 }
 
 func NewKafkaShipper(cfg KafkaShipperConfig) (*KafkaShipper, error) {
+	if len(cfg.EvidenceKey) == 0 {
+		return nil, errors.New("kafka evidence needs an evidence key (LoadEvidenceKey)")
+	}
 	if strings.TrimSpace(cfg.JournalPath) == "" {
 		return nil, errors.New("Kafka evidence needs AUDIT_LOG_PATH: the audit journal is its outbox")
 	}
@@ -214,7 +219,7 @@ func (s *KafkaShipper) ShipOnce(ctx context.Context) (int, error) {
 			// Never skip evidence silently: stop here until the journal is repaired.
 			return 0, fmt.Errorf("audit journal record at byte %d is unreadable: %w", offset-int64(len(line)), err)
 		}
-		record, err := JournalRecord(rec, s.cfg.AISystems[rec.Event.Pipeline])
+		record, err := JournalRecord(rec, s.cfg.AISystems[rec.Event.Pipeline], s.cfg.EvidenceKey)
 		if err != nil {
 			return 0, err
 		}
@@ -281,10 +286,14 @@ func (s *KafkaShipper) writeCursor(cur kafkaCursor) error {
 }
 
 // JournalRecord is the Kafka record one journal record becomes (contract/audit-events): the
-// hash-only evidence body, keyed by trace so a trace's events stay in order on one partition,
-// with the headers Ernest's ingestor reads first.
-func JournalRecord(rec Record, aiSystemID string) (*kgo.Record, error) {
-	evidence, err := BuildEvidence(rec.Event, rec.Hash, aiSystemID, map[string]any{
+// hash-only evidence body identified by the record's EvidenceDigest, keyed by trace so a trace's
+// events stay in order on one partition, with the headers Ernest's ingestor reads first.
+func JournalRecord(rec Record, aiSystemID string, evidenceKey []byte) (*kgo.Record, error) {
+	if len(evidenceKey) == 0 {
+		return nil, errors.New("no evidence key: audit records cannot leave AOS undigested")
+	}
+	digest := EvidenceDigest(evidenceKey, rec.Hash)
+	evidence, err := BuildEvidence(rec.Event, digest, aiSystemID, map[string]any{
 		"journalSequence": rec.Sequence,
 		"transport":       "kafka",
 	})
@@ -293,7 +302,7 @@ func JournalRecord(rec Record, aiSystemID string) (*kgo.Record, error) {
 	}
 	key := rec.Event.TraceID
 	if key == "" {
-		key = rec.Hash
+		key = digest
 	}
 	return &kgo.Record{
 		Key:   []byte(key),

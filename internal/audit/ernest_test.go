@@ -45,7 +45,7 @@ func TestErnestLoggerSendsHashOnlyEventWithSharedKey(t *testing.T) {
 			t.Errorf("invalid JSON payload: %v", err)
 		}
 		metadata, _ := payload["metadata"].(map[string]any)
-		if metadata["eventHash"] == "" || metadata["traceId"] != "trace-123" || metadata["phase"] != "tool.completed" {
+		if metadata["eventDigest"] == "" || metadata["traceId"] != "trace-123" || metadata["phase"] != "tool.completed" {
 			t.Errorf("missing AOS evidence metadata: %#v", metadata)
 		}
 		if payload["sourceEventId"] == "" || payload["eventType"] != "aos.audit.event.tool.completed" {
@@ -67,6 +67,7 @@ func TestErnestLoggerSendsHashOnlyEventWithSharedKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	logger.WithEvidenceKey([]byte("test-evidence-key"))
 	logger.Log(Event{
 		Timestamp: time.Date(2026, 10, 9, 12, 0, 0, 0, time.FixedZone("CEST", 2*60*60)),
 		TraceID:   "trace-123",
@@ -95,6 +96,7 @@ func TestErnestLoggerReportsNonSuccessStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	logger.WithEvidenceKey([]byte("test-evidence-key"))
 	logger.Log(Event{TraceID: "trace-fail", Phase: "intent.accepted"})
 	if err := logger.Err(); err == nil || !strings.Contains(err.Error(), "401 Unauthorized") {
 		t.Fatalf("expected Ernest 401 error, got %v", err)
@@ -116,6 +118,7 @@ func TestErnestLoggerDoesNotFollowRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	logger.WithEvidenceKey([]byte("test-evidence-key"))
 	logger.Log(Event{TraceID: "redirect-test", Phase: "test"})
 	if err := logger.Err(); err == nil || !strings.Contains(err.Error(), "302 Found") {
 		t.Fatalf("expected redirect to fail, got %v", err)

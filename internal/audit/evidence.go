@@ -22,13 +22,14 @@ type Evidence struct {
 	Body          []byte
 }
 
-// BuildEvidence turns an audit event into Ernest's event shape. eventHash identifies the event
-// (the journal record hash when shipping from the journal). aiSystemID is the Prudence system
-// the event's pipeline runs as ("" for ungoverned pipelines); extra adds metadata fields.
+// BuildEvidence turns an audit event into Ernest's event shape. eventDigest identifies the event:
+// the EvidenceDigest of its record hash, never the hash itself (see EvidenceDigest). aiSystemID
+// is the Prudence system the event's pipeline runs as ("" for ungoverned pipelines); extra adds
+// metadata fields.
 //
-// Only identifiers, status and digests leave AOS: prompts, params, user IDs, tool outputs and
-// error messages stay in the local audit journal.
-func BuildEvidence(event Event, eventHash, aiSystemID string, extra map[string]any) (Evidence, error) {
+// Only identifiers, status and keyed digests leave AOS: prompts, params, user IDs, tool outputs
+// and error messages stay in the local audit journal.
+func BuildEvidence(event Event, eventDigest, aiSystemID string, extra map[string]any) (Evidence, error) {
 	ts := event.Timestamp
 	if ts.IsZero() {
 		ts = time.Now()
@@ -40,15 +41,15 @@ func BuildEvidence(event Event, eventHash, aiSystemID string, extra map[string]a
 	if phase := strings.Trim(strings.TrimSpace(event.Phase), "."); phase != "" {
 		eventType += "." + phase
 	}
-	sourceEventID := strings.Join([]string{event.TraceID, event.Phase, event.Step, eventHash}, ":")
+	sourceEventID := strings.Join([]string{event.TraceID, event.Phase, event.Step, eventDigest}, ":")
 	if event.TraceID == "" {
-		sourceEventID = eventHash
+		sourceEventID = eventDigest
 	}
 
 	metadata := map[string]any{
 		"producer":      "aos-agentic-orchestration-system",
-		"schemaVersion": "2",
-		"eventHash":     eventHash,
+		"schemaVersion": "3",
+		"eventDigest":   eventDigest,
 		"phase":         event.Phase,
 		"traceId":       event.TraceID,
 		"intent":        event.Intent,

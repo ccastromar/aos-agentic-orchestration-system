@@ -475,6 +475,23 @@ simulator that returns a receipt; it is not a real blockchain or smart contract.
 A local hash chain is tamper-evident, but a real external anchor is needed to
 make deletion or rewriting detectable by an independent party.
 
+### The evidence key (required to send evidence)
+
+Whatever leaves AOS for Ernest identifies each audit record by `eventDigest`, an HMAC-SHA256 of
+the record's hash under the installation's evidence key, never by the hash itself: the hash covers
+the user and the parameters, and a bare one could be confirmed by guessing
+(`contract/audit-events/README.md`). Set one of:
+
+| Variable | Purpose |
+|---|---|
+| `AOS_EVIDENCE_KEY` | The key, at least 32 bytes, e.g. injected from a key vault (Azure Key Vault reference, External Secrets Operator). |
+| `AOS_EVIDENCE_KEY_FILE` | A file holding it, e.g. a Kubernetes CSI secret or a Docker Compose secret. |
+
+Outside development AOS refuses to start without it when the Kafka shipper or the HTTP export is
+on. In development it generates one next to the journal (`<AUDIT_LOG_PATH>.evidence-key`, mode
+0600). Never change it: Ernest deduplicates replays by the digest, and an auditor needs the key
+in use at the time to match records; keep the previous key if you ever rotate.
+
 ### Execution evidence to Ernest over Kafka (recommended)
 
 Set `AOS_EVIDENCE_KAFKA_BROKERS` and AOS publishes its audit journal to Ernest asynchronously.
@@ -484,8 +501,9 @@ on disk first; a background shipper reads complete records after a persisted cur
 `aos.executions`) and advances the cursor only once Kafka acknowledges them. Pipelines never wait
 for or fail because of Kafka or Ernest; the backlog ships when they are back, and replays are
 deduplicated by Ernest on `sourceEventId`. Records carry the same hash-only body as the HTTP path,
-plus `journalSequence`; the record's chain hash is the event hash, so Ernest's evidence can be
-matched with the local journal.
+plus `journalSequence`. The record's chain hash travels only as a keyed digest (`eventDigest`,
+see below), so whoever holds the evidence key can match Ernest's evidence with the local journal
+and nobody else can test guesses about who ran what.
 
 Events of a pipeline that declares `ai_system` carry `metadata.aiSystemId`, and the
 `pipeline.started` event (recorded only after the governance gate allowed the run) is tagged

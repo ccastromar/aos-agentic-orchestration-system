@@ -175,7 +175,12 @@ func newEvidenceShipper(env *config.EnvVars, aiSystems map[string]string) (*audi
 	if !auth.IsDevelopmentEnvironment(env.AppEnv) && protocol != "SSL" && protocol != "SASL_SSL" {
 		return nil, fmt.Errorf("AOS_EVIDENCE_KAFKA_SECURITY_PROTOCOL must be SSL or SASL_SSL outside development (got %q)", env.EvidenceKafkaSecurity)
 	}
+	key, err := evidenceKey(env)
+	if err != nil {
+		return nil, err
+	}
 	return audit.NewKafkaShipper(audit.KafkaShipperConfig{
+		EvidenceKey: key,
 		JournalPath: env.AuditLogPath,
 		CursorPath:  env.EvidenceKafkaCursor,
 		Brokers:     brokers,
@@ -190,6 +195,11 @@ func newEvidenceShipper(env *config.EnvVars, aiSystems map[string]string) (*audi
 		},
 		AISystems: aiSystems,
 	})
+}
+
+// evidenceKey loads the key audit hashes are digested with before they leave AOS.
+func evidenceKey(env *config.EnvVars) ([]byte, error) {
+	return audit.LoadEvidenceKey(env.EvidenceKey, env.EvidenceKeyFile, env.AuditLogPath, auth.IsDevelopmentEnvironment(env.AppEnv))
 }
 
 func splitList(raw string) []string {
@@ -224,6 +234,15 @@ func newAuditLoggerFor(env *config.EnvVars, aiSystems map[string]string) (audit.
 			}
 			return nil, nil, fmt.Errorf("ERNEST_INGESTOR_API_KEY is required outside development mode")
 		}
+		key, err := evidenceKey(env)
+		if err != nil {
+			for _, sink := range sinks {
+				if closer, ok := sink.(interface{ Close() error }); ok {
+					_ = closer.Close()
+				}
+			}
+			return nil, nil, err
+		}
 		remote, err := audit.NewErnestLogger(env.ErnestIngestorURL, env.ErnestIngestorAPIKey, env.ErnestIngestorHMACSecret, env.ErnestIngestorTimeout)
 		if err != nil {
 			for _, sink := range sinks {
@@ -233,7 +252,7 @@ func newAuditLoggerFor(env *config.EnvVars, aiSystems map[string]string) (audit.
 			}
 			return nil, nil, fmt.Errorf("initialize Ernest audit integration: %w", err)
 		}
-		sinks = append(sinks, remote.WithAISystems(aiSystems))
+		sinks = append(sinks, remote.WithAISystems(aiSystems).WithEvidenceKey(key))
 	}
 	if len(sinks) == 0 {
 		return audit.StdLogger{}, nil, nil

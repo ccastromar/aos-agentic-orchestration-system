@@ -31,6 +31,7 @@ func TestAuditEventsContract(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
+	evidenceKey := []byte(doc["evidenceKey"].(string))
 	var forbidden []string
 	for _, f := range doc["forbidden"].([]any) {
 		forbidden = append(forbidden, f.(string))
@@ -43,7 +44,7 @@ func TestAuditEventsContract(t *testing.T) {
 			if err := json.Unmarshal(journal, &rec); err != nil {
 				t.Fatal(err)
 			}
-			kr, err := JournalRecord(rec, c["aiSystemId"].(string))
+			kr, err := JournalRecord(rec, c["aiSystemId"].(string), evidenceKey)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -56,8 +57,12 @@ func TestAuditEventsContract(t *testing.T) {
 					t.Errorf("%q leaves AOS: %s", f, kr.Value)
 				}
 			}
+			// The record hash covers the user and the parameters: only its keyed digest leaves.
+			if strings.Contains(string(kr.Value), rec.Hash) || string(kr.Key) == rec.Hash {
+				t.Errorf("the bare record hash %s leaves AOS", rec.Hash)
+			}
 			// Over HTTP: the same body shape, identified by the event's own hash, signed.
-			evidence, err := HTTPEvidence(rec.Event, c["aiSystemId"].(string))
+			evidence, err := HTTPEvidence(rec.Event, c["aiSystemId"].(string), evidenceKey)
 			if err != nil {
 				t.Fatal(err)
 			}

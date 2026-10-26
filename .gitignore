@@ -43,3 +43,5 @@ Thumbs.db
 .env
 /data/
 scratch/
+# Development evidence keys generated next to a journal (internal/audit/evidence_key.go)
+*.evidence-key

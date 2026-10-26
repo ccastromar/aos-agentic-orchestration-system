@@ -27,8 +27,9 @@ type ErnestLogger struct {
 	aiSystems map[string]string
 	client    *http.Client
 
-	mu      sync.Mutex
-	lastErr error
+	mu          sync.Mutex
+	lastErr     error
+	evidenceKey []byte
 }
 
 func NewErnestLogger(baseURL, apiKey, hmacSecret string, timeout time.Duration) (*ErnestLogger, error) {
@@ -51,6 +52,13 @@ func NewErnestLogger(baseURL, apiKey, hmacSecret string, timeout time.Duration) 
 			},
 		},
 	}, nil
+}
+
+// WithEvidenceKey sets the key event hashes are digested with before they leave AOS
+// (LoadEvidenceKey). Without it the logger sends nothing.
+func (l *ErnestLogger) WithEvidenceKey(key []byte) *ErnestLogger {
+	l.evidenceKey = key
+	return l
 }
 
 // WithAISystems tags each event with the Prudence AI system of its pipeline (pipeline name ->
@@ -82,7 +90,7 @@ func (l *ErnestLogger) send(event Event) error {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now().UTC()
 	}
-	evidence, err := HTTPEvidence(event, l.aiSystems[event.Pipeline])
+	evidence, err := HTTPEvidence(event, l.aiSystems[event.Pipeline], l.evidenceKey)
 	if err != nil {
 		return err
 	}
@@ -140,16 +148,19 @@ func (l *ErnestLogger) send(event Event) error {
 }
 
 // HTTPEvidence is the body AOS posts to Ernest's ingestor for one audit event
-// (contract/audit-events): the event is identified by the SHA-256 of its JSON form in UTC,
-// since over HTTP there is no journal record hash.
-func HTTPEvidence(event Event, aiSystemID string) (Evidence, error) {
+// (contract/audit-events). Over HTTP there is no journal record, so the event is identified by
+// the EvidenceDigest of the SHA-256 of its JSON form in UTC.
+func HTTPEvidence(event Event, aiSystemID string, evidenceKey []byte) (Evidence, error) {
+	if len(evidenceKey) == 0 {
+		return Evidence{}, errors.New("no evidence key: audit events cannot leave AOS undigested")
+	}
 	event.Timestamp = event.Timestamp.UTC()
 	canonical, err := json.Marshal(event)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("marshal AOS audit evidence: %w", err)
 	}
 	eventSum := sha256.Sum256(canonical)
-	return BuildEvidence(event, hex.EncodeToString(eventSum[:]), aiSystemID, nil)
+	return BuildEvidence(event, EvidenceDigest(evidenceKey, hex.EncodeToString(eventSum[:])), aiSystemID, nil)
 }
 
 // ProviderSignature is X-Ernest-Provider-Signature: HMAC-SHA256 over "<timestamp>.<body>".

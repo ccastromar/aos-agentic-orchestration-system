@@ -41,6 +41,14 @@ higher than the suite's because v0.3.0 is already public.
 
 ### Changed
 
+- **Audit evidence carries a keyed digest, not the bare hash** (audit events contract v2,
+  `schemaVersion` 3). The hash of a journal record covers the user and the parameters, and the
+  rest of what goes into it travels to Ernest, so a reader of Ernest could confirm a guess of who
+  ran what. AOS now sends `eventDigest` = HMAC-SHA256 under the installation's evidence key
+  (`AOS_EVIDENCE_KEY`, or `AOS_EVIDENCE_KEY_FILE` for a key vault or container secret), over Kafka
+  and HTTP alike. Outside development AOS refuses to start without it when evidence goes to Ernest;
+  in development it keeps a generated one next to the journal. The journal's hash chain is
+  unchanged.
 - **The governance gate pairs the status with the decision.** It runs a pipeline only on status
   200 with `ALLOW` and a `decisionId`; before, an `ALLOW` body under an error status, or without
   a `decisionId`, ran it. Checked by the vectors of Prudence's Decision API contract

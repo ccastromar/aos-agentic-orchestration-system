@@ -42,6 +42,12 @@ type EnvVars struct {
 	ErnestIngestorHMACSecret string        `envconfig:"ERNEST_INGESTOR_HMAC_SECRET" default:""`
 	ErnestIngestorTimeout    time.Duration `envconfig:"ERNEST_INGESTOR_TIMEOUT" default:"5s"`
 
+	// The key audit record hashes are digested with before they leave AOS (contract/audit-events):
+	// the key itself, or a file holding it (a key vault or container secret mounted as a file).
+	// Required outside development whenever evidence goes to Ernest.
+	EvidenceKey     string `envconfig:"AOS_EVIDENCE_KEY" default:""`
+	EvidenceKeyFile string `envconfig:"AOS_EVIDENCE_KEY_FILE" default:""`
+
 	// Asynchronous evidence to Ernest over Kafka: the audit journal (AUDIT_LOG_PATH) is the
 	// outbox and a background shipper publishes it. Off when no broker is configured.
 	EvidenceKafkaBrokers       string        `envconfig:"AOS_EVIDENCE_KAFKA_BROKERS" default:""`
