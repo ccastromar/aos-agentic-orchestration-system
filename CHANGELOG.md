@@ -47,6 +47,14 @@ higher than the suite's because v0.3.0 is already public.
   the calls to Prudence, which continue the trace (`traceparent`). The execution report, sent in
   the background, is a span of its own linked to the run. Without an endpoint nothing is
   recorded, and an incoming `traceparent` is still passed on.
+- **JSON logs with the suite's fields** (`LOG_FORMAT`, JSON by default outside development): one
+  object per line with `timestamp`, `severity`, `service.*`, `deployment.environment.name`,
+  `message`, and a task's `correlation_id`, `trace_id` and `span_id`. The access log is an
+  `http.request` event with the route, never the raw path. `LOG_LEVEL` is now applied: debug lines,
+  which may hold what users type, were written at every level.
+- **The audit journal is no longer echoed to the logs.** Each record (user, roles, parameters)
+  was also printed whole to stdout; the log now says only that a record was written
+  (`audit.recorded`, with its sequence, phase and task).
 - **The task id is the correlation id.** Calls to Prudence carry it as `X-Correlation-Id` and the
   decision request's `correlationId`; the evidence sent to Ernest carries it as
   `metadata.correlationId` and a `correlationId` header (Kafka) or `X-Correlation-Id` (HTTP). Each

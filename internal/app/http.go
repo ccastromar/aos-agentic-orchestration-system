@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -20,7 +21,6 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -251,22 +251,32 @@ func observabilityMiddleware(next http.Handler) http.Handler {
 		if !noisy {
 			// Structured log line
 			// Keep it minimal and dependency-free
-			logx.G("HTTP",
-				`{"ts":"%s","level":"info","component":"http","request_id":"%s","correlation_id":"%s","trace_id":"%s","method":"%s","path":"%s","status":%d,"duration_ms":%d,"size":%d,"remote":"%s","ua":"%s"}`,
-				time.Now().Format(time.RFC3339),
-				reqID,
-				corrID,
-				telemetry.TraceID(r.Context()),
-				r.Method,
-				r.URL.Path,
-				rw.status,
-				dur.Milliseconds(),
-				rw.size,
-				remoteHost(r.RemoteAddr),
-				sanitizeUserAgent(r.UserAgent()),
-			)
+			// The access log: the route, never the raw path (a callback's carries its token).
+			attrs := []any{
+				"outcome", outcomeOf(rw.status),
+				"request_id", reqID,
+				"http.request.method", r.Method,
+				"http.route", routeLabel(r.URL.Path),
+				"http.response.status_code", rw.status,
+				"duration_ms", dur.Milliseconds(),
+				"http.response.body.size", rw.size,
+				"client.address", remoteHost(r.RemoteAddr),
+				"user_agent.original", sanitizeUserAgent(r.UserAgent()),
+			}
+			if corrID != "" {
+				attrs = append(attrs, "correlation_id", corrID)
+			}
+			logx.Event(r.Context(), slog.LevelInfo, "HTTP", "http.request",
+				r.Method+" "+routeLabel(r.URL.Path), attrs...)
 		}
 	})
+}
+
+func outcomeOf(status int) string {
+	if status >= 500 {
+		return "failure"
+	}
+	return "success"
 }
 
 // respWriter captures HTTP status code and response size.

@@ -2,13 +2,16 @@ package audit
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -131,7 +134,11 @@ func (c *FileChain) Log(event Event) {
 	if event.TraceID != "" {
 		c.traceHashes[event.TraceID] = hash
 	}
-	log.Printf("AUDIT_CHAIN %s", string(encoded))
+	// The record itself stays in the journal: it holds the user, roles and parameters. The log
+	// says only that it was written.
+	logx.Event(context.Background(), slog.LevelInfo, "Audit", "audit.recorded", "audit record written",
+		"outcome", "success", "audit.sequence", sequence, "audit.phase", event.Phase,
+		"correlation_id", event.TraceID)
 }
 
 func (c *FileChain) Err() error {

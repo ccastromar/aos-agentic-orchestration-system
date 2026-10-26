@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"log"
 	"os"
 	"os/signal"
@@ -40,6 +41,17 @@ func run(ctx context.Context) {
 		fatalf("error running app: %v", err)
 		return
 	}
+}
+
+// deploymentEnvironment is deployment.environment.name: the one OpenTelemetry is given
+// (OTEL_RESOURCE_ATTRIBUTES), so logs and traces agree, or APP_ENV.
+func deploymentEnvironment(appEnv string) string {
+	for _, pair := range strings.Split(os.Getenv("OTEL_RESOURCE_ATTRIBUTES"), ",") {
+		if key, value, ok := strings.Cut(strings.TrimSpace(pair), "="); ok && key == "deployment.environment.name" {
+			return value
+		}
+	}
+	return appEnv
 }
 
 var (
@@ -87,6 +99,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading environment variables: %v", err)
 	}
+	logx.Configure(logx.Config{
+		Format:      os.Getenv("LOG_FORMAT"),
+		Level:       env.LogLevel,
+		Development: auth.IsDevelopmentEnvironment(env.AppEnv),
+		Service:     os.Getenv("OTEL_SERVICE_NAME"),
+		Version:     version,
+		Environment: deploymentEnvironment(env.AppEnv),
+	})
 
 	// apply runtime options: CLI flag > env var > default (internal)
 	if *port != "" {

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"sync"
 	"time"
 )
@@ -12,6 +13,11 @@ var (
 	taskCtx    = make(map[string]context.Context)
 	taskCancel = make(map[string]context.CancelFunc)
 )
+
+// Lines logged about a task carry its trace.
+func init() {
+	logx.SetTaskContext(GetTaskContext)
+}
 
 // NewTaskContext creates and stores a cancelable context for a task id with the given timeout.
 func NewTaskContext(parent context.Context, id string, timeout time.Duration) context.Context {

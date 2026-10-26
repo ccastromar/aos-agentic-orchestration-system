@@ -515,7 +515,7 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 	var lastErr error
 	var out map[string]any
 
-	fmt.Printf("RETRY_DEBUG: step=%s retries=%d backoff=%d timeout=%d\n", step.Tool, retries, backoffMs, step.TimeoutMs)
+	logx.Debug("Verifier", "tool=%s retries=%d backoff_ms=%d timeout_ms=%d", step.Tool, retries, backoffMs, step.TimeoutMs)
 
 	for i := 0; i <= retries; i++ {
 		var tryCtx context.Context

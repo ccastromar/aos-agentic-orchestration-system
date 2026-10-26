@@ -114,9 +114,15 @@ Optional state and logging:
 - REDIS_PASSWORD: password for Redis
 - Session values expire after 24 hours. Execution records, including callbacks awaiting a response, are stored without a TTL by all durable backends.
 - The state backend is selected behind the `StateStore` interface, so additional adapters can be added without changing pipeline or agent code. Vector memory remains a separate `VectorStore` concern.
-- LOG_LEVEL: info. At `info` and above AOS logs ids, intents, pipelines and parameter **names**, never
-  what users type or tools return. `debug` also logs messages, LLM responses and tool outputs:
-  for local development only, never where logs are collected.
+- LOG_LEVEL: info (`debug`, `info`, `warn`, `error`). At `info` and above AOS logs ids, intents,
+  pipelines and parameter **names**, never what users type or tools return. `debug` also logs
+  messages, LLM responses and tool outputs: for local development only, never where logs are
+  collected.
+- LOG_FORMAT: `json` (default) or `text` (default when APP_ENV is a development value). JSON is one
+  object per line on stdout with the Chestertown fields: `timestamp`, `severity`, `service.name`,
+  `service.version`, `deployment.environment.name` (from `OTEL_RESOURCE_ATTRIBUTES`, else APP_ENV),
+  `message`, `component`, and `correlation_id` (the task id), `trace_id` and `span_id` on lines about
+  a task. Named events add `event.name` and `outcome` (`http.request`, `audit.recorded`).
 
 For local durable state without a Redis service, set:
 ```bash
