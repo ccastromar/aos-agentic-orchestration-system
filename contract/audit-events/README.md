@@ -28,9 +28,15 @@ after the entry is durable and hash-chained on disk:
   `modelId` and `metadata` (identifiers, status, `eventDigest`, `schemaVersion` = `3`). A
   governed pipeline's events carry `modelId` = its Prudence AI system and `aiSystem` =
   `{id, systemOfRecord: "prudence"}`; others go under `modelId` = `aos-agentic-orchestration-system`.
+- **Correlation and trace** (Chestertown observability conventions): an event with a trace (the
+  task id, `metadata.traceId`) also carries it as `metadata.correlationId` and a `correlationId`
+  header: the business flow, to follow across Prudence and Ernest. An entry written inside a span
+  carries that span's W3C context as a `traceparent` header; the consumer makes its processing a
+  new span **linked** to it, never its child. Both are optional.
 
 Over HTTP (`ERNEST_INGESTOR_URL`, `POST /events` on the ingestor) the same body shape travels, with
-the headers as `X-Ernest-Event-Source`, `X-Ernest-Event-Type` and `X-Ernest-Source-Event-Id`.
+the headers as `X-Ernest-Event-Source`, `X-Ernest-Event-Type` and `X-Ernest-Source-Event-Id`, and
+`X-Correlation-Id` and `traceparent` when the event has them.
 There is no journal record there, so the event is identified by the digest of the SHA-256 of its
 own JSON (in UTC) instead of the record hash's, and `journalSequence` and `transport` are absent. With
 `ERNEST_INGESTOR_HMAC_SECRET` set, AOS signs the body: `X-Ernest-Provider-Timestamp` and

@@ -20,6 +20,8 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/runtime"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type HTTPServer struct {
@@ -77,7 +79,7 @@ func NewHTTPServer(a *App, apiAgent *agent.APIAgent, eventBus *bus.Bus, rt *runt
 	authenticator := auth.NewJWTAuthenticator(jwtCfg)
 	authenticated := authMiddleware(mux, authenticator)
 	hardened := secureMiddleware(observabilityMiddleware(authenticated))
-	corsHandler := corsMiddleware(hardened)
+	corsHandler := corsMiddleware(traced(hardened))
 
 	return &HTTPServer{
 		srv: &http.Server{
@@ -197,6 +199,20 @@ func authMiddleware(next http.Handler, authenticator *auth.JWTAuthenticator) htt
 	})
 }
 
+// traced makes each request a server span, continuing the caller's trace (traceparent), named
+// by its route rather than its path. Health checks, metrics and the UI's polling are not traced.
+func traced(next http.Handler) http.Handler {
+	return otelhttp.NewHandler(next, "aos",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + routeLabel(r.URL.Path)
+		}),
+		otelhttp.WithFilter(func(r *http.Request) bool {
+			return !strings.HasPrefix(r.URL.Path, "/health/") && r.URL.Path != "/metrics" &&
+				r.URL.Path != "/ui/task/events" && r.URL.Path != "/task"
+		}),
+	)
+}
+
 // observabilityMiddleware adds minimal structured request logging and propagates IDs.
 // It ensures each request has a request ID and optional correlation ID, exposes them
 // in response headers, and logs a single JSON line with basic request metrics.
@@ -236,10 +252,11 @@ func observabilityMiddleware(next http.Handler) http.Handler {
 			// Structured log line
 			// Keep it minimal and dependency-free
 			logx.G("HTTP",
-				`{"ts":"%s","level":"info","component":"http","request_id":"%s","correlation_id":"%s","method":"%s","path":"%s","status":%d,"duration_ms":%d,"size":%d,"remote":"%s","ua":"%s"}`,
+				`{"ts":"%s","level":"info","component":"http","request_id":"%s","correlation_id":"%s","trace_id":"%s","method":"%s","path":"%s","status":%d,"duration_ms":%d,"size":%d,"remote":"%s","ua":"%s"}`,
 				time.Now().Format(time.RFC3339),
 				reqID,
 				corrID,
+				telemetry.TraceID(r.Context()),
 				r.Method,
 				r.URL.Path,
 				rw.status,

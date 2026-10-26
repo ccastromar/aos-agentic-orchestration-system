@@ -304,13 +304,18 @@ func JournalRecord(rec Record, aiSystemID string, evidenceKey []byte) (*kgo.Reco
 	if key == "" {
 		key = digest
 	}
-	return &kgo.Record{
-		Key:   []byte(key),
-		Value: evidence.Body,
-		Headers: []kgo.RecordHeader{
-			{Key: "source", Value: []byte("aos")},
-			{Key: "eventType", Value: []byte(evidence.EventType)},
-			{Key: "sourceEventId", Value: []byte(evidence.SourceEventID)},
-		},
-	}, nil
+	headers := []kgo.RecordHeader{
+		{Key: "source", Value: []byte("aos")},
+		{Key: "eventType", Value: []byte(evidence.EventType)},
+		{Key: "sourceEventId", Value: []byte(evidence.SourceEventID)},
+	}
+	// The flow and the trace context that wrote the entry: the ingestor's processing is a new
+	// span linked to it (contract/observability, section 4).
+	if evidence.CorrelationID != "" {
+		headers = append(headers, kgo.RecordHeader{Key: "correlationId", Value: []byte(evidence.CorrelationID)})
+	}
+	if evidence.Traceparent != "" {
+		headers = append(headers, kgo.RecordHeader{Key: "traceparent", Value: []byte(evidence.Traceparent)})
+	}
+	return &kgo.Record{Key: []byte(key), Value: evidence.Body, Headers: headers}, nil
 }

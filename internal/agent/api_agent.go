@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"log"
 	"net/http"
 	"os"
@@ -596,7 +597,8 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	logx.Info("Api", "new request lang=%s session=%s id=%s message_chars=%d", req.Lang, req.SessionID, id, len(req.Message))
 	a.eventBus.PublishEvent(id, "Api", "request", req.Message, "")
 
-	_ = NewTaskContext(context.Background(), id, 0)
+	// The task outlives the request, but belongs to its trace.
+	_ = NewTaskContext(telemetry.Detach(r.Context()), id, 0)
 	logx.Debug("Api", "Created NEW TaskContext for %s", id)
 
 	// Enviar al inspector con el message correcto

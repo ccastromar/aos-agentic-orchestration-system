@@ -130,6 +130,15 @@ Optional auth/identity (if you enable it in your environment):
 - AOS_ROLE_CLAIM, AOS_ROLE_MAP: the claim with the roles and how the IdP's names translate to AOS roles
 - AOS_GOVERNANCE_MODEL: the organization's governance model (Chestertown governance functions, contract v1 in `internal/governance/contract/`); empty loads the contract's default model, which reproduces the roles above. An invalid model stops AOS at start
 
+Optional tracing (OpenTelemetry, standard variables):
+- OTEL_EXPORTER_OTLP_ENDPOINT (or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT): the collector, OTLP over
+  HTTP (`http://otel-collector:4318`). Unset, AOS records no spans but still passes an incoming
+  `traceparent` on to Prudence.
+- OTEL_SERVICE_NAME (default `aos`), OTEL_RESOURCE_ATTRIBUTES (`deployment.environment.name=production`),
+  OTEL_TRACES_SAMPLER, OTEL_SDK_DISABLED.
+- Spans carry ids, routes, pipeline and tool names, never prompts, parameters or tool outputs.
+  The task id travels as the correlation id (`correlation_id`), not as a trace id.
+
 You can place these in a .env file at the repo root; the binary loads .env automatically if present.
 
 ## Running

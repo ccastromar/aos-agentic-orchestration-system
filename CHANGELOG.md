@@ -41,10 +41,17 @@ higher than the suite's because v0.3.0 is already public.
 
 ### Changed
 
-- **Prudence continues AOS's traces.** The decision request and the execution report carry a W3C
-  `traceparent` whose trace id is the task's id (a UUID without its dashes), so Prudence's spans
-  for a task are found in the tracing backend by that id, and AOS's log line for the call
-  (`trace_id=`) links to them. AOS records no spans of its own yet.
+- **OpenTelemetry tracing** (Chestertown observability conventions). With
+  `OTEL_EXPORTER_OTLP_ENDPOINT` set, AOS exports spans over OTLP: each HTTP request (named by its
+  route), the planning of a task (`aos.plan`), its run (`aos.run`), each step (`aos.step`) and
+  the calls to Prudence, which continue the trace (`traceparent`). The execution report, sent in
+  the background, is a span of its own linked to the run. Without an endpoint nothing is
+  recorded, and an incoming `traceparent` is still passed on.
+- **The task id is the correlation id.** Calls to Prudence carry it as `X-Correlation-Id` and the
+  decision request's `correlationId`; the evidence sent to Ernest carries it as
+  `metadata.correlationId` and a `correlationId` header (Kafka) or `X-Correlation-Id` (HTTP). Each
+  journal entry keeps the `traceparent` that wrote it, and its evidence carries it, so Ernest's
+  processing links to the run. A trace id is no longer derived from the task id.
 - **HTTP metrics label routes, not ids.** `aos_http_requests_total` and
   `aos_http_request_seconds` labelled the full path, so a callback's token (a secret) was stored in
   the metrics and every id made a new series; the path is now the route, with `{token}` and `{id}`.

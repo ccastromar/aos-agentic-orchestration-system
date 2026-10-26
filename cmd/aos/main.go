@@ -10,11 +10,13 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/app"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 	"github.com/joho/godotenv"
 )
@@ -105,5 +107,17 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	shutdownTracing, err := telemetry.Setup(ctx, version)
+	if err != nil {
+		log.Fatalf("Error starting OpenTelemetry: %v", err)
+	}
+	if telemetry.Enabled() {
+		logx.Info("App", "OpenTelemetry tracing on (OTLP)")
+	}
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownTracing(flushCtx)
+	}()
 	run(ctx)
 }

@@ -22,6 +22,10 @@ type Event struct {
 	Phase     string                 `json:"phase,omitempty"`
 	Step      string                 `json:"step,omitempty"`
 	Details   map[string]interface{} `json:"details,omitempty"`
+	// Traceparent is the W3C trace context that wrote the event (contract/observability): kept
+	// with it so its delivery to Ernest, later, is a new span linked to it. TraceID, despite
+	// its name, is the task id: the business correlation id, not a trace.
+	Traceparent string `json:"traceparent,omitempty"`
 }
 
 type Logger interface {

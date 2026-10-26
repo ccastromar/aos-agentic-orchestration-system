@@ -3,6 +3,9 @@ package agent
 import (
 	"context"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"strings"
 	"sync"
 	"time"
@@ -244,10 +247,14 @@ func (v *Verifier) logLifecycleAudit(st *state.ExecutionState, phase, result str
 	if v.auditLogger == nil || st == nil {
 		return nil
 	}
+	traceparent := ""
+	if taskCtx, ok := GetTaskContext(st.ID); ok {
+		traceparent = telemetry.Traceparent(taskCtx)
+	}
 	return audit.LogChecked(v.auditLogger, audit.Event{
 		Timestamp: time.Now().UTC(), UserID: st.UserID, Intent: st.Intent,
 		Pipeline: st.Pipeline, Result: result, TraceID: st.ID, Phase: phase,
-		Details: details,
+		Details: details, Traceparent: traceparent,
 	})
 }
 
@@ -391,9 +398,17 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 		v.failAuditExecution(nil, id, err)
 		return
 	}
+	taskCtx, _ := GetTaskContext(id)
+	if taskCtx == nil {
+		taskCtx = NewTaskContext(context.Background(), id, 0)
+	}
+	taskCtx, span := telemetry.Tracer().Start(taskCtx, "aos.run", trace.WithAttributes(
+		attribute.String(telemetry.CorrelationKey, id), attribute.String("aos.pipeline", pipe.Name)))
+	defer span.End()
+
 	if freshStart && strings.TrimSpace(pipe.AiSystem) != "" && governance.ReportsEnabled() {
 		decisionID, _ := payload.GetString(msg.Payload, "decision_id")
-		governance.ReportExecutionAsync(governance.ExecutionReport{
+		governance.ReportExecutionAsync(taskCtx, governance.ExecutionReport{
 			Runtime:     "aos",
 			ExecutionID: id,
 			DecisionID:  decisionID,
@@ -401,12 +416,6 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 			Pipeline:    pipe.Name,
 			StartedAt:   time.Now().UTC().Format(time.RFC3339Nano),
 		})
-	}
-
-	taskCtx, _ := GetTaskContext(id)
-	if taskCtx == nil {
-		taskCtx = context.Background()
-		NewTaskContext(taskCtx, id, 0)
 	}
 
 	switch pipe.Mode {
@@ -459,6 +468,10 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 		_ = NewTaskContext(taskCtx, id, 0)
 		logx.Info("Verifier", "[%s] regenerated fresh task context (resume)", id)
 	}
+	// A resume (a human decision, a callback) happens later: a new trace for the same task.
+	taskCtx, span := telemetry.Tracer().Start(taskCtx, "aos.run.resume", trace.WithNewRoot(), trace.WithAttributes(
+		attribute.String(telemetry.CorrelationKey, id), attribute.String("aos.pipeline", pipe.Name)))
+	defer span.End()
 
 	switch pipe.Mode {
 	case "dag":

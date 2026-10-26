@@ -12,6 +12,10 @@ import (
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ExecutionReport is what AOS tells Prudence once a governed pipeline has really started
@@ -43,18 +47,24 @@ func ReportsEnabled() bool {
 	return !strings.EqualFold(strings.TrimSpace(os.Getenv("PRUDENCE_REPORT_EXECUTIONS")), "false")
 }
 
-// ReportExecutionAsync sends the report in the background, retrying transient failures.
-func ReportExecutionAsync(r ExecutionReport) {
+// ReportExecutionAsync sends the report in the background, retrying transient failures. The
+// sending is a span of its own, linked to ctx's (the run's): it outlives the run, so it is not
+// one of its children.
+func ReportExecutionAsync(ctx context.Context, r ExecutionReport) {
 	pdpURL := strings.TrimSpace(os.Getenv("PRUDENCE_PDP_URL"))
 	if pdpURL == "" {
 		return
 	}
+	link := telemetry.LinkTo(telemetry.Traceparent(ctx))
 	go func() {
+		spanCtx, span := telemetry.Tracer().Start(context.Background(), "aos.execution.report", link,
+			trace.WithAttributes(attribute.String(telemetry.CorrelationKey, r.ExecutionID)))
+		defer span.End()
 		wait := reportBackoff
 		var err error
 		for attempt := 1; attempt <= reportAttempts; attempt++ {
 			var retry bool
-			retry, err = reportExecution(context.Background(), pdpURL, r)
+			retry, err = reportExecution(spanCtx, pdpURL, r)
 			if err == nil {
 				return
 			}
@@ -64,6 +74,7 @@ func ReportExecutionAsync(r ExecutionReport) {
 			time.Sleep(wait)
 			wait *= 2
 		}
+		span.SetStatus(codes.Error, "not reported")
 		logx.Warn("Governance", "execution %s of %s not reported to Prudence: %v", r.ExecutionID, r.AiSystemID, err)
 	}()
 }
@@ -79,8 +90,8 @@ func reportExecution(ctx context.Context, pdpURL string, r ExecutionReport) (boo
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if tp := traceparent(r.ExecutionID); tp != "" {
-		req.Header.Set("traceparent", tp)
+	if correlationID := validCorrelation(r.ExecutionID); correlationID != "" {
+		req.Header.Set(CorrelationHeader, correlationID)
 	}
 	// The same machine identity as the gate: its token carries `execution.report` as a
 	// default client scope alongside `pdp.decide`.
@@ -91,7 +102,7 @@ func reportExecution(ctx context.Context, pdpURL string, r ExecutionReport) (boo
 		}
 		req.Header.Set("Authorization", "Bearer "+tok)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := telemetry.HTTPClient.Do(req)
 	if err != nil {
 		return true, err
 	}

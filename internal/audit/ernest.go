@@ -108,6 +108,12 @@ func (l *ErnestLogger) send(event Event) error {
 		req.Header.Set("X-Ernest-Event-Source", "aos")
 		req.Header.Set("X-Ernest-Event-Type", eventType)
 		req.Header.Set("X-Ernest-Source-Event-Id", sourceEventID)
+		if evidence.CorrelationID != "" {
+			req.Header.Set("X-Correlation-Id", evidence.CorrelationID)
+		}
+		if evidence.Traceparent != "" {
+			req.Header.Set("traceparent", evidence.Traceparent)
+		}
 		if l.apiKey != "" {
 			req.Header.Set("X-Ernest-Ingest-Key", l.apiKey)
 		}

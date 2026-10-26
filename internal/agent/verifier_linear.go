@@ -3,7 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"os"
 	"strings"
 	"time"
@@ -504,6 +508,10 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 		backoffMs = 1000 // default 1s
 	}
 
+	ctx, span := telemetry.Tracer().Start(ctx, "aos.step", trace.WithAttributes(
+		attribute.String("aos.tool.name", t.Name), attribute.String("aos.tool.type", t.Type)))
+	defer span.End()
+
 	var lastErr error
 	var out map[string]any
 
@@ -534,6 +542,7 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 		if lastErr == nil {
 			return out, nil
 		}
+		span.AddEvent("attempt failed", trace.WithAttributes(attribute.Int("aos.attempt", i+1)))
 
 		logx.Warn("Verifier", "tool %s failed (attempt %d/%d): %v", t.Name, i+1, retries+1, lastErr)
 
@@ -548,5 +557,6 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 		}
 	}
 
+	span.SetStatus(codes.Error, "tool failed")
 	return nil, lastErr
 }

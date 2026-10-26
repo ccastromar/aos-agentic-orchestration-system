@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 )
 
 // Verdict kinds returned by the Prudence PDP.
@@ -47,6 +49,8 @@ type decisionRequest struct {
 	Pipeline   string `json:"pipeline"`
 	AiSystemID string `json:"aiSystemId"`
 	Action     string `json:"action"`
+	// CorrelationID is the task the decision belongs to (Decision API v1, optional).
+	CorrelationID string `json:"correlationId,omitempty"`
 }
 
 type decisionResponse struct {
@@ -66,7 +70,8 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 	if action == "" {
 		action = "run"
 	}
-	body, _ := json.Marshal(decisionRequest{Subject: subject, Pipeline: pipeline, AiSystemID: aiSystem, Action: action})
+	correlationID := CorrelationID(ctx)
+	body, _ := json.Marshal(decisionRequest{Subject: subject, Pipeline: pipeline, AiSystemID: aiSystem, Action: action, CorrelationID: correlationID})
 
 	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -75,8 +80,8 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 		return Decision{}, fmt.Errorf("governance: cannot build PDP request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if tp := traceparentFrom(ctx); tp != "" {
-		req.Header.Set("traceparent", tp)
+	if correlationID != "" {
+		req.Header.Set(CorrelationHeader, correlationID)
 	}
 
 	// When the PDP is secured (PRUDENCE_PDP_* set), authenticate as a machine client with a
@@ -90,7 +95,7 @@ func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action s
 		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := telemetry.HTTPClient.Do(req)
 	if err != nil {
 		return Decision{}, fmt.Errorf("governance: PDP unreachable (fail-closed): %w", err)
 	}

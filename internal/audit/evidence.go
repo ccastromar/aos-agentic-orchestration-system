@@ -20,6 +20,9 @@ type Evidence struct {
 	EventType     string
 	SourceEventID string
 	Body          []byte
+	// CorrelationID (the task id) and Traceparent travel as headers next to the body.
+	CorrelationID string
+	Traceparent   string
 }
 
 // BuildEvidence turns an audit event into Ernest's event shape. eventDigest identifies the event:
@@ -62,6 +65,10 @@ func BuildEvidence(event Event, eventDigest, aiSystemID string, extra map[string
 	if event.Step != "" {
 		metadata["step"] = event.Step
 	}
+	if event.TraceID != "" {
+		// The business flow, under the suite's name for it (contract/observability).
+		metadata["correlationId"] = event.TraceID
+	}
 	if aiSystemID != "" {
 		metadata["aiSystemId"] = aiSystemID
 		if event.Phase == PhasePipelineStarted {
@@ -90,5 +97,6 @@ func BuildEvidence(event Event, eventDigest, aiSystemID string, extra map[string
 	if err != nil {
 		return Evidence{}, fmt.Errorf("marshal Ernest event: %w", err)
 	}
-	return Evidence{EventType: eventType, SourceEventID: sourceEventID, Body: body}, nil
+	return Evidence{EventType: eventType, SourceEventID: sourceEventID, Body: body,
+		CorrelationID: event.TraceID, Traceparent: event.Traceparent}, nil
 }

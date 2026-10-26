@@ -3,6 +3,10 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
@@ -10,7 +14,15 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/tools"
 )
 
-func (v *Verifier) runAgentStep(ctx context.Context, executionID string, definition config.AgentDefinition, params map[string]string, step config.PipelineStep) (map[string]any, error) {
+func (v *Verifier) runAgentStep(ctx context.Context, executionID string, definition config.AgentDefinition, params map[string]string, step config.PipelineStep) (out map[string]any, err error) {
+	ctx, span := telemetry.Tracer().Start(ctx, "aos.step", trace.WithAttributes(
+		attribute.String("aos.tool.name", definition.Name), attribute.String("aos.tool.type", "agent")))
+	defer func() {
+		if err != nil {
+			span.SetStatus(codes.Error, "agent failed")
+		}
+		span.End()
+	}()
 	if step.TimeoutMs > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(step.TimeoutMs)*time.Millisecond)

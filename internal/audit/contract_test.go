@@ -72,16 +72,23 @@ func TestAuditEventsContract(t *testing.T) {
 				}
 			}
 			httpSpec := doc["http"].(map[string]any)
+			headers := map[string]string{
+				"X-Ernest-Event-Source":       "aos",
+				"X-Ernest-Event-Type":         evidence.EventType,
+				"X-Ernest-Source-Event-Id":    evidence.SourceEventID,
+				"X-Ernest-Provider-Timestamp": httpSpec["timestamp"].(string),
+				"X-Ernest-Provider-Signature": ProviderSignature(httpSpec["hmacSecret"].(string), httpSpec["timestamp"].(string), evidence.Body),
+			}
+			if evidence.CorrelationID != "" {
+				headers["X-Correlation-Id"] = evidence.CorrelationID
+			}
+			if evidence.Traceparent != "" {
+				headers["traceparent"] = evidence.Traceparent
+			}
 			request := map[string]any{
-				"method": "POST",
-				"path":   "/events",
-				"headers": map[string]string{
-					"X-Ernest-Event-Source":       "aos",
-					"X-Ernest-Event-Type":         evidence.EventType,
-					"X-Ernest-Source-Event-Id":    evidence.SourceEventID,
-					"X-Ernest-Provider-Timestamp": httpSpec["timestamp"].(string),
-					"X-Ernest-Provider-Signature": ProviderSignature(httpSpec["hmacSecret"].(string), httpSpec["timestamp"].(string), evidence.Body),
-				},
+				"method":  "POST",
+				"path":    "/events",
+				"headers": headers,
 				// The exact bytes, as a string: the signature covers bytes, not JSON.
 				"body": string(evidence.Body),
 			}

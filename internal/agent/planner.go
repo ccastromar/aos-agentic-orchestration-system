@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"os"
 	"strings"
 	"sync"
@@ -146,9 +149,11 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// ---------------------------------------------------------
 	taskCtx, _ := GetTaskContext(id)
 	if taskCtx == nil {
-		taskCtx = context.Background()
-		NewTaskContext(taskCtx, id, 0)
+		taskCtx = NewTaskContext(context.Background(), id, 0)
 	}
+	taskCtx, span := telemetry.Tracer().Start(taskCtx, "aos.plan",
+		trace.WithAttributes(attribute.String(telemetry.CorrelationKey, id)))
+	defer span.End()
 
 	var detectedType string
 	var params map[string]string
@@ -375,6 +380,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 		Pipeline:  intentCfg.Pipeline,
 		Params:    auditParams,
 		TraceID:   id,
+		// The journal keeps the trace context that wrote the event; its delivery links to it.
+		Traceparent: telemetry.Traceparent(taskCtx),
 	}
 
 	if rbacDenied {
@@ -497,10 +504,10 @@ func (p *Planner) governanceGate(taskCtx context.Context, id, sessionID, userID,
 	if configured := strings.TrimSpace(os.Getenv("PRUDENCE_PDP_SUBJECT")); configured != "" {
 		subject = configured
 	}
-	if traceID := governance.TraceID(id); traceID != "" {
+	if traceID := telemetry.TraceID(taskCtx); traceID != "" {
 		logx.L(id, "Governance", "asking Prudence for pipeline=%s trace_id=%s", pipeName, traceID)
 	}
-	dec, err := governance.Evaluate(governance.WithTrace(taskCtx, id), pdpURL, subject, pipeName, pipe.AiSystem, "run")
+	dec, err := governance.Evaluate(governance.WithCorrelation(taskCtx, id), pdpURL, subject, pipeName, pipe.AiSystem, "run")
 	if err != nil {
 		logx.L(id, "Governance", "%v", err)
 		storeResult(id, Result{Status: "error", Err: err.Error()})
