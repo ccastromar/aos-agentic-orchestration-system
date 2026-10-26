@@ -77,7 +77,8 @@ func TestAuditEventsContract(t *testing.T) {
 					"X-Ernest-Provider-Timestamp": httpSpec["timestamp"].(string),
 					"X-Ernest-Provider-Signature": ProviderSignature(httpSpec["hmacSecret"].(string), httpSpec["timestamp"].(string), evidence.Body),
 				},
-				"body": json.RawMessage(evidence.Body),
+				// The exact bytes, as a string: the signature covers bytes, not JSON.
+				"body": string(evidence.Body),
 			}
 			if *updateContract {
 				c["record"] = got
