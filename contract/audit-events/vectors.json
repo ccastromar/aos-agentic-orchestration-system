@@ -1,0 +1,425 @@
+{
+  "cases": [
+    {
+      "aiSystemId": "sys-credit",
+      "journal": {
+        "event": {
+          "details": {
+            "prompt": "SECRET-prompt"
+          },
+          "error": "SECRET-error-text",
+          "intent": "credit.prescreen",
+          "latency_ms": 12,
+          "params": {
+            "customer": "SECRET-param"
+          },
+          "phase": "pipeline.started",
+          "pipeline": "credit_prescreening",
+          "result": "success",
+          "roles": [
+            "SECRET-role"
+          ],
+          "timestamp": "2026-10-26T08:00:00.123456Z",
+          "tools": [
+            "SECRET-tool"
+          ],
+          "trace_id": "trace-7f3a9c",
+          "user_id": "SECRET-user-7"
+        },
+        "hash": "h41",
+        "previous_hash": "p40",
+        "sequence": 41
+      },
+      "name": "a governed pipeline starts: the execution Prudence's drift counts",
+      "record": {
+        "key": "trace-7f3a9c",
+        "headers": {
+          "eventType": "aos.audit.event.pipeline.started",
+          "source": "aos",
+          "sourceEventId": "trace-7f3a9c:pipeline.started::h41"
+        },
+        "value": {
+          "aiSystem": {
+            "id": "sys-credit",
+            "systemOfRecord": "prudence"
+          },
+          "eventType": "aos.audit.event.pipeline.started",
+          "metadata": {
+            "aiSystemId": "sys-credit",
+            "eventHash": "h41",
+            "intent": "credit.prescreen",
+            "journalSequence": 41,
+            "latencyMs": 12,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "pipeline.started",
+            "pipeline": "credit_prescreening",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "execution",
+            "traceId": "trace-7f3a9c",
+            "transport": "kafka"
+          },
+          "modelId": "sys-credit",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-7f3a9c:pipeline.started::h41"
+        }
+      },
+      "ernest": {
+        "source": "aos",
+        "eventType": "aos.audit.event.pipeline.started",
+        "sourceEventId": "trace-7f3a9c:pipeline.started::h41",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-7f3a9c:pipeline.started::h41",
+        "modelId": "sys-credit",
+        "modelName": "",
+        "canonicalType": "external_event",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "metadata": {
+          "stage": "execution",
+          "aiSystemId": "sys-credit",
+          "phase": "pipeline.started",
+          "pipeline": "credit_prescreening",
+          "traceId": "trace-7f3a9c",
+          "result": "success"
+        }
+      }
+    },
+    {
+      "aiSystemId": "sys-credit",
+      "journal": {
+        "event": {
+          "details": {
+            "prompt": "SECRET-prompt"
+          },
+          "error": "SECRET-error-text",
+          "intent": "credit.prescreen",
+          "latency_ms": 12,
+          "params": {
+            "customer": "SECRET-param"
+          },
+          "phase": "tool.completed",
+          "pipeline": "credit_prescreening",
+          "result": "success",
+          "roles": [
+            "SECRET-role"
+          ],
+          "step": "score",
+          "timestamp": "2026-10-26T08:00:00.123456Z",
+          "tools": [
+            "SECRET-tool"
+          ],
+          "trace_id": "trace-7f3a9c",
+          "user_id": "SECRET-user-7"
+        },
+        "hash": "h42",
+        "previous_hash": "h41",
+        "sequence": 42
+      },
+      "name": "a step of a governed pipeline: lifecycle, under the AI system",
+      "record": {
+        "key": "trace-7f3a9c",
+        "headers": {
+          "eventType": "aos.audit.event.tool.completed",
+          "source": "aos",
+          "sourceEventId": "trace-7f3a9c:tool.completed:score:h42"
+        },
+        "value": {
+          "aiSystem": {
+            "id": "sys-credit",
+            "systemOfRecord": "prudence"
+          },
+          "eventType": "aos.audit.event.tool.completed",
+          "metadata": {
+            "aiSystemId": "sys-credit",
+            "eventHash": "h42",
+            "intent": "credit.prescreen",
+            "journalSequence": 42,
+            "latencyMs": 12,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "tool.completed",
+            "pipeline": "credit_prescreening",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "step": "score",
+            "traceId": "trace-7f3a9c",
+            "transport": "kafka"
+          },
+          "modelId": "sys-credit",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-7f3a9c:tool.completed:score:h42"
+        }
+      },
+      "ernest": {
+        "source": "aos",
+        "eventType": "aos.audit.event.tool.completed",
+        "sourceEventId": "trace-7f3a9c:tool.completed:score:h42",
+        "evidenceEventId": "aos.audit.event.tool.completed:trace-7f3a9c:tool.completed:score:h42",
+        "modelId": "sys-credit",
+        "modelName": "",
+        "canonicalType": "external_event",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "metadata": {
+          "stage": "lifecycle",
+          "aiSystemId": "sys-credit",
+          "phase": "tool.completed",
+          "pipeline": "credit_prescreening",
+          "traceId": "trace-7f3a9c",
+          "result": "success"
+        }
+      }
+    },
+    {
+      "aiSystemId": "",
+      "journal": {
+        "event": {
+          "details": {
+            "prompt": "SECRET-prompt"
+          },
+          "error": "SECRET-error-text",
+          "intent": "credit.prescreen",
+          "latency_ms": 12,
+          "params": {
+            "customer": "SECRET-param"
+          },
+          "phase": "pipeline.started",
+          "pipeline": "support_lookup",
+          "result": "success",
+          "roles": [
+            "SECRET-role"
+          ],
+          "timestamp": "2026-10-26T08:00:00.123456Z",
+          "tools": [
+            "SECRET-tool"
+          ],
+          "trace_id": "trace-1b2c",
+          "user_id": "SECRET-user-7"
+        },
+        "hash": "h43",
+        "previous_hash": "h42",
+        "sequence": 43
+      },
+      "name": "an ungoverned pipeline starts: lifecycle, under AOS itself",
+      "record": {
+        "key": "trace-1b2c",
+        "headers": {
+          "eventType": "aos.audit.event.pipeline.started",
+          "source": "aos",
+          "sourceEventId": "trace-1b2c:pipeline.started::h43"
+        },
+        "value": {
+          "eventType": "aos.audit.event.pipeline.started",
+          "metadata": {
+            "eventHash": "h43",
+            "intent": "credit.prescreen",
+            "journalSequence": 43,
+            "latencyMs": 12,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "pipeline.started",
+            "pipeline": "support_lookup",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "traceId": "trace-1b2c",
+            "transport": "kafka"
+          },
+          "modelId": "aos-agentic-orchestration-system",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-1b2c:pipeline.started::h43"
+        }
+      },
+      "ernest": {
+        "source": "aos",
+        "eventType": "aos.audit.event.pipeline.started",
+        "sourceEventId": "trace-1b2c:pipeline.started::h43",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-1b2c:pipeline.started::h43",
+        "modelId": "aos-agentic-orchestration-system",
+        "modelName": "",
+        "canonicalType": "external_event",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "metadata": {
+          "stage": "lifecycle",
+          "aiSystemId": null,
+          "phase": "pipeline.started",
+          "pipeline": "support_lookup",
+          "traceId": "trace-1b2c",
+          "result": "success"
+        }
+      }
+    },
+    {
+      "aiSystemId": "sys-credit",
+      "journal": {
+        "event": {
+          "details": {
+            "prompt": "SECRET-prompt"
+          },
+          "error": "SECRET-error-text",
+          "intent": "credit.prescreen",
+          "latency_ms": 0,
+          "params": {
+            "customer": "SECRET-param"
+          },
+          "phase": "intent.denied",
+          "pipeline": "credit_prescreening",
+          "result": "denied",
+          "roles": [
+            "SECRET-role"
+          ],
+          "timestamp": "2026-10-26T08:00:00.123456Z",
+          "tools": [
+            "SECRET-tool"
+          ],
+          "trace_id": "trace-9d8e",
+          "user_id": "SECRET-user-7"
+        },
+        "hash": "h44",
+        "previous_hash": "h43",
+        "sequence": 44
+      },
+      "name": "a denied intent: the result travels, the reason does not",
+      "record": {
+        "key": "trace-9d8e",
+        "headers": {
+          "eventType": "aos.audit.event.intent.denied",
+          "source": "aos",
+          "sourceEventId": "trace-9d8e:intent.denied::h44"
+        },
+        "value": {
+          "aiSystem": {
+            "id": "sys-credit",
+            "systemOfRecord": "prudence"
+          },
+          "eventType": "aos.audit.event.intent.denied",
+          "metadata": {
+            "aiSystemId": "sys-credit",
+            "eventHash": "h44",
+            "intent": "credit.prescreen",
+            "journalSequence": 44,
+            "latencyMs": 0,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "intent.denied",
+            "pipeline": "credit_prescreening",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "denied",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "traceId": "trace-9d8e",
+            "transport": "kafka"
+          },
+          "modelId": "sys-credit",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "trace-9d8e:intent.denied::h44"
+        }
+      },
+      "ernest": {
+        "source": "aos",
+        "eventType": "aos.audit.event.intent.denied",
+        "sourceEventId": "trace-9d8e:intent.denied::h44",
+        "evidenceEventId": "aos.audit.event.intent.denied:trace-9d8e:intent.denied::h44",
+        "modelId": "sys-credit",
+        "modelName": "",
+        "canonicalType": "external_event",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "metadata": {
+          "stage": "lifecycle",
+          "aiSystemId": "sys-credit",
+          "phase": "intent.denied",
+          "pipeline": "credit_prescreening",
+          "traceId": "trace-9d8e",
+          "result": "denied"
+        }
+      }
+    },
+    {
+      "aiSystemId": "",
+      "journal": {
+        "event": {
+          "details": {
+            "prompt": "SECRET-prompt"
+          },
+          "error": "SECRET-error-text",
+          "intent": "credit.prescreen",
+          "latency_ms": 0,
+          "params": {
+            "customer": "SECRET-param"
+          },
+          "phase": "intent.accepted",
+          "pipeline": "",
+          "result": "success",
+          "roles": [
+            "SECRET-role"
+          ],
+          "timestamp": "2026-10-26T08:00:00.123456Z",
+          "tools": [
+            "SECRET-tool"
+          ],
+          "user_id": "SECRET-user-7"
+        },
+        "hash": "h45",
+        "previous_hash": "h44",
+        "sequence": 45
+      },
+      "name": "an event without a trace: keyed and identified by its hash",
+      "record": {
+        "key": "h45",
+        "headers": {
+          "eventType": "aos.audit.event.intent.accepted",
+          "source": "aos",
+          "sourceEventId": "h45"
+        },
+        "value": {
+          "eventType": "aos.audit.event.intent.accepted",
+          "metadata": {
+            "eventHash": "h45",
+            "intent": "credit.prescreen",
+            "journalSequence": 45,
+            "latencyMs": 0,
+            "occurredAt": "2026-10-26T08:00:00.123Z",
+            "phase": "intent.accepted",
+            "pipeline": "",
+            "producer": "aos-agentic-orchestration-system",
+            "result": "success",
+            "schemaVersion": "2",
+            "stage": "lifecycle",
+            "traceId": "",
+            "transport": "kafka"
+          },
+          "modelId": "aos-agentic-orchestration-system",
+          "occurredAt": "2026-10-26T08:00:00.123Z",
+          "source": "aos",
+          "sourceEventId": "h45"
+        }
+      },
+      "ernest": {
+        "source": "aos",
+        "eventType": "aos.audit.event.intent.accepted",
+        "sourceEventId": "h45",
+        "evidenceEventId": "aos.audit.event.intent.accepted:h45",
+        "modelId": "aos-agentic-orchestration-system",
+        "modelName": "",
+        "canonicalType": "external_event",
+        "occurredAt": "2026-10-26T08:00:00.123Z",
+        "metadata": {
+          "stage": "lifecycle",
+          "aiSystemId": null,
+          "phase": "intent.accepted",
+          "pipeline": "",
+          "traceId": "",
+          "result": "success"
+        }
+      }
+    }
+  ],
+  "description": "AOS audit journal record -> the Kafka record AOS publishes (`record`, exact) -> what Ernest's event-ingestor makes of it (`ernest`; a null metadata value means the field must be absent). `forbidden` strings must never leave AOS. See README.md.",
+  "forbidden": [
+    "SECRET"
+  ],
+  "version": "aos.audit-events/v1"
+}

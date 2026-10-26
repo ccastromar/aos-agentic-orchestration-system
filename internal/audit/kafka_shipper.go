@@ -214,26 +214,11 @@ func (s *KafkaShipper) ShipOnce(ctx context.Context) (int, error) {
 			// Never skip evidence silently: stop here until the journal is repaired.
 			return 0, fmt.Errorf("audit journal record at byte %d is unreadable: %w", offset-int64(len(line)), err)
 		}
-		evidence, err := BuildEvidence(rec.Event, rec.Hash, s.cfg.AISystems[rec.Event.Pipeline], map[string]any{
-			"journalSequence": rec.Sequence,
-			"transport":       "kafka",
-		})
+		record, err := JournalRecord(rec, s.cfg.AISystems[rec.Event.Pipeline])
 		if err != nil {
 			return 0, err
 		}
-		key := rec.Event.TraceID // keeps one trace's events in order on one partition
-		if key == "" {
-			key = rec.Hash
-		}
-		records = append(records, &kgo.Record{
-			Key:   []byte(key),
-			Value: evidence.Body,
-			Headers: []kgo.RecordHeader{
-				{Key: "source", Value: []byte("aos")},
-				{Key: "eventType", Value: []byte(evidence.EventType)},
-				{Key: "sourceEventId", Value: []byte(evidence.SourceEventID)},
-			},
-		})
+		records = append(records, record)
 		next = kafkaCursor{Offset: offset, Sequence: rec.Sequence}
 	}
 	if len(records) == 0 {
@@ -293,4 +278,30 @@ func (s *KafkaShipper) writeCursor(cur kafkaCursor) error {
 		return fmt.Errorf("write Kafka evidence cursor: %w", err)
 	}
 	return nil
+}
+
+// JournalRecord is the Kafka record one journal record becomes (contract/audit-events): the
+// hash-only evidence body, keyed by trace so a trace's events stay in order on one partition,
+// with the headers Ernest's ingestor reads first.
+func JournalRecord(rec Record, aiSystemID string) (*kgo.Record, error) {
+	evidence, err := BuildEvidence(rec.Event, rec.Hash, aiSystemID, map[string]any{
+		"journalSequence": rec.Sequence,
+		"transport":       "kafka",
+	})
+	if err != nil {
+		return nil, err
+	}
+	key := rec.Event.TraceID
+	if key == "" {
+		key = rec.Hash
+	}
+	return &kgo.Record{
+		Key:   []byte(key),
+		Value: evidence.Body,
+		Headers: []kgo.RecordHeader{
+			{Key: "source", Value: []byte("aos")},
+			{Key: "eventType", Value: []byte(evidence.EventType)},
+			{Key: "sourceEventId", Value: []byte(evidence.SourceEventID)},
+		},
+	}, nil
 }

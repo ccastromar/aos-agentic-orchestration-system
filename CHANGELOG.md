@@ -12,6 +12,10 @@ higher than the suite's because v0.3.0 is already public.
 
 ### Added
 
+- **Audit events contract with Ernest** (`contract/audit-events/`): the exact Kafka record each
+  journal entry becomes and what Ernest's event-ingestor must make of it (deduplication id,
+  model, `stage: execution` for Prudence's drift). AOS's test pins the bytes and that no user
+  id, parameter or error leaves AOS; Ernest runs the same vectors on a copy made by `sync.sh`.
 - **Prudence governance gate** (policy enforcement point): a pipeline with an `ai_system` asks
   Prudence's PDP before it starts and enforces `ALLOW`, `DENY` or `APPROVAL_REQUIRED`; the last
   one routes into the human-approval step. Active when `PRUDENCE_PDP_URL` is set, fail-closed
