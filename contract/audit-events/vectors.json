@@ -17,6 +17,7 @@
           "phase": "pipeline.started",
           "pipeline": "credit_prescreening",
           "traceId": "trace-7f3a9c",
+          "correlationId": "trace-7f3a9c",
           "result": "success",
           "eventHash": null
         }
@@ -24,8 +25,8 @@
       "ernestHttp": {
         "source": "aos",
         "eventType": "aos.audit.event.pipeline.started",
-        "sourceEventId": "trace-7f3a9c:pipeline.started::16c6e20dfcb5fcf352ca5fd465b8d59e3df7d4f59f25a864833a4b12e423e060",
-        "evidenceEventId": "aos.audit.event.pipeline.started:trace-7f3a9c:pipeline.started::16c6e20dfcb5fcf352ca5fd465b8d59e3df7d4f59f25a864833a4b12e423e060",
+        "sourceEventId": "trace-7f3a9c:pipeline.started::0937aad8c3c982447d043a23692ac91fa2a7cbd92279911c3e7006ce66fd5cca",
+        "evidenceEventId": "aos.audit.event.pipeline.started:trace-7f3a9c:pipeline.started::0937aad8c3c982447d043a23692ac91fa2a7cbd92279911c3e7006ce66fd5cca",
         "modelId": "sys-credit",
         "modelName": "",
         "canonicalType": "external_event",
@@ -36,6 +37,7 @@
           "phase": "pipeline.started",
           "pipeline": "credit_prescreening",
           "traceId": "trace-7f3a9c",
+          "correlationId": "trace-7f3a9c",
           "result": "success",
           "eventHash": null
         },
@@ -141,6 +143,7 @@
           "phase": "tool.completed",
           "pipeline": "credit_prescreening",
           "traceId": "trace-7f3a9c",
+          "correlationId": "trace-7f3a9c",
           "result": "success",
           "eventHash": null
         }
@@ -160,6 +163,7 @@
           "phase": "tool.completed",
           "pipeline": "credit_prescreening",
           "traceId": "trace-7f3a9c",
+          "correlationId": "trace-7f3a9c",
           "result": "success",
           "eventHash": null
         },
@@ -264,6 +268,7 @@
           "phase": "pipeline.started",
           "pipeline": "support_lookup",
           "traceId": "trace-1b2c",
+          "correlationId": "trace-1b2c",
           "result": "success",
           "eventHash": null
         }
@@ -283,6 +288,7 @@
           "phase": "pipeline.started",
           "pipeline": "support_lookup",
           "traceId": "trace-1b2c",
+          "correlationId": "trace-1b2c",
           "result": "success",
           "eventHash": null
         },
@@ -380,6 +386,7 @@
           "phase": "intent.denied",
           "pipeline": "credit_prescreening",
           "traceId": "trace-9d8e",
+          "correlationId": "trace-9d8e",
           "result": "denied",
           "eventHash": null
         }
@@ -399,6 +406,7 @@
           "phase": "intent.denied",
           "pipeline": "credit_prescreening",
           "traceId": "trace-9d8e",
+          "correlationId": "trace-9d8e",
           "result": "denied",
           "eventHash": null
         },
