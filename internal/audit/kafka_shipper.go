@@ -329,7 +329,7 @@ func JournalRecord(rec Record, aiSystemID string, evidenceKey []byte) (*kgo.Reco
 		{Key: "sourceEventId", Value: []byte(evidence.SourceEventID)},
 	}
 	// The flow and the trace context that wrote the entry: the ingestor's processing is a new
-	// span linked to it (contract/observability, section 4).
+	// span linked to it.
 	if evidence.CorrelationID != "" {
 		headers = append(headers, kgo.RecordHeader{Key: "correlationId", Value: []byte(evidence.CorrelationID)})
 	}

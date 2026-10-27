@@ -1,7 +1,6 @@
-// Package telemetry is AOS's OpenTelemetry tracing (contract/observability in Prudence's
-// repository): a tracer provider exporting OTLP over HTTP when an endpoint is configured, W3C
-// trace context for propagation, and helpers to carry a trace context through the places a
-// span cannot stay open (the audit journal, Kafka, a background retry).
+// Package telemetry is AOS's OpenTelemetry tracing: a tracer provider exporting OTLP over HTTP
+// when an endpoint is configured, W3C trace context for propagation, and helpers to carry a
+// trace context through the places a span cannot stay open (the audit journal, Kafka, a background retry).
 //
 // Everything is configured by the standard OTEL_* variables. Without
 // OTEL_EXPORTER_OTLP_ENDPOINT (or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) no span is recorded or

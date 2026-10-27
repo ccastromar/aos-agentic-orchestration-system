@@ -66,7 +66,7 @@ func BuildEvidence(event Event, eventDigest, aiSystemID string, extra map[string
 		metadata["step"] = event.Step
 	}
 	if event.TraceID != "" {
-		// The business flow, under the suite's name for it (contract/observability).
+		// The business flow, under the suite's name for it.
 		metadata["correlationId"] = event.TraceID
 	}
 	if aiSystemID != "" {

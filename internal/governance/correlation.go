@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-// The business flow a call to Prudence belongs to (contract/observability, section 3): AOS's
+// The business flow a call to Prudence belongs to: AOS's
 // task id. It is the Decision API's correlationId and the X-Correlation-Id header, never a
 // trace id: trace context travels as traceparent, from the caller's span.
 
