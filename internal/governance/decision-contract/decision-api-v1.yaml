@@ -28,8 +28,8 @@ info:
     **Compatibility.** v1 only grows by adding optional response fields. Clients must ignore
     fields they do not know.
 servers:
-  - url: https://prudence.ccmlab.cc
-    description: Chestertown MVP
+  - url: https://prudence.example.com
+    description: A deployment
   - url: http://localhost:8099
     description: Local development
 security:
@@ -253,7 +253,7 @@ components:
         refused. The client must carry a `preferred_username` mapper so the token names it.
       flows:
         clientCredentials:
-          tokenUrl: https://sso.ccmlab.cc/realms/prudence/protocol/openid-connect/token
+          tokenUrl: https://sso.example.com/realms/your-realm/protocol/openid-connect/token
           scopes:
             pdp.decide: Ask the Policy Decision Point for decisions
             execution.report: Report executions to Prudence
