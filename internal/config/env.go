@@ -34,8 +34,9 @@ type EnvVars struct {
 
 	RedisAddr                string        `envconfig:"REDIS_ADDR"`
 	RedisPassword            string        `envconfig:"REDIS_PASSWORD"`
-	StateStore               string        `envconfig:"AOS_STATE_STORE" default:""` // memory, sqlite, redis; empty preserves legacy auto-selection
+	StateStore               string        `envconfig:"AOS_STATE_STORE" default:""` // memory, sqlite, postgres, redis; empty preserves legacy auto-selection
 	SQLitePath               string        `envconfig:"AOS_SQLITE_PATH" default:"./data/aos-state.db"`
+	PostgresURL              string        `envconfig:"AOS_POSTGRES_URL"`
 	AuditLogPath             string        `envconfig:"AUDIT_LOG_PATH" default:""`
 	ErnestIngestorURL        string        `envconfig:"ERNEST_INGESTOR_URL" default:""`
 	ErnestIngestorAPIKey     string        `envconfig:"ERNEST_INGESTOR_API_KEY" default:""`

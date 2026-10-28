@@ -110,8 +110,9 @@ LLM configuration:
 - OLLAMA_BASE_URL: http://localhost:11434 (when LLM_ENGINE=ollama)
 
 Optional state and logging:
-- AOS_STATE_STORE: state backend (`memory`, `sqlite`, or `redis`). If unset, AOS preserves the legacy behavior: Redis when `REDIS_ADDR` is set, otherwise memory.
+- AOS_STATE_STORE: state backend (`memory`, `sqlite`, `postgres`, or `redis`). Use `postgres` in production; `sqlite` is for local development and single-binary demos. If unset, AOS preserves the legacy behavior: Redis when `REDIS_ADDR` is set, otherwise memory.
 - AOS_SQLITE_PATH: SQLite database path when using `AOS_STATE_STORE=sqlite` (default `./data/aos-state.db`; parent directories are created automatically).
+- AOS_POSTGRES_URL: PostgreSQL connection URL when using `AOS_STATE_STORE=postgres`, for example `postgres://aos:secret@db:5432/aos?sslmode=require`. AOS creates its `aos_state` table at start.
 - REDIS_ADDR: host:port for the Redis state backend
 - REDIS_PASSWORD: password for Redis
 - Session values expire after 24 hours. Execution records, including callbacks awaiting a response, are stored without a TTL by all durable backends.
@@ -126,7 +127,13 @@ Optional state and logging:
   `message`, `component`, and `correlation_id` (the task id), `trace_id` and `span_id` on lines about
   a task. Named events add `event.name` and `outcome` (`http.request`, `audit.recorded`).
 
-For local durable state without a Redis service, set:
+For production, keep state in PostgreSQL:
+```bash
+AOS_STATE_STORE=postgres
+AOS_POSTGRES_URL=postgres://aos:secret@db:5432/aos?sslmode=require
+```
+
+For local durable state without a database service, set:
 ```bash
 AOS_STATE_STORE=sqlite
 AOS_SQLITE_PATH=./data/aos-state.db

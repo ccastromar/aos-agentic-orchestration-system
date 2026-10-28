@@ -279,6 +279,15 @@ func newStateStore(env *config.EnvVars) (state.StateStore, interface{ Close() er
 			return nil, nil, err
 		}
 		return store, store, nil
+	case "postgres":
+		if env.PostgresURL == "" {
+			return nil, nil, fmt.Errorf("AOS_POSTGRES_URL is required when AOS_STATE_STORE=postgres")
+		}
+		store, err := state.NewPostgresStore(env.PostgresURL)
+		if err != nil {
+			return nil, nil, err
+		}
+		return store, store, nil
 	case "redis":
 		if env.RedisAddr == "" {
 			return nil, nil, fmt.Errorf("REDIS_ADDR is required when AOS_STATE_STORE=redis")
@@ -295,7 +304,7 @@ func newStateStore(env *config.EnvVars) (state.StateStore, interface{ Close() er
 		store := state.NewRedisStore(rdb, 24*time.Hour)
 		return store, rdb, nil
 	default:
-		return nil, nil, fmt.Errorf("unsupported AOS_STATE_STORE %q (expected memory, sqlite, or redis)", backend)
+		return nil, nil, fmt.Errorf("unsupported AOS_STATE_STORE %q (expected memory, sqlite, postgres, or redis)", backend)
 	}
 }
 
