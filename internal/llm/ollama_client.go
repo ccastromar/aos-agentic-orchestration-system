@@ -15,6 +15,7 @@ import (
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 )
 
 type OllamaClient struct {
@@ -61,7 +62,8 @@ func NewOllamaClient(baseURL, model, embedModel string) *OllamaClient {
 		NumCtx:          numCtx,
 		ReactNumPredict: reactNumPredict,
 		HTTPClient: &http.Client{
-			Timeout: 305 * time.Second,
+			Timeout:   305 * time.Second,
+			Transport: telemetry.OutboundTransport(nil),
 		},
 	}
 }
@@ -174,7 +176,7 @@ func (c *OllamaClient) chat(ctx context.Context, prompt, model string, direct bo
 
 	httpClient := c.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 305 * time.Second}
+		httpClient = &http.Client{Timeout: 305 * time.Second, Transport: telemetry.OutboundTransport(nil)}
 	}
 
 	start := time.Now()
@@ -252,7 +254,7 @@ func (c *OllamaClient) Ping(ctx context.Context) error {
 
 	httpClient := c.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 1 * time.Second}
+		httpClient = &http.Client{Timeout: 1 * time.Second, Transport: telemetry.OutboundTransport(nil)}
 	}
 
 	resp, err := retryHTTP(ctx, 3, 50*time.Millisecond, func() (*http.Response, error) {
@@ -304,7 +306,7 @@ func (c *OllamaClient) Embed(ctx context.Context, text string) ([]float32, error
 
 	httpClient := c.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 305 * time.Second}
+		httpClient = &http.Client{Timeout: 305 * time.Second, Transport: telemetry.OutboundTransport(nil)}
 	}
 
 	resp, err := retryHTTP(ctx, 3, 100*time.Millisecond, func() (*http.Response, error) {

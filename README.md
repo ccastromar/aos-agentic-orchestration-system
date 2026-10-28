@@ -109,6 +109,15 @@ LLM configuration:
 - LLM_MODEL: model name (e.g., qwen3:0.6b for Ollama, gemini-1.5-flash for Gemini)
 - OLLAMA_BASE_URL: http://localhost:11434 (when LLM_ENGINE=ollama)
 
+Behind an AI gateway (optional): point `LLM_BASE_URL` at any OpenAI-compatible gateway (LiteLLM,
+Portkey, Kong, Envoy AI Gateway…) and `LLM_API_KEY` at the key it issues; point a tool's `url` or
+`target` at the gateway's MCP/A2A/HTTP route, with its credentials in `headers` (`${VAR}` reads
+them from the environment). A gateway inside your network must be listed in
+`AOS_TOOL_INTERNAL_HOSTS`. Every model and tool call AOS makes carries `traceparent`,
+`X-Correlation-Id` (the task id) and, inside a governed pipeline, `X-AI-System-Id` (the Prudence AI
+system), so the gateway's log joins the AOS run, the Prudence decision and the Ernest evidence. To
+route Gemini through a gateway, use the OpenAI-compatible engine against it.
+
 Optional state and logging:
 - AOS_STATE_STORE: state backend (`memory`, `sqlite`, `postgres`, or `redis`). Use `postgres` in production; `sqlite` is for local development and single-binary demos. If unset, AOS preserves the legacy behavior: Redis when `REDIS_ADDR` is set, otherwise memory.
 - AOS_SQLITE_PATH: SQLite database path when using `AOS_STATE_STORE=sqlite` (default `./data/aos-state.db`; parent directories are created automatically).

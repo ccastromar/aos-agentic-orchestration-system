@@ -12,6 +12,7 @@ import (
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"net"
 )
 
@@ -64,8 +65,9 @@ func guardedDial(ctx context.Context, network, addr string) (net.Conn, error) {
 }
 
 var safeClient = &http.Client{
-	Timeout:   30 * time.Second,
-	Transport: &http.Transport{DialContext: guardedDial},
+	Timeout: 30 * time.Second,
+	// Spans and correlation headers on top; the SSRF-guarded dialer underneath.
+	Transport: telemetry.OutboundTransport(&http.Transport{DialContext: guardedDial}),
 }
 
 func ExecuteTool(t config.Tool, params map[string]string) (map[string]any, error) {

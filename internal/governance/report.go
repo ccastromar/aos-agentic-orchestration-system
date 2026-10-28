@@ -90,7 +90,7 @@ func reportExecution(ctx context.Context, pdpURL string, r ExecutionReport) (boo
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if correlationID := validCorrelation(r.ExecutionID); correlationID != "" {
+	if correlationID := telemetry.ValidCorrelation(r.ExecutionID); correlationID != "" {
 		req.Header.Set(CorrelationHeader, correlationID)
 	}
 	// The same machine identity as the gate: its token carries `execution.report` as a

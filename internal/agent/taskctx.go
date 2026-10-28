@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"sync"
 	"time"
 )
@@ -24,6 +25,8 @@ func NewTaskContext(parent context.Context, id string, timeout time.Duration) co
 	if parent == nil {
 		parent = context.Background()
 	}
+	// Every call made for the task (models, tools, Prudence) carries its id.
+	parent = telemetry.WithCorrelation(parent, id)
 
 	var ctx context.Context
 	var cancel context.CancelFunc

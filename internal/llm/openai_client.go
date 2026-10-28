@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 )
 
 type OpenAIClient struct {
@@ -41,7 +42,8 @@ func NewOpenAIClient(baseURL, apiKey, model string) *OpenAIClient {
 		APIKey:  apiKey,
 		Model:   model,
 		HTTP: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   30 * time.Second,
+			Transport: telemetry.OutboundTransport(nil),
 		},
 		Timeout: 30 * time.Second,
 	}
@@ -67,7 +69,7 @@ func (c *OpenAIClient) Ping(ctx context.Context) error {
 	url := strings.TrimRight(c.BaseURL, "/") + "/models"
 	httpClient := c.HTTP
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: to}
+		httpClient = &http.Client{Timeout: to, Transport: telemetry.OutboundTransport(nil)}
 	}
 
 	resp, err := retryHTTP(ctx, 3, 100*time.Millisecond, func() (*http.Response, error) {
@@ -127,7 +129,7 @@ func (c *OpenAIClient) Chat(ctx context.Context, prompt string) (string, error) 
 	url := strings.TrimRight(c.BaseURL, "/") + "/chat/completions"
 	httpClient := c.HTTP
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: to}
+		httpClient = &http.Client{Timeout: to, Transport: telemetry.OutboundTransport(nil)}
 	}
 
 	start := time.Now()
@@ -207,7 +209,7 @@ func (c *OpenAIClient) Embed(ctx context.Context, text string) ([]float32, error
 	url := strings.TrimRight(c.BaseURL, "/") + "/embeddings"
 	httpClient := c.HTTP
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 35 * time.Second}
+		httpClient = &http.Client{Timeout: 35 * time.Second, Transport: telemetry.OutboundTransport(nil)}
 	}
 
 	resp, err := retryHTTP(ctx, 3, 100*time.Millisecond, func() (*http.Response, error) {

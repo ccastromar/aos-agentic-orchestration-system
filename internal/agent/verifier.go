@@ -402,6 +402,7 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	if taskCtx == nil {
 		taskCtx = NewTaskContext(context.Background(), id, 0)
 	}
+	taskCtx = telemetry.WithAISystem(taskCtx, strings.TrimSpace(pipe.AiSystem))
 	taskCtx, span := telemetry.Tracer().Start(taskCtx, "aos.run", trace.WithAttributes(
 		attribute.String(telemetry.CorrelationKey, id), attribute.String("aos.pipeline", pipe.Name)))
 	defer span.End()
