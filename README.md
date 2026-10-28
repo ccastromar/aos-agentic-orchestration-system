@@ -1,5 +1,7 @@
 # AOS — Agentic Orchestration System
 
+AOS runs declared, deterministic pipelines. The LLM only picks a pipeline and fills its inputs; it never plans steps or grants permissions.
+
 > **Project status: MVP — the "operate" vertex of the Chestertown trilogy.**
 > AOS operates, [Prudence](https://github.com/ccastromar/prudence-governance) governs and
 > [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. The three run together as a deployed MVP aligned with the EU AI Act: before a
@@ -19,7 +21,7 @@
 
 ## Introduction
 
-This project is a **runtime orchestration framework for intent-driven pipelines**, where orchestration is defined as code and execution is strictly constrained by declarative specifications.
+This project is a **runtime for declared, deterministic pipelines**, where each pipeline is defined as code and execution is strictly constrained by declarative specifications.
 
 The orchestration layer is defined in YAML. A pipeline can call ordinary tools or delegate a bounded step to an external agent runtime; that agent owns its internal reasoning/tool loop, while AOS owns routing, step ordering, timeouts, events, and the final workflow result.
 
