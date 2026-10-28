@@ -579,3 +579,9 @@ Memory operations are not stored as new memories. Their responses render confirm
 facts directly instead of asking an LLM to summarize success. Existing incorrect facts
 are not automatically deleted; inspect them in Memory Management. Restarting with
 `QDRANT_URL=memory` clears that temporary store.
+
+## Author
+
+Developed and maintained by Carlos Castro Martos.
+
+This project was developed independently. It is not sponsored, endorsed, or licensed by any employer, organization, or company.
