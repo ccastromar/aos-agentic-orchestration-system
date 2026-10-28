@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -40,9 +39,7 @@ func writeRuntime(w io.Writer, openMetrics bool) {
 	counter("go_gc_cycles_total", "Completed GC cycles.", float64(m.NumGC))
 	counter("go_gc_pause_seconds_total", "Total time the world was stopped for GC.", float64(m.PauseTotalNs)/1e9)
 
-	var ru syscall.Rusage
-	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
-		cpu := float64(ru.Utime.Sec+ru.Stime.Sec) + float64(ru.Utime.Usec+ru.Stime.Usec)/1e6
+	if cpu, ok := cpuSeconds(); ok {
 		counter("process_cpu_seconds_total", "Total user and system CPU time spent in seconds.", cpu)
 	}
 	gauge("process_start_time_seconds", "Start time of the process since unix epoch in seconds.", float64(processStart.UnixMilli())/1000)
@@ -52,9 +49,8 @@ func writeRuntime(w io.Writer, openMetrics bool) {
 	}
 	if fds, err := os.ReadDir("/proc/self/fd"); err == nil {
 		gauge("process_open_fds", "Number of open file descriptors.", float64(len(fds)))
-		var lim syscall.Rlimit
-		if syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim) == nil {
-			gauge("process_max_fds", "Maximum number of open file descriptors.", float64(lim.Cur))
+		if max, ok := maxFDs(); ok {
+			gauge("process_max_fds", "Maximum number of open file descriptors.", max)
 		}
 	}
 }

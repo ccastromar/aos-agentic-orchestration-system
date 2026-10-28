@@ -6,6 +6,8 @@ useDefault = true
 [[allowlists]]
 description = "Known non-secrets"
 paths = [
+  # the audit-events vectors: sentinel strings proving no error text leaves AOS
+  '''^contract/audit-events/vectors\.json$''',
   # the deterministic mock model's code (a comment matches the generic rule)
   '''^mocks/ollama/react\.go$''',
 ]
