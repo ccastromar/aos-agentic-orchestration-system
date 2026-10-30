@@ -1,6 +1,14 @@
 pipelines:
   # Each pipeline is bound to one registered AI system and marked governed: without a
   # system id or PRUDENCE_PDP_URL it fails closed instead of running ungoverned.
+  - name: pipeline_aos_spam_check
+    description: "Governed spam check of an inbound message (minimal-risk)"
+    ai_system: "${AOS_PRUDENCE_SPAM_SYSTEM_ID}"
+    governed: true
+    steps:
+      - tool: governance_demo.spam_check
+      - analyst: true
+
   - name: pipeline_aos_credit_pre_screening
     description: "Governed consumer-credit pre-screening (high-risk)"
     ai_system: "${AOS_PRUDENCE_CREDIT_SYSTEM_ID}"

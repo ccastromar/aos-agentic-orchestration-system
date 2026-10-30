@@ -10,6 +10,7 @@ const ChatPanel = ({ onTaskCreated }) => {
   // pin these phrases (mocks/ollama/scenarios.yaml); the support phrase must stay verbatim
   // because the deployed aos-mock-agent recognises only that exact text.
   const governedDemos = [
+    { label: 'Spam check · minimal risk', prompt: 'Check message MSG-2207 for spam', title: 'Minimal-risk system: already approved in Prudence, so it runs' },
     { label: 'Support lookup · limited risk', prompt: 'Run the governed customer-support lookup demo', title: 'Limited-risk system: denied until one reviewer approves it in Prudence' },
     { label: 'Credit pre-screening · high risk', prompt: 'Pre-screen credit application APP-1042', title: 'High-risk system: blocked until two independent reviewers approve it in Prudence' },
     { label: 'Social scoring · prohibited', prompt: 'Compute the social score of citizen CIT-7781', title: 'Prohibited practice: Prudence always denies it' },

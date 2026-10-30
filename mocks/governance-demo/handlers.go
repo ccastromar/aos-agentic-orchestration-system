@@ -11,9 +11,27 @@ import (
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("/mock/governance-demo/spam-check", handleSpamCheck)
 	mux.HandleFunc("/mock/governance-demo/credit/pre-screening", handleCreditPreScreening)
 	mux.HandleFunc("/mock/governance-demo/social-score", handleSocialScore)
 	mux.HandleFunc("/mock/governance-demo/translate", handleTranslate)
+}
+
+// handleSpamCheck classifies a synthetic inbound message. The verdict is stable per message id.
+func handleSpamCheck(w http.ResponseWriter, r *http.Request) {
+	messageID := r.URL.Query().Get("messageId")
+	if messageID == "" {
+		messageID = "unknown"
+	}
+	verdict := "legitimate"
+	if stableBucket(messageID, 4) == 0 {
+		verdict = "spam"
+	}
+	writeJSON(w, map[string]any{
+		"messageId": messageID,
+		"verdict":   verdict,
+		"action":    "delivered to the review folder",
+	})
 }
 
 // handleCreditPreScreening prioritises an application for human review. It never decides

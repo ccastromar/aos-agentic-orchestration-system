@@ -1,5 +1,12 @@
 tools:
   # Read-only mock tools behind the governed demo pipelines (mocks/governance-demo).
+  - name: governance_demo.spam_check
+    type: http
+    method: GET
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/governance-demo/spam-check?messageId={{ .messageId }}"
+    mode: read
+    timeout: 3000
+
   - name: governance_demo.credit_pre_screening
     type: http
     method: GET

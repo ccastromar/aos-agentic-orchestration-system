@@ -80,6 +80,7 @@ func TestGovernedPipelineFlagIsLoaded(t *testing.T) {
 // the flag, an unset env var would silently make them run ungoverned.
 func TestGovernanceDemoPipelinesAreGoverned(t *testing.T) {
 	want := map[string]string{
+		"pipeline_aos_spam_check":           "AOS_PRUDENCE_SPAM_SYSTEM_ID",
 		"pipeline_aos_support_lookup":       "AOS_PRUDENCE_DEMO_SYSTEM_ID",
 		"pipeline_aos_credit_pre_screening": "AOS_PRUDENCE_CREDIT_SYSTEM_ID",
 		"pipeline_aos_social_scoring":       "AOS_PRUDENCE_SOCIAL_SCORING_SYSTEM_ID",

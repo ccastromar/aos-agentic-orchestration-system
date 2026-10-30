@@ -79,6 +79,10 @@ permissions:
   governance-demo.social_scoring:
     - admin
     - operator
+  governance-demo.spam_check:
+    - admin
+    - support
+    - operator
   governance-demo.translate_message:
     - admin
     - support

@@ -1,7 +1,16 @@
 intents:
   # Live demo of Prudence governance by EU AI Act risk tier. Each intent maps to a pipeline
   # bound to a different registered AI system; Prudence, not AOS, decides whether it runs.
-  # The support lookup (customer-support.governed_lookup) is the ALLOW case.
+  # The spam check is the ALLOW case: its system starts approved, so it runs with nothing to do.
+  - type: governance-demo.spam_check
+    description: "Check an inbound message for spam (minimal-risk AI system, approved in Prudence)."
+    pipeline: pipeline_aos_spam_check
+    required_params: ["messageId"]
+    examples:
+      - "Check message MSG-2207 for spam"
+      - "Comprueba si el mensaje MSG-2207 es spam"
+    allow_dangerous: false
+
   - type: governance-demo.credit_pre_screening
     description: "Pre-screen a consumer-credit application (high-risk AI system, Annex III 5(b)); needs Prudence approval before it can run."
     pipeline: pipeline_aos_credit_pre_screening

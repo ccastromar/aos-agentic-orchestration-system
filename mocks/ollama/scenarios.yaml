@@ -29,6 +29,18 @@ scenarios:
       es: "AOS consultó el servicio de soporte en modo solo lectura y no modificó ningún dato."
       en: "AOS looked up the support service read-only and changed no data."
 
+  # Case 0 (ALLOW from the start): MINIMAL-risk spam check, approved by the seed.
+  - name: governed-spam-check
+    match: '(spam|correo no deseado)(?:.*?\b(?P<message>MSG-\d+))?|\b(?P<first>MSG-\d+)\b.*?spam'
+    intent: governance-demo.spam_check
+    params:
+      messageId: '${message}${first}'
+    defaults:
+      messageId: MSG-2207
+    summary:
+      es: "AOS revisó el mensaje en modo solo lectura y lo clasificó. No se borró ni se bloqueó nada."
+      en: "AOS checked the message read-only and classified it. Nothing was deleted or blocked."
+
   # Case 2 (APPROVAL_REQUIRED -> approve in Prudence -> ALLOW): HIGH-risk credit pre-screening.
   - name: governed-credit-pre-screening
     match: '(preselecci\w*|pre-?screen\w*).*?(cr[eé]dito|credit)(?:.*?\b(?P<app>APP-\d+))?'
