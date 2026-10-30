@@ -2,9 +2,10 @@
 
 AOS runs declared, deterministic pipelines. The LLM only picks a pipeline and fills its inputs; it never plans steps or grants permissions.
 
-> **Project status: MVP — the "operate" vertex of the Chestertown trilogy.**
-> AOS operates, [Prudence](https://github.com/ccastromar/prudence-governance) governs and
-> [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. The three run together as a deployed MVP aligned with the EU AI Act: before a
+> **Project status: MVP — the reference governed runtime of the [Chestertown](https://ccmlab.cc/architecture) reference architecture.**
+> AOS runs, [Prudence](https://github.com/ccastromar/prudence-governance) decides and
+> [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. AOS is a reference, not a
+> requirement: any runtime that follows the contracts can take its place. The three run together as a deployed MVP aligned with the EU AI Act: before a
 > governed pipeline runs, AOS asks Prudence's Policy Decision Point and obeys the verdict;
 > Prudence seals each decision in Ernest, and AOS ships its own hash-only execution evidence
 > there asynchronously over Kafka. It is a first real version, not a hardened product.
@@ -257,6 +258,7 @@ Prudence system:
 
 | Pipeline | System id variable | Seeded system | First verdict |
 |---|---|---|---|
+| `pipeline_aos_spam_check` | `AOS_PRUDENCE_SPAM_SYSTEM_ID` | Spam filter (minimal) | ALLOW from the start |
 | `pipeline_aos_support_lookup` | `AOS_PRUDENCE_DEMO_SYSTEM_ID` | Customer-support assistant (limited) | DENY until one approval |
 | `pipeline_aos_credit_pre_screening` | `AOS_PRUDENCE_CREDIT_SYSTEM_ID` | Consumer-credit pre-screening (high) | APPROVAL_REQUIRED until two independent approvals |
 | `pipeline_aos_social_scoring` | `AOS_PRUDENCE_SOCIAL_SCORING_SYSTEM_ID` | Social scoring (prohibited) | Always DENY (OPA does not grant it either) |

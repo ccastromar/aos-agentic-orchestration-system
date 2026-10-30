@@ -8,7 +8,7 @@ The format follows the spirit of Keep a Changelog, and AOS uses semantic version
 ## [Unreleased]
 
 AOS 0.4.0 ships in Chestertown 0.1.0, with Prudence (govern) and Ernest (prove). The version is
-higher than the suite's because v0.3.0 is already public.
+higher than Chestertown's because v0.3.0 is already public.
 
 ### Added
 
@@ -21,5 +21,5 @@ higher than the suite's because v0.3.0 is already public.
 
 - Authorization by governance function, shared with Prudence and Ernest.
 - The web console is part of AOS again.
-- Traces, metrics and logs follow the suite's conventions; logs carry no user content.
+- Traces, metrics and logs follow Chestertown's conventions; logs carry no user content.
 - Security hardening.

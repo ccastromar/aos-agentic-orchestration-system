@@ -1,7 +1,7 @@
 # Contributing to AOS
 
-Thank you for helping. AOS is the orchestration vertex of the Chestertown suite (AOS
-orchestrates, Ernest proves, Prudence governs). Its governance gate and its audit evidence are
+Thank you for helping. AOS is the reference runtime in the Chestertown reference architecture
+(AOS runs, Ernest proves, Prudence decides and oversees). Its governance gate and its audit evidence are
 read by the other two apps, so the contracts below matter as much as the code.
 
 ## Before you open a pull request
