@@ -71,9 +71,10 @@ func TestE2EResiliency(t *testing.T) {
 		t.Fatalf("decode error response: %v", err)
 	}
 
-	// Verificamos que el error reportado contenga "context deadline exceeded" (timeout)
+	// Verificamos que el error reportado sea un timeout. net/http lo redacta de dos formas, según
+	// dónde lo detecte, y ninguna es parte de un contrato.
 	errStr, ok := res["error"].(string)
-	if !ok || !strings.Contains(errStr, "context deadline exceeded") {
+	if !ok || !(strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "Client.Timeout exceeded")) {
 		t.Fatalf("expected timeout error, got %#v", res["error"])
 	}
 
