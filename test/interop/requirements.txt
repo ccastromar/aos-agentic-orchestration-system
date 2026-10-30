@@ -1,4 +1,4 @@
 # Real MCP and A2A servers built with the official SDKs, for AOS's interop run (README.md).
 mcp>=2.3
 a2a-sdk[http-server]>=1.2
-uvicorn>=0.30
+uvicorn>=0.54.0
