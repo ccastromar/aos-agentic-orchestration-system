@@ -64,7 +64,7 @@ jobs:
       run: go build -v -ldflags="-X 'main.version=${{ env.VERSION }}' -X 'main.commit=${{ env.COMMIT }}' -X 'main.date=${{ env.DATE }}'" -o aos-windows-amd64.exe ./cmd/aos
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: aos-binaries
         path: |
