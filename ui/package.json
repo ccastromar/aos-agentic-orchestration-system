@@ -15,7 +15,7 @@
     "@chestertown/design": "file:vendor/chestertown-design-0.3.11.tgz",
     "dagre": "^0.8.5",
     "date-fns": "^4.4.0",
-    "framer-motion": "^12.42.2",
+    "framer-motion": "^14.7.1",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
