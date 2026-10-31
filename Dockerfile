@@ -48,8 +48,8 @@ COPY --from=builder /out/aos-mock-llm /usr/local/bin/aos-mock-llm
 COPY definitions ./definitions
 COPY templates ./templates
 
-# Ensure files are owned by non-root user
-RUN chown -R app:app /app /usr/local/bin/aos /usr/local/bin/aos-mocks /usr/local/bin/aos-mock-llm
+# Ensure files are owned by non-root user. /data too: a new named volume takes its owner from here.
+RUN mkdir -p /data && chown -R app:app /app /data /usr/local/bin/aos /usr/local/bin/aos-mocks /usr/local/bin/aos-mock-llm
 
 # The image listens on 9090 (the binary defaults to 8080 when PORT is unset)
 ENV PORT=9090
