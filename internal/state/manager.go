@@ -17,24 +17,6 @@ type SessionState struct {
 	Interactions []Interaction `json:"interactions"`
 }
 
-type ReActStep struct {
-	Thought     string           `json:"thought,omitempty"`
-	Action      string           `json:"action,omitempty"`
-	ActionInput string           `json:"action_input,omitempty"`
-	Observation string           `json:"observation,omitempty"`
-	LLMStats    *LLMRuntimeStats `json:"llm_stats,omitempty"`
-}
-
-type LLMRuntimeStats struct {
-	Model                 string  `json:"model"`
-	TotalDurationSeconds  float64 `json:"total_duration_seconds"`
-	LoadDurationSeconds   float64 `json:"load_duration_seconds"`
-	PromptTokens          int64   `json:"prompt_tokens"`
-	PromptTokensPerSecond float64 `json:"prompt_tokens_per_second"`
-	OutputTokens          int64   `json:"output_tokens"`
-	OutputTokensPerSecond float64 `json:"output_tokens_per_second"`
-}
-
 type ExecutionState struct {
 	ID               string            `json:"id"`
 	SessionID        string            `json:"session_id"`
@@ -50,7 +32,6 @@ type ExecutionState struct {
 	Params           map[string]string `json:"params"`
 	MissingParams    []string          `json:"missing_params"`
 	StepResults      map[string]any    `json:"step_results,omitempty"`
-	ReActHistory     []ReActStep       `json:"react_history,omitempty"`
 	Gate             string            `json:"gate"` // "clarification", "human_approval", etc.
 	CallbackToken    string            `json:"callback_token,omitempty"`
 	CallbackData     map[string]any    `json:"callback_data,omitempty"`

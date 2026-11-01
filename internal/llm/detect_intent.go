@@ -190,10 +190,8 @@ MEMORY EXTRACTION:
 - If no durable personal fact is explicitly stated, leave "new_facts" empty: [].
 
 WORKSPACE INTENT ROUTING:
-- workspace.agent_code is for changing an existing project: adding endpoints/features, editing project files, adding tests, running project tests, or fixing project code. A language or file path is not required; the agent must inspect the project to discover them.
 - workspace.generate_code is only for generating one standalone source file when the user explicitly names BOTH a programming language and a destination source-file path in the message.
 - A URL/API route such as /api/tasks/count is not a source-file path. Never invent a language or file path.
-- If the user asks for a project change and the model selected workspace.generate_code, select workspace.agent_code and set its request parameter to the complete USER MESSAGE.
 
 USER MESSAGE:
 "%s"
@@ -268,14 +266,6 @@ RULES:
 	if err := json.Unmarshal([]byte(clean), &out); err != nil {
 		return nil, fmt.Errorf("invalid JSON from LLM: %w | raw=%s", err, raw)
 	}
-	if out.Intent == "workspace.generate_code" && isExistingProjectChange(text) {
-		if _, exists := intents["workspace.agent_code"]; exists {
-			out.Intent = "workspace.agent_code"
-			out.Params = map[string]string{"request": text}
-			out.Errors = nil
-			out.NewFacts = nil
-		}
-	}
 
 	// Model-generated facts are untrusted: only retain text grounded in this message.
 	grounded := []string{}
@@ -342,24 +332,4 @@ func factFromMessage(message, fact string) bool {
 	normalize := func(s string) string { return strings.ToLower(strings.Join(strings.Fields(s), " ")) }
 	f := normalize(fact)
 	return f != "" && strings.Contains(normalize(message), f)
-}
-
-func isExistingProjectChange(message string) bool {
-	text := strings.ToLower(message)
-	projectContext := []string{"proyecto", "project", "código existente", "existing code", "en el repo", "in the repo", "en este repo", "in this repo", "controller", "controlador", "endpoint", "api/tasks", "test de", "tests del", "project tests"}
-	changeRequest := []string{"añade", "agrega", "crea", "modifica", "actualiza", "corrige", "implementa", "add ", "create ", "modify ", "update ", "fix ", "implement "}
-	hasContext, hasChange := false, false
-	for _, marker := range projectContext {
-		if strings.Contains(text, marker) {
-			hasContext = true
-			break
-		}
-	}
-	for _, marker := range changeRequest {
-		if strings.Contains(text, marker) {
-			hasChange = true
-			break
-		}
-	}
-	return hasContext && hasChange
 }

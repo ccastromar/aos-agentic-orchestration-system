@@ -78,10 +78,33 @@ func (a *Analyst) dispatch(msg bus.Message) {
 	switch msg.Type {
 	case "summarize":
 		a.handleSummarize(msg)
+	case "complete":
+		a.handleComplete(msg)
 	default:
 		logx.Warn("Analyst", "unknown message: %T", msg)
 	}
 
+}
+
+// handleComplete closes a pipeline that asks for no summary, so /task still reports it completed
+// once the in-memory result has been read.
+func (a *Analyst) handleComplete(msg bus.Message) {
+	id, ok := payload.GetString(msg.Payload, "id")
+	if !ok {
+		logx.Error("Analyst", "invalid payload: missing id")
+		return
+	}
+	intentType, _ := msg.Payload["intent"].(string)
+	pipelineName, _ := msg.Payload["pipeline"].(string)
+	sessionID, _ := payload.GetString(msg.Payload, "session_id")
+	raw, _ := msg.Payload["rawResult"].(map[string]any)
+
+	taskCtx, _ := GetTaskContext(id)
+	if taskCtx == nil {
+		taskCtx = context.Background()
+	}
+	a.persistCompletion(taskCtx, id, sessionID, intentType, pipelineName, raw, "")
+	storeResult(id, Result{Status: "completed", Data: map[string]any{"raw": raw}})
 }
 
 func (a *Analyst) handleSummarize(msg bus.Message) {

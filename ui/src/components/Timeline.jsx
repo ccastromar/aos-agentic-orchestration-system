@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { Activity, BrainCircuit, Wrench, CheckCircle, AlertTriangle, Copy, ShieldAlert } from 'lucide-react';
+import { Wrench, CheckCircle, AlertTriangle, Copy, ShieldAlert } from 'lucide-react';
 import DAGVisualizer from './DAGVisualizer';
 import { apiFetch } from '../utils/api';
 import { ernestEvidenceUrl, prudenceSystemUrl } from '../utils/chestertown';
@@ -126,29 +126,6 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
                    const result = data.data && data.data[stepName] ? data.data[stepName] : 'Completed';
                    histEvents.push({ TaskID: taskId, Time: new Date().toISOString(), Agent: 'System', Kind: 'tool ' + stepName, Message: typeof result === 'string' ? result : JSON.stringify(result) });
                  });
-              } else if (data.react_history && Array.isArray(data.react_history) && data.react_history.length > 0) {
-                data.react_history.forEach(react => {
-                  if (react.llm_stats) {
-                    histEvents.push({
-                      TaskID: taskId,
-                      Time: new Date().toISOString(),
-                      Agent: 'Ollama',
-                      Kind: 'llm_stats',
-                      Message: `${Number(react.llm_stats.output_tokens_per_second || 0).toFixed(1)} tok/s`,
-                      Duration: `${Number(react.llm_stats.total_duration_seconds || 0).toFixed(2)}s`,
-                      Data: JSON.stringify(react.llm_stats)
-                    });
-                  }
-                  if (react.thought) {
-                    histEvents.push({ TaskID: taskId, Time: new Date().toISOString(), Agent: 'System', Kind: 'ReAct Thought', Message: react.thought });
-                  }
-                  if (react.action) {
-                    histEvents.push({ TaskID: taskId, Time: new Date().toISOString(), Agent: 'System', Kind: 'tool ' + react.action, Message: react.action_input });
-                  }
-                  if (react.observation) {
-                    histEvents.push({ TaskID: taskId, Time: new Date().toISOString(), Agent: 'System', Kind: 'tool result', Message: react.observation });
-                  }
-                });
               }
               if (histEvents.length > 0) {
                 setEvents(prev => prev.length === 0 ? histEvents : prev);
@@ -223,64 +200,6 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
   }, [events, taskId, onApprovalNeeded]);
 
   const renderEvent = (evt, idx) => {
-    if (evt.Kind === 'llm_stats') {
-      let stats = {};
-      try {
-        stats = typeof evt.Data === 'string' ? JSON.parse(evt.Data) : (evt.Data || {});
-      } catch {
-        stats = {};
-      }
-      const number = (value, digits = 1) => Number(value || 0).toFixed(digits);
-      return (
-        <motion.div
-          key={`${evt.Time}-${idx}`}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          layout
-          className="timeline-event llm-stats-card"
-        >
-          <div className="llm-stats-icon"><Activity size={16} /></div>
-          <div className="llm-stats-content">
-            <div className="llm-stats-heading">
-              <span>{stats.model || 'Ollama'}</span>
-              <strong>{number(stats.output_tokens_per_second)} tok/s</strong>
-            </div>
-            <div className="llm-stats-grid">
-              <span><b>{stats.prompt_tokens || 0}</b> prompt tokens</span>
-              <span><b>{number(stats.prompt_tokens_per_second)}</b> prompt tok/s</span>
-              <span><b>{stats.output_tokens || 0}</b> output tokens</span>
-              <span><b>{number(stats.total_duration_seconds, 2)}s</b> total</span>
-              <span><b>{number(stats.load_duration_seconds, 2)}s</b> load</span>
-            </div>
-          </div>
-        </motion.div>
-      );
-    }
-
-    // Special rendering for ReAct reasoning
-    if (evt.Kind === 'ReAct Thought') {
-      return (
-        <motion.div
-          key={`${evt.Time}-${idx}`}
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.3, type: "spring" }}
-          layout
-          className="timeline-event react-card"
-        >
-          <div className="react-icon">
-            <BrainCircuit size={20} />
-          </div>
-          <div className="react-content">
-            <div className="react-header">Agent Reasoning</div>
-            <div className="react-thought">{evt.Message}</div>
-          </div>
-        </motion.div>
-      );
-    }
-
     // Special rendering for Tool execution
     if (evt.Kind.startsWith('tool ')) {
       return (

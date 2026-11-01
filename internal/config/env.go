@@ -3,9 +3,22 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/kelseyhightower/envconfig"
+)
+
+const (
+	ExecutionStandard      = "standard"
+	ExecutionDeterministic = "deterministic"
+
+	GovernancePrudence = "prudence"
+	GovernanceNone     = "none"
+
+	EvidenceErnest = "ernest"
+	EvidenceLocal  = "local"
 )
 
 type EnvVars struct {
@@ -13,6 +26,9 @@ type EnvVars struct {
 	Port         int           `envconfig:"PORT" default:"8080"`
 	ReadTimeout  time.Duration `envconfig:"READ_TIMEOUT" default:"5s"`
 	WriteTimeout time.Duration `envconfig:"WRITE_TIMEOUT" default:"5s"`
+
+	// ExecutionMode: deterministic runs with no LLM client, for callers that do the reasoning.
+	ExecutionMode string `envconfig:"AOS_EXECUTION_MODE" default:"standard"`
 
 	BusWorkers int `envconfig:"BUS_WORKERS" default:"4"`
 	BusBuffer  int `envconfig:"BUS_BUFFER"  default:"100"`
@@ -30,7 +46,6 @@ type EnvVars struct {
 	OllamaIntentModel     string `envconfig:"OLLAMA_INTENT_MODEL" default:""`
 	OllamaEmbedModel      string `envconfig:"OLLAMA_EMBED_MODEL" default:"nomic-embed-text"`
 	OllamaNumCtx          int    `envconfig:"OLLAMA_NUM_CTX" default:"8192"`
-	OllamaReactNumPredict int    `envconfig:"OLLAMA_REACT_NUM_PREDICT" default:"4096"`
 
 	RedisAddr                string        `envconfig:"REDIS_ADDR"`
 	RedisPassword            string        `envconfig:"REDIS_PASSWORD"`
@@ -75,6 +90,13 @@ type EnvVars struct {
 	// AOS_GOVERNANCE_MODEL is the organization's governance model (contract v1); empty loads
 	// the contract's default model, which reproduces the roles above.
 	GovernanceModel string `envconfig:"AOS_GOVERNANCE_MODEL" default:""`
+
+	// Whether this deployment answers to Prudence and sends evidence to Ernest. Set per deployment
+	// only, never per request; required outside development, so that a lost variable cannot turn
+	// either off unnoticed. In development they follow the URLs below.
+	Governance     string `envconfig:"AOS_GOVERNANCE" default:""`
+	Evidence       string `envconfig:"AOS_EVIDENCE" default:""`
+	PrudencePDPURL string `envconfig:"PRUDENCE_PDP_URL" default:""`
 	IAMURL      string `envconfig:"AOS_IAM_URL" default:"disabled"`
 }
 
@@ -89,5 +111,73 @@ func LoadEnv() (*EnvVars, error) {
 		return nil, fmt.Errorf("error loading env: %w", err)
 	}
 
+	if v.ExecutionMode != ExecutionStandard && v.ExecutionMode != ExecutionDeterministic {
+		return nil, fmt.Errorf("AOS_EXECUTION_MODE must be %s or %s", ExecutionStandard, ExecutionDeterministic)
+	}
+	if err := v.resolveDeployment(); err != nil {
+		return nil, err
+	}
+
 	return &v, nil
+}
+
+// resolveDeployment settles AOS_GOVERNANCE and AOS_EVIDENCE and refuses settings that contradict
+// what the instance would really do.
+func (v *EnvVars) resolveDeployment() error {
+	development := auth.IsDevelopmentEnvironment(v.AppEnv)
+	pdp := strings.TrimSpace(v.PrudencePDPURL) != ""
+	export := strings.TrimSpace(v.ErnestIngestorURL) != "" || strings.TrimSpace(v.EvidenceKafkaBrokers) != ""
+
+	if v.Governance == "" {
+		if !development {
+			return fmt.Errorf("AOS_GOVERNANCE is required outside development: set %s or %s", GovernancePrudence, GovernanceNone)
+		}
+		v.Governance = GovernanceNone
+		if pdp {
+			v.Governance = GovernancePrudence
+		}
+	}
+	switch v.Governance {
+	case GovernancePrudence:
+		if !pdp {
+			return fmt.Errorf("AOS_GOVERNANCE=%s needs PRUDENCE_PDP_URL", GovernancePrudence)
+		}
+	case GovernanceNone:
+		if pdp {
+			return fmt.Errorf("AOS_GOVERNANCE=%s contradicts PRUDENCE_PDP_URL", GovernanceNone)
+		}
+	default:
+		return fmt.Errorf("AOS_GOVERNANCE must be %s or %s", GovernancePrudence, GovernanceNone)
+	}
+
+	if v.Evidence == "" {
+		if !development {
+			return fmt.Errorf("AOS_EVIDENCE is required outside development: set %s or %s", EvidenceErnest, EvidenceLocal)
+		}
+		v.Evidence = EvidenceLocal
+		if export {
+			v.Evidence = EvidenceErnest
+		}
+	}
+	switch v.Evidence {
+	case EvidenceErnest:
+		if !export {
+			return fmt.Errorf("AOS_EVIDENCE=%s needs ERNEST_INGESTOR_URL or AOS_EVIDENCE_KAFKA_BROKERS", EvidenceErnest)
+		}
+	case EvidenceLocal:
+		if export {
+			return fmt.Errorf("AOS_EVIDENCE=%s contradicts ERNEST_INGESTOR_URL and AOS_EVIDENCE_KAFKA_BROKERS", EvidenceLocal)
+		}
+		if !development && strings.TrimSpace(v.AuditLogPath) == "" {
+			return fmt.Errorf("AOS_EVIDENCE=%s needs AUDIT_LOG_PATH outside development", EvidenceLocal)
+		}
+	default:
+		return fmt.Errorf("AOS_EVIDENCE must be %s or %s", EvidenceErnest, EvidenceLocal)
+	}
+	return nil
+}
+
+// Deterministic reports whether this instance runs declared pipelines with no LLM of its own.
+func (v *EnvVars) Deterministic() bool {
+	return v != nil && v.ExecutionMode == ExecutionDeterministic
 }

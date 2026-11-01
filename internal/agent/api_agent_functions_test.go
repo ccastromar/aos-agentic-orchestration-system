@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,6 +90,37 @@ func TestOversightAndAuditListEveryonesTasks(t *testing.T) {
 	}
 	if n := count("oversight"); n != 2 {
 		t.Fatalf("oversight sees %d tasks, want 2", n)
+	}
+}
+
+func TestListTasksHidesCallbackCredentials(t *testing.T) {
+	api, manager, _, _ := securityTestAgent()
+	const secret = "callback-secret"
+	waiting := state.ExecutionState{ID: "t-wait", UserID: "alice", Gate: "await_callback", CallbackToken: secret, Params: map[string]string{
+		"assetId":                            "BTC-001",
+		"callback_token":                     secret,
+		"callback_url":                       "http://aos/api/v1/callbacks/" + secret,
+		"wait_custody_result.callback_token": secret,
+	}}
+	if err := manager.Save(context.Background(), &waiting); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	api.HandleListTasks(rec, requestWithFunctions(http.MethodGet, "/api/v1/tasks", "auditor", "audit"))
+	if strings.Contains(rec.Body.String(), secret) {
+		t.Fatalf("task list exposes the callback credentials: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "BTC-001") {
+		t.Fatalf("task list lost the other params: %s", rec.Body.String())
+	}
+
+	stored, err := manager.Load(context.Background(), "t-wait")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.CallbackToken != secret {
+		t.Fatal("listing must not clear the stored token: the callback still needs it")
 	}
 }
 

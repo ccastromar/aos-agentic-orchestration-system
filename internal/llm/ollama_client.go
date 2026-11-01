@@ -14,18 +14,16 @@ import (
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
-	"github.com/ccastromar/aos-agentic-orchestration-system/internal/state"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 )
 
 type OllamaClient struct {
-	BaseURL         string
-	Model           string
-	IntentModel     string
-	EmbedModel      string
-	HTTPClient      *http.Client
-	NumCtx          int
-	ReactNumPredict int
+	BaseURL     string
+	Model       string
+	IntentModel string
+	EmbedModel  string
+	HTTPClient  *http.Client
+	NumCtx      int
 }
 
 var _ LLMClient = (*OllamaClient)(nil)
@@ -47,20 +45,13 @@ func NewOllamaClient(baseURL, model, embedModel string) *OllamaClient {
 			numCtx = parsed
 		}
 	}
-	reactNumPredict := 4096
-	if raw := os.Getenv("OLLAMA_REACT_NUM_PREDICT"); raw != "" {
-		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
-			reactNumPredict = parsed
-		}
-	}
 	intentModel := strings.TrimSpace(os.Getenv("OLLAMA_INTENT_MODEL"))
 	return &OllamaClient{
-		BaseURL:         baseURL,
-		Model:           model,
-		IntentModel:     intentModel,
-		EmbedModel:      embedModel,
-		NumCtx:          numCtx,
-		ReactNumPredict: reactNumPredict,
+		BaseURL:     baseURL,
+		Model:       model,
+		IntentModel: intentModel,
+		EmbedModel:  embedModel,
+		NumCtx:      numCtx,
 		HTTPClient: &http.Client{
 			Timeout:   305 * time.Second,
 			Transport: telemetry.OutboundTransport(nil),
@@ -113,21 +104,6 @@ func logOllamaRuntimeStats(model string, stats ollamaRuntimeStats) {
 		stats.EvalCount,
 		tokensPerSecond(stats.EvalCount, stats.EvalDuration),
 	)
-}
-
-func runtimeStatsForUI(model string, stats ollamaRuntimeStats) *state.LLMRuntimeStats {
-	if stats.TotalDuration <= 0 && stats.PromptEvalCount <= 0 && stats.EvalCount <= 0 {
-		return nil
-	}
-	return &state.LLMRuntimeStats{
-		Model:                 model,
-		TotalDurationSeconds:  time.Duration(stats.TotalDuration).Seconds(),
-		LoadDurationSeconds:   time.Duration(stats.LoadDuration).Seconds(),
-		PromptTokens:          stats.PromptEvalCount,
-		PromptTokensPerSecond: tokensPerSecond(stats.PromptEvalCount, stats.PromptEvalDuration),
-		OutputTokens:          stats.EvalCount,
-		OutputTokensPerSecond: tokensPerSecond(stats.EvalCount, stats.EvalDuration),
-	}
 }
 
 func (c *OllamaClient) Chat(ctx context.Context, prompt string) (string, error) {

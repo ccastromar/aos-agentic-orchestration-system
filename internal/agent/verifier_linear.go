@@ -243,7 +243,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				return
 			}
 			if v.eventBus != nil {
-				v.eventBus.PublishEvent(id, "Verifier", "await_callback", token, "")
+				v.eventBus.PublishEvent(id, "Verifier", "await_callback", stepID, "")
 			}
 			return
 		}
@@ -446,7 +446,16 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 	logx.Debug("Verifier", "[%s] ToolOutputs: %#v", id, stepResults)
 
 	if pipe.SkipSummary {
-		storeResult(id, Result{Status: "completed", Data: map[string]any{"raw": cloneMap(stepResults)}})
+		v.bus.Send("analyst", bus.Message{
+			Type: "complete",
+			Payload: map[string]any{
+				"id":         id,
+				"session_id": sessionID,
+				"intent":     intentType,
+				"pipeline":   pipe.Name,
+				"rawResult":  cloneMap(stepResults),
+			},
+		})
 		return
 	}
 	v.bus.Send("analyst", bus.Message{

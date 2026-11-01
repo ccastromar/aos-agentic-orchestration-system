@@ -34,6 +34,8 @@ type APIAgent struct {
 	apiKey        string
 	authChain     *auth.Chain
 	allowDevLogin bool
+	// deterministic instances have no LLM to read natural language with.
+	deterministic bool
 	// naive fixed-window rate limiter per client key
 	rl struct {
 		Window  time.Duration
@@ -82,6 +84,7 @@ func NewAPIAgent(b *bus.Bus, args ...any) *APIAgent {
 		eventBus:      uiS,
 		apiKey:        strings.TrimSpace(os.Getenv("API_KEY")),
 		allowDevLogin: env == nil || auth.IsDevelopmentEnvironment(env.AppEnv),
+		deterministic: env.Deterministic(),
 	}
 
 	// Initialize auth chain
@@ -447,9 +450,12 @@ func (a *APIAgent) handleIntents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type IntentExample struct {
-		Type        string `json:"type"`
-		Description string `json:"description"`
-		Example     string `json:"example,omitempty"`
+		Type           string   `json:"type"`
+		Description    string   `json:"description"`
+		Example        string   `json:"example,omitempty"`
+		RequiredParams []string `json:"required_params"`
+		AllowDangerous bool     `json:"allow_dangerous"`
+		RequiresLLM    bool     `json:"requires_llm"`
 	}
 	var examples []IntentExample
 
@@ -459,9 +465,12 @@ func (a *APIAgent) handleIntents(w http.ResponseWriter, r *http.Request) {
 			ex = it.Examples[0]
 		}
 		examples = append(examples, IntentExample{
-			Type:        it.Type,
-			Description: it.Description,
-			Example:     ex,
+			Type:           it.Type,
+			Description:    it.Description,
+			Example:        ex,
+			RequiredParams: it.RequiredParams,
+			AllowDangerous: it.AllowDangerous,
+			RequiresLLM:    a.cfg.IntentRequiresLLM(it.Type),
 		})
 	}
 
@@ -532,6 +541,10 @@ func (a *APIAgent) handleAsk(w http.ResponseWriter, r *http.Request) {
 	// Method check
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if a.deterministic {
+		http.Error(w, "natural language is unavailable in deterministic mode; use /ask_structured", http.StatusNotImplemented)
 		return
 	}
 	// Extract Identity from context (populated by AuthMiddleware)
@@ -650,13 +663,29 @@ func (a *APIAgent) HandleListTasks(w http.ResponseWriter, r *http.Request) {
 	owned := []*state.ExecutionState{}
 	for _, st := range states {
 		if everyone || st.UserID == identity.UserID {
-			owned = append(owned, st)
+			owned = append(owned, taskView(st))
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(owned); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// taskView copies a task without its callback credentials: the token alone authenticates a
+// provider callback, so anyone reading it could forge the provider's result. Params drops them
+// rather than masking them because the UI resubmits a task's params to run it again.
+func taskView(st *state.ExecutionState) *state.ExecutionState {
+	view := *st
+	view.CallbackToken = ""
+	view.Params = make(map[string]string, len(st.Params))
+	for key, value := range st.Params {
+		if key == "callback_url" || key == "callback_token" || strings.HasSuffix(key, ".callback_token") {
+			continue
+		}
+		view.Params[key] = value
+	}
+	return &view
 }
 
 // /ask → operation + params
@@ -691,7 +720,7 @@ func (a *APIAgent) handleAsk2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Operation == "" && req.Message == "" {
+	if req.Operation == "" && (req.Message == "" || a.deterministic) {
 		http.Error(w, "operation required", 400)
 		return
 	}
@@ -854,7 +883,6 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 				"status":          status,
 				"data":            finalData,
 				"error":           errStr,
-				"react_history":   st.ReActHistory,
 				"completed_steps": st.CompletedSteps,
 				"pipeline":        st.Pipeline,
 			}, st))
@@ -961,6 +989,10 @@ func (a *APIAgent) DispatchAskInternal(message string, lang string) (string, err
 func (a *APIAgent) handleClarifyReply(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if a.deterministic {
+		http.Error(w, "clarification is unavailable in deterministic mode", http.StatusNotImplemented)
 		return
 	}
 	// Auth check

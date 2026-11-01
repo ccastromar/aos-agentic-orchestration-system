@@ -32,6 +32,12 @@ type Planner struct {
 	eventBus     *bus.Bus
 	stateManager *state.StateManager
 	auditLogger  audit.Logger
+	// deterministic refuses intents that would need AOS's own LLM.
+	deterministic bool
+}
+
+func (p *Planner) SetDeterministic(deterministic bool) {
+	p.deterministic = deterministic
 }
 
 func (p *Planner) SetLLMClient(c llm.LLMClient) {
@@ -158,6 +164,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 
 	var detectedType string
 	var params map[string]string
+	structured := false
+	var nonStringParams []string
 
 	// Identity travels with the task from the APIAgent; extract it up front so
 	// clarification saves and RBAC both see the same user.
@@ -184,6 +192,7 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// ---------------------------------------------------------
 	if op, ok := msg.Payload["operation"].(string); ok && op != "" {
 		detectedType = op
+		structured = true
 
 		// Convert params any->string
 		params = make(map[string]string)
@@ -191,6 +200,8 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 			for k, v := range mp {
 				if s, ok := v.(string); ok {
 					params[k] = s
+				} else {
+					nonStringParams = append(nonStringParams, k)
 				}
 			}
 		}
@@ -414,6 +425,17 @@ func (p *Planner) handleDetectIntent(msg bus.Message) {
 	// ---------------------------------------------------------
 	// 5) Validate params (Guard)
 	// ---------------------------------------------------------
+	if p.deterministic && p.cfg.IntentRequiresLLM(detectedType) {
+		p.storeError(id, "intent requires an LLM, unavailable in deterministic mode: "+detectedType)
+		return
+	}
+	if structured {
+		if err := guard.ValidateStructuredParams(intentCfg, params, nonStringParams); err != nil {
+			logx.L(id, "Guard", "validation failed: %v", err)
+			p.storeError(id, err.Error())
+			return
+		}
+	}
 	if err := guard.ValidateAll(intentCfg, pipe, params, p.cfg.Tools); err != nil {
 		logx.L(id, "Guard", "validation failed: %v", err)
 		storeResult(id, Result{

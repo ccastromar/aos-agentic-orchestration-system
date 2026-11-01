@@ -62,7 +62,7 @@ func TestE2EDAG(t *testing.T) {
 	// 2. Disparar el pipeline DAG enviando operation = intent_dag_demo
 	// Supongamos que añadimos un intent_dag_demo en definitions/intents
 	// Pero mejor lo enviamos directamente por operation
-	reqBody := `{"operation": "intent_dag_demo", "lang": "es", "params": {"amount": "100", "source": "A", "target": "B"}}`
+	reqBody := `{"operation": "intent_dag_demo", "lang": "es", "params": {"amount": "100", "source": "A", "target": "B", "userId": "U1", "accountId": "ACC1", "fromAccount": "ACC1", "toAccount": "ACC2", "currency": "EUR", "concept": "test", "fromPhone": "600000001", "toPhone": "600000002"}}`
 	req, err := http.NewRequest(http.MethodPost, ts.URL+"/ask_structured", bytes.NewReader([]byte(reqBody)))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")

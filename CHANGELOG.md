@@ -16,6 +16,10 @@ higher than Chestertown's because v0.3.0 is already public.
   does what the answer says. If Prudence does not answer, the pipeline does not run.
 - Execution reports to Prudence, and execution evidence to Ernest.
 - Protocol steps for MCP, A2A and gRPC.
+- `AOS_EXECUTION_MODE=deterministic`: runs declared pipelines with no LLM, for callers that
+  already reason.
+- `AOS_GOVERNANCE` and `AOS_EVIDENCE` state each deployment's setup, and `/health/ready` reports
+  it. Both are required outside development, and AOS will not start without them.
 
 ### Changed
 
@@ -23,3 +27,7 @@ higher than Chestertown's because v0.3.0 is already public.
 - The web console is part of AOS again.
 - Traces, metrics and logs follow Chestertown's conventions; logs carry no user content.
 - Security hardening.
+
+### Removed
+
+- ReAct pipelines and `workspace.agent_code`. A pipeline with an unknown mode now fails at load.

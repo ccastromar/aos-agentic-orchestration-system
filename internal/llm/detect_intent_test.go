@@ -117,29 +117,3 @@ func TestMemoryFactsMustComeFromUserMessage(t *testing.T) {
 		})
 	}
 }
-
-func TestProjectChangeOverridesStandaloneCodeGeneration(t *testing.T) {
-	intents := map[string]config.Intent{
-		"workspace.generate_code": {Type: "workspace.generate_code", RequiredParams: []string{"language", "path", "request"}},
-		"workspace.agent_code":    {Type: "workspace.agent_code", RequiredParams: []string{"request"}},
-	}
-	message := "Añade un endpoint GET /api/tasks/count al proyecto, añade un test de controller y ejecuta los tests."
-	c := &promptCapturingLLM{response: `{"intent":"workspace.generate_code","parameters":{"language":"python","path":"/api/tasks/count","request":"añade endpoint"},"new_facts":["añade un test de controller"]}`}
-
-	got, err := DetectIntentAndParams(context.Background(), c, message, intents, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Type != "workspace.agent_code" {
-		t.Fatalf("expected project agent intent, got %q", got.Type)
-	}
-	if got.Params["request"] != message {
-		t.Fatalf("expected complete user request, got %q", got.Params["request"])
-	}
-	if len(got.Errors) != 0 {
-		t.Fatalf("unexpected missing params: %#v", got.Errors)
-	}
-	if len(got.NewFacts) != 0 {
-		t.Fatalf("project task was incorrectly treated as a personal fact: %#v", got.NewFacts)
-	}
-}

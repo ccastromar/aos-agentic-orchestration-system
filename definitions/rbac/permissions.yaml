@@ -52,8 +52,6 @@ permissions:
     - admin
   workspace.generate_code:
     - admin
-  workspace.agent_code:
-    - admin
   agent.delegate_claude_code:
     - admin
 
@@ -150,8 +148,6 @@ permissions:
   intent_openapi_demo:
     - admin
   intent_rag_test:
-    - admin
-  intent_react_demo:
     - admin
   intent_resiliency_demo:
     - admin

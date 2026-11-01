@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/rbac"
@@ -54,13 +55,12 @@ type AgentDefinition struct {
 }
 
 type Pipeline struct {
-	Name          string `yaml:"name"`
-	Description   string `yaml:"description"`
-	Mode          string `yaml:"mode"` // linear, dag
-	LLMModel      string `yaml:"llm_model,omitempty" json:"llm_model,omitempty"`
-	SkipSummary   bool   `yaml:"skip_summary,omitempty"`
-	MaxIterations int    `yaml:"max_iterations,omitempty"`
-	AiSystem      string `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+	Mode        string `yaml:"mode"` // linear, dag
+	LLMModel    string `yaml:"llm_model,omitempty" json:"llm_model,omitempty"`
+	SkipSummary bool   `yaml:"skip_summary,omitempty"`
+	AiSystem    string `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
 	// Governed marks a pipeline that must never run without a Prudence verdict: a missing
 	// ai_system (e.g. an unset env var) or PRUDENCE_PDP_URL then fails closed instead of
 	// silently running ungoverned.
@@ -81,6 +81,34 @@ type Intent struct {
 	RequiresPhone  bool    `yaml:"requires_phone"`
 	MaxAmount      float64 `yaml:"max_amount"`
 	ShadowMode     bool    `yaml:"shadow_mode"`
+}
+
+// IntentRequiresLLM reports whether an intent cannot run without AOS's own LLM client. Analyst
+// steps do not count: with no client they close the task with the raw step results. An intent
+// or pipeline that cannot be resolved counts as requiring one.
+func (c *Config) IntentRequiresLLM(intentType string) bool {
+	intent, ok := c.Intents[intentType]
+	if !ok {
+		return true
+	}
+	pipe, ok := c.Pipelines[intent.Pipeline]
+	if !ok {
+		return true
+	}
+	for _, step := range pipe.Steps {
+		if step.Agent != "" || c.toolRequiresLLM(step.Tool) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) toolRequiresLLM(name string) bool {
+	switch name {
+	case "workspace.generate_code", "system.recall", "system.rag_query", "system.save_preference":
+		return true
+	}
+	return strings.HasPrefix(name, "system.memory.") || c.Tools[name].Type == "llm"
 }
 
 type Plugin struct {
@@ -225,6 +253,12 @@ func loadPipelinesDir(dir string, cfg *Config) error {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 		for _, p := range raw.Pipelines {
+			switch p.Mode {
+			case "", "linear", "dag":
+			default:
+				// An unknown mode must not fall through to linear execution.
+				return fmt.Errorf("pipeline %s in %s: unsupported mode %q", p.Name, path, p.Mode)
+			}
 			cfg.Pipelines[p.Name] = p
 		}
 	}

@@ -49,7 +49,7 @@ func TestE2E_HumanGateResume(t *testing.T) {
 	defer ts.Close()
 
 	// 3. Trigger DAG demo pipeline
-	reqBody := `{"operation": "intent_dag_demo", "lang": "es", "params": {"amount": "100", "source": "A", "target": "B"}}`
+	reqBody := `{"operation": "intent_dag_demo", "lang": "es", "params": {"amount": "100", "source": "A", "target": "B", "userId": "U1", "accountId": "ACC1", "fromAccount": "ACC1", "toAccount": "ACC2", "currency": "EUR", "concept": "test", "fromPhone": "600000001", "toPhone": "600000002"}}`
 	resp, err := http.Post(ts.URL+"/ask_structured", "application/json", strings.NewReader(reqBody))
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)

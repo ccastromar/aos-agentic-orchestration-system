@@ -196,7 +196,7 @@ docker run --rm -p 9090:9090 \
 (port 11435): a **deterministic** Ollama-compatible server, not a language model. It
 advertises the model `aos-demo:deterministic` so UI stats and evidence never suggest a real
 LLM. It recognises the fixed AOS prompts (intent, parameter extraction, analyst summary,
-ReAct, code generation) and answers them by rule: demo phrases pinned in
+code generation) and answers them by rule: demo phrases pinned in
 `mocks/ollama/scenarios.yaml` first, then keyword overlap with the intent catalog AOS already
 sends in its prompt. Summaries only report what the step results contain and never claim
 success for `executed: false`.
@@ -249,7 +249,8 @@ one-shot result is consumed; the UI renders it as a policy outcome, not as a fai
 
 | Variable | Purpose |
 |---|---|
-| `PRUDENCE_PDP_URL` | Prudence base URL; the gate is off when empty (except for `governed` pipelines). |
+| `AOS_GOVERNANCE` | `prudence` or `none`, set per deployment. Required outside development, where it follows `PRUDENCE_PDP_URL`. A value that contradicts the URL stops AOS at startup. |
+| `PRUDENCE_PDP_URL` | Prudence base URL; required by `prudence`, refused by `none`. |
 | `PRUDENCE_PDP_TOKEN_URL`, `PRUDENCE_PDP_CLIENT_ID`, `PRUDENCE_PDP_CLIENT_SECRET`, `PRUDENCE_PDP_SCOPE` | OAuth2 client-credentials for a secured PDP (scope `pdp.decide`); failing to get a token fails closed. |
 | `PRUDENCE_PDP_SUBJECT` | Service identity sent as subject (a secured PDP takes it from the token anyway). Defaults to the signed-in user. |
 
@@ -507,8 +508,7 @@ SHA-256 chained and fsynced. Each run stores a canonical, credential-redacted
 snapshot of its pipeline and referenced tool/agent definitions, plus the
 snapshot version and initial-input digest. Step events record whether a
 condition caused a skip, the resolved redacted tool inputs and their digest,
-and a digest of the safe result. ReAct events commit to each selected action
-and its input digest without putting chain-of-thought into the journal. If an enabled journal cannot append an event, AOS
+and a digest of the safe result. If an enabled journal cannot append an event, AOS
 stops before invoking the next tool. Verify the journal with
 `go run ./cmd/aos -verify-audit ./data/aos-audit.jsonl`, or verify one complete
 execution (including its pipeline snapshot and recorded input/result digests)
@@ -564,6 +564,15 @@ Events of a pipeline that declares `ai_system` carry `metadata.aiSystemId`, and 
 | `AOS_EVIDENCE_KAFKA_CURSOR`, `AOS_EVIDENCE_KAFKA_INTERVAL` | Cursor file and polling interval (default `1s`). |
 
 ### Execution evidence to Ernest over HTTP (synchronous)
+
+`AOS_EVIDENCE` says where evidence goes, per deployment: `ernest`, or `local` for the journal
+alone (it needs `AUDIT_LOG_PATH` outside development). It is required outside development, where
+it follows the export settings below, and a value that contradicts them stops AOS at startup.
+`/health/ready` and the startup log report the execution, governance and evidence settings.
+
+`AOS_EXECUTION_MODE` is `standard` by default. Set it to `deterministic` for callers that
+already reason, such as an agent over MCP: no LLM client is created, `/ask` is refused, intents
+that need an LLM are refused and hidden, and tasks close with raw step results.
 
 To export hash-only AOS audit evidence to Ernest, set `ERNEST_INGESTOR_URL` to
 the Ernest event-ingestor base URL (for example `http://localhost:3011`) and

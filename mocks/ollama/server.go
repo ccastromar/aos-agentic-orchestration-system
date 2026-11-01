@@ -5,7 +5,7 @@
 // same answers are also served OpenAI-style under /v1 for deployments using that client.
 //
 // It is NOT a language model. Each request is classified by the fixed prompts AOS sends
-// (intent detection, parameter extraction, analyst summary, ReAct, code generation) and
+// (intent detection, parameter extraction, analyst summary, code generation) and
 // answered with rules: optional scenarios (scenarios.yaml) first, then keyword overlap with
 // the intent catalog embedded in AOS's own prompt. The advertised model name says so.
 package ollama
@@ -104,10 +104,9 @@ type toolDefinition struct {
 }
 
 type chatRequest struct {
-	Model    string           `json:"model"`
-	Messages []chatMessage    `json:"messages"`
-	Tools    []toolDefinition `json:"tools"`
-	Stream   *bool            `json:"stream"`
+	Model    string        `json:"model"`
+	Messages []chatMessage `json:"messages"`
+	Stream   *bool         `json:"stream"`
 }
 
 func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
@@ -143,13 +142,6 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	case "badjson":
 		log.Printf("[MOCK OLLAMA] fault injected: malformed model output")
 		s.reply(w, r, model, stream, chatMessage{Role: "assistant", Content: "Sure! {\"intent\": banking, oops"})
-		return
-	}
-
-	if len(req.Tools) > 0 {
-		msg := reactStep(req.Messages, req.Tools)
-		log.Printf("[MOCK OLLAMA] kind=react tools=%d -> %s", len(req.Tools), describeReact(msg))
-		s.reply(w, r, model, stream, msg)
 		return
 	}
 
@@ -288,7 +280,7 @@ func abbreviate(s string, n int) string {
 	return s[:n] + "…"
 }
 
-func describeReact(msg chatMessage) string {
+func describeToolStep(msg chatMessage) string {
 	if len(msg.ToolCalls) > 0 {
 		return fmt.Sprintf("tool_call %s", msg.ToolCalls[0].Function.Name)
 	}

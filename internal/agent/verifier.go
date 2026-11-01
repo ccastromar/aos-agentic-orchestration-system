@@ -422,8 +422,6 @@ func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	switch pipe.Mode {
 	case "dag":
 		executeDAG(v, pipe, id, sessionID, intentType, language, taskCtx, stepResults, baseParams)
-	case "react":
-		executeReAct(v, pipe, id, sessionID, intentType, language, taskCtx, stepResults, baseParams)
 	case "linear":
 		fallthrough
 	default:
@@ -478,8 +476,6 @@ func (v *Verifier) resumeFromState(st *state.ExecutionState) {
 	switch pipe.Mode {
 	case "dag":
 		executeDAG(v, pipe, id, st.SessionID, intentType, "es", taskCtx, stepResults, baseParams)
-	case "react":
-		executeReAct(v, pipe, id, st.SessionID, intentType, "es", taskCtx, stepResults, baseParams)
 	case "linear":
 		fallthrough
 	default:

@@ -66,7 +66,7 @@ func (m openAIMessage) text() string {
 }
 
 // toChatMessages maps OpenAI messages onto the internal shape, naming each tool result
-// after the call it answers so reactStep can quote it.
+// after the call it answers so toolStep can quote it.
 func toChatMessages(in []openAIMessage) []chatMessage {
 	names := map[string]string{}
 	out := make([]chatMessage, 0, len(in))
@@ -130,8 +130,8 @@ func (s *Server) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 	if reply.Content == "" {
 		if len(req.Tools) > 0 {
-			reply = reactStep(messages, req.Tools)
-			log.Printf("[MOCK OLLAMA] /v1 kind=react tools=%d -> %s", len(req.Tools), describeReact(reply))
+			reply = toolStep(messages, req.Tools)
+			log.Printf("[MOCK OLLAMA] /v1 kind=tools tools=%d -> %s", len(req.Tools), describeToolStep(reply))
 		} else {
 			var kind promptKind
 			kind, reply.Content = respond(lastUserContent(messages), s.cfg.Scenarios)

@@ -59,7 +59,7 @@ func TestE2E_IncidentResponse(t *testing.T) {
 	defer ts.Close()
 
 	// 3. Disparar el pipeline usando ask_structured
-	reqBody := `{"operation": "incident.resolve_outage", "lang": "en", "params": {"customerId": "VIP123", "serviceName": "api"}}`
+	reqBody := `{"operation": "incident.resolve_outage", "lang": "en", "params": {"customerId": "VIP123", "serviceName": "api", "ticketId": "T-1", "reason": "outage", "lines": "100", "subject": "api outage", "description": "api is down", "priority": "high"}}`
 	resp, err := http.Post(ts.URL+"/ask_structured", "application/json", strings.NewReader(reqBody))
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)

@@ -78,9 +78,12 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	}
 
 	// Select an LLM client based on env. Ensure we always return a non-nil client for tests.
+	// Deterministic mode deliberately has none: no call in it can reach a model.
 	var llmClient llm.LLMClient
 
-	if env.LLMEngine == "gemini" {
+	if env.Deterministic() {
+		logx.Info("App", "deterministic execution mode: no LLM client")
+	} else if env.LLMEngine == "gemini" {
 		llmClient, err = llm.NewGeminiClient(context.Background(), env.LLMModel)
 		if err != nil {
 			if stateCloser != nil {
@@ -105,6 +108,9 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	r := &runtime.Runtime{
 		SpecsLoaded: specsLoaded,
 		LLMClient:   llmClient,
+		Execution:   env.ExecutionMode,
+		Governance:  env.Governance,
+		Evidence:    env.Evidence,
 	}
 
 	// Creates all agents
@@ -113,6 +119,7 @@ func NewWithEnv(env *config.EnvVars) (*App, error) {
 	planner := agent.NewPlanner(messageBus, cfg, llmClient, messageBus, stateManager)
 	verifier := agent.NewVerifier(messageBus, cfg, llmClient, messageBus, stateManager)
 	planner.SetAuditLogger(auditLogger)
+	planner.SetDeterministic(env.Deterministic())
 	verifier.SetAuditLogger(auditLogger)
 	analyst := agent.NewAnalyst(messageBus, llmClient, messageBus, stateManager)
 
@@ -338,7 +345,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	if a.env != nil {
-		logx.Info("App", "AOS v0.4.0 started (env=%s)", a.env.AppEnv)
+		logx.Info("App", "AOS v0.4.0 started (env=%s execution=%s governance=%s evidence=%s)", a.env.AppEnv, a.env.ExecutionMode, a.env.Governance, a.env.Evidence)
 	} else {
 		logx.Info("App", "AOS v0.4.0 started")
 	}
@@ -357,6 +364,9 @@ func (a *App) Handler() http.Handler {
 
 // SetLLMClient dynamically updates the LLMClient for the App and all active agents.
 func (a *App) SetLLMClient(engine, model, url string) error {
+	if a.env.Deterministic() {
+		return fmt.Errorf("deterministic execution mode has no LLM")
+	}
 	var newClient llm.LLMClient
 	var err error
 
@@ -437,8 +447,18 @@ type llmSettingsRequest struct {
 	BaseURL string `json:"baseUrl"`
 }
 
-// HandleSettingsLLM gets or updates the current LLM configuration
+// HandleSettingsLLM gets or updates the current LLM configuration. Any signed-in identity may
+// read it; changing it takes platform.admin.
 func (a *App) HandleSettingsLLM(w http.ResponseWriter, r *http.Request) {
+	identity, ok := auth.IdentityFromContext(r.Context())
+	if !ok || identity == nil || identity.UserID == "" {
+		http.Error(w, "identity required", http.StatusUnauthorized)
+		return
+	}
+	if r.Method == http.MethodPost && !identity.HasFunction("platform.admin") {
+		http.Error(w, "platform.admin required", http.StatusForbidden)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method == http.MethodGet {

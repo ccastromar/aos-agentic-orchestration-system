@@ -7,4 +7,9 @@ import (
 type Runtime struct {
 	SpecsLoaded bool
 	LLMClient   llm.LLMClient
+
+	// What this deployment was started as, reported by /health/ready.
+	Execution  string
+	Governance string
+	Evidence   string
 }

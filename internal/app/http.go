@@ -176,10 +176,10 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler, authenticator *auth.JWTAuthenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for browser-facing UI endpoints, health, metrics, dev login,
-		// and capability-token callbacks. The authenticated SSE stream is protected
-		// here and checks ownership again in its handler.
-		if strings.HasPrefix(r.URL.Path, "/ui") || strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" || r.URL.Path == "/auth/login" || strings.HasPrefix(r.URL.Path, "/api/v1/callbacks/") {
+		// Skip auth for health, metrics, dev login, and capability-token callbacks.
+		// The authenticated SSE stream is protected here and checks ownership again
+		// in its handler.
+		if strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/metrics" || r.URL.Path == "/auth/login" || strings.HasPrefix(r.URL.Path, "/api/v1/callbacks/") {
 			next.ServeHTTP(w, r)
 			return
 		}

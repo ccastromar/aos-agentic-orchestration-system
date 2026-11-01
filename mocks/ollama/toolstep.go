@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-// reactStep answers a native tool-calling turn. First turn: call the tool whose name and
+// toolStep answers a tool-calling turn. First turn: call the tool whose name and
 // description best overlap the task, filling required arguments with the same extractor
 // used for intents. Once a tool observation is in the history: finish, quoting it.
-func reactStep(messages []chatMessage, tools []toolDefinition) chatMessage {
+func toolStep(messages []chatMessage, tools []toolDefinition) chatMessage {
 	task := ""
 	var lastTool *chatMessage
 	for i := range messages {
