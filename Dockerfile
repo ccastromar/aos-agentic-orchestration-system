@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # --- Builder stage ---
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 WORKDIR /src
 
 # Install build deps (git for fetching modules)
@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 
 # --- Runtime stage ---
-FROM alpine:3.20
+FROM alpine:3.24
 
 # Install minimal runtime dependencies
 RUN apk add --no-cache ca-certificates tzdata wget
