@@ -6,9 +6,9 @@ history. Governed runs link to their decision in Prudence and their evidence in 
 
 React 19 + Vite. The shell (top bar, module switcher, tabs, theme) and the design tokens come
 from `@chestertown/design`, the shared design system, so AOS matches Prudence and Ernest in
-light and dark mode. It is installed from a pinned tarball in `vendor/`, released from the
-`chestertown-design` repository; to upgrade, run that repository's `scripts/release-local.sh`
-and commit `vendor/`, `package.json` and the lock file.
+light and dark mode. It is installed from a pinned tarball in `vendor/`, released from a
+separate repository; to upgrade, install the new tarball and commit `vendor/`, `package.json`
+and the lock file.
 
 ## Run locally
 
