@@ -145,9 +145,10 @@ func ExecuteAgent(ctx context.Context, definition config.AgentDefinition, params
 }
 
 func resolveAgentDirectory(requested string) (string, string, error) {
+	// Same rule as the workspace tools: no fallback to AOS's own working directory.
 	root := os.Getenv("AOS_WORKSPACE_ROOT")
 	if root == "" {
-		root, _ = os.Getwd()
+		return "", "", fmt.Errorf("AOS_WORKSPACE_ROOT is not set; the agent needs an explicit workspace")
 	}
 	root, err := filepath.Abs(root)
 	if err != nil {

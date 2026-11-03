@@ -5,6 +5,7 @@ pipelines:
     steps:
       - id: submit_custody_operation
         tool: custody.submit_operation
+        no_approval_reason: "Async custody demo: the custodian accepts or refuses the operation and reports it by callback; no AOS-side approval is modelled."
         with_params:
           assetId: "{{ .assetId }}"
           destination: "{{ .destination }}"
@@ -13,6 +14,8 @@ pipelines:
           callbackToken: "{{ .callback_token }}"
       - id: wait_custody_result
         type: await_callback
+        # The custodian signs its callback; unsigned ones are refused.
+        callback_secret_env: CUSTODY_CALLBACK_SECRET
         timeout_ms: 86400000
       - id: anchor_custody_audit
         tool: blockchain.anchor_audit
@@ -35,6 +38,7 @@ pipelines:
           message: "Review custody transfer for asset {{ .assetId }} to {{ .destination }} amount {{ .amount }}"
       - id: submit_custody_operation
         tool: custody.submit_operation
+        no_approval_reason: "The A2A compliance review before it stops the pipeline when it rejects; that review, not a person, is this pipeline's control."
         with_params:
           assetId: "{{ .assetId }}"
           destination: "{{ .destination }}"
@@ -43,6 +47,8 @@ pipelines:
           callbackToken: "{{ .callback_token }}"
       - id: wait_custody_result
         type: await_callback
+        # The custodian signs its callback; unsigned ones are refused.
+        callback_secret_env: CUSTODY_CALLBACK_SECRET
         timeout_ms: 86400000
       - id: anchor_custody_audit
         tool: blockchain.anchor_audit

@@ -69,11 +69,23 @@ func main() {
 	vFlag := flag.Bool("version", false, "Print version information")
 	verifyAudit := flag.String("verify-audit", "", "Verify a JSONL audit chain and exit")
 	verifyTrace := flag.String("verify-trace", "", "Verify one execution's pipeline manifest and step evidence (requires -verify-audit)")
+	validateDefs := flag.String("validate-definitions", "", "Load a definitions directory with every startup check, report and exit")
 	flag.Parse()
 
 	if *vFlag {
 		fmt.Printf("AOS Engine v%s\nCommit: %s\nBuilt: %s\n", version, commit, date)
 		os.Exit(0)
+	}
+	if *validateDefs != "" {
+		// The same checks AOS runs at startup (e.g. no dangerous step before its approval), so
+		// a definitions change can be refused before it is deployed.
+		cfg, err := config.LoadFromDir(*validateDefs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "definitions refused: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("definitions ok: %d tools, %d pipelines, %d intents\n", len(cfg.Tools), len(cfg.Pipelines), len(cfg.Intents))
+		return
 	}
 	if *verifyAudit != "" {
 		if *verifyTrace != "" {

@@ -230,12 +230,55 @@ func executeA2A(ctx context.Context, t config.Tool, params map[string]string) (m
 			}
 		case "input-required", "auth-required":
 			return nil, fmt.Errorf("A2A agent needs %s; a pipeline step cannot provide it", strings.TrimSuffix(state, "-required"))
-		case "failed", "canceled", "rejected":
+		case "rejected":
+			return nil, &RejectedError{Reason: a2aTaskText(result)}
+		case "failed", "canceled":
 			return nil, fmt.Errorf("A2A task %s", state)
 		default:
 			return nil, fmt.Errorf("A2A task in unknown state %q", raw)
 		}
 	}
+}
+
+// RejectedError is a remote agent's decision not to go ahead (an A2A task in state rejected),
+// as opposed to a failure: retrying asks the same question again, and the run should end
+// rejected, with the agent's reason, not as an error.
+type RejectedError struct {
+	Reason string
+}
+
+func (e *RejectedError) Error() string {
+	if e.Reason == "" {
+		return "A2A task rejected"
+	}
+	return "A2A task rejected: " + e.Reason
+}
+
+// a2aTaskText joins the text parts of a task's status message and artifacts.
+func a2aTaskText(task map[string]any) string {
+	var texts []string
+	collect := func(parts any) {
+		list, _ := parts.([]any)
+		for _, p := range list {
+			if m, ok := p.(map[string]any); ok {
+				if s, ok := m["text"].(string); ok && s != "" {
+					texts = append(texts, s)
+				}
+			}
+		}
+	}
+	if status, ok := task["status"].(map[string]any); ok {
+		if msg, ok := status["message"].(map[string]any); ok {
+			collect(msg["parts"])
+		}
+	}
+	artifacts, _ := task["artifacts"].([]any)
+	for _, a := range artifacts {
+		if m, ok := a.(map[string]any); ok {
+			collect(m["parts"])
+		}
+	}
+	return strings.Join(texts, " ")
 }
 
 // a2aState maps 1.0's TASK_STATE_INPUT_REQUIRED to 0.3's input-required, and so on.

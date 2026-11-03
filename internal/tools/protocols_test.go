@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -235,5 +236,20 @@ func TestA2ADirectMessageReplyIsSuccess(t *testing.T) {
 	out, err := ExecuteProtocolTool(context.Background(), config.Tool{Type: "a2a", Target: s.URL}, map[string]string{"message": "hi"})
 	if err != nil || out["ok"] != true {
 		t.Fatalf("out=%v err=%v", out, err)
+	}
+}
+
+func TestA2ARejectionCarriesTheAgentsReason(t *testing.T) {
+	s := rpcServer(t, func(string, map[string]any) (any, any) {
+		return map[string]any{"kind": "task", "id": "t-1",
+			"status":    map[string]any{"state": "rejected", "message": map[string]any{"parts": []any{map[string]any{"kind": "text", "text": "high risk"}}}},
+			"artifacts": []any{map[string]any{"parts": []any{map[string]any{"kind": "text", "text": "score 0.95"}}}},
+		}, nil
+	})
+	defer s.Close()
+	_, err := ExecuteProtocolTool(context.Background(), config.Tool{Type: "a2a", Target: s.URL}, map[string]string{"message": "review"})
+	var rejected *RejectedError
+	if !errors.As(err, &rejected) || rejected.Reason != "high risk score 0.95" {
+		t.Fatalf("err = %v, want a RejectedError with the agent's reason", err)
 	}
 }

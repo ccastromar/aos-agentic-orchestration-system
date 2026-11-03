@@ -79,6 +79,7 @@ tools:
       from: "{{ .fromAddress }}"
       to: "{{ .toAddress }}"
       amount: "{{ .amount }}"
+      concept: "{{ .concept }}"
 
   - name: banking.send_notification
     type: http
@@ -90,4 +91,5 @@ tools:
     timeout: 3000
     body:
       user: "{{ .fromPhone }}"
-      message: "Bizum sent {{ .amount }} to {{ .toPhone }}"
+      # Each pipeline words its own notice (with_params.notification): Bizum, transfer, bitcoin.
+      message: "{{ .notification }}"

@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
-var envRefPattern = regexp.MustCompile(`\$\{[^}]+\}`)
+// envRefPattern matches ${NAME} and ${NAME:-default} where NAME is a valid environment variable
+// name. Anything else in ${...} is left alone: a step condition such as `when: ${amount > 1000}`
+// uses the same braces, and expanding it as a variable would erase the condition.
+var envRefPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(:-[^}]*)?\}`)
 
 // expandEnvRefs replaces ${VAR} and ${VAR:-default} references with the value
 // of the environment variable, docker-compose style. Only the braced form is
@@ -14,14 +17,11 @@ var envRefPattern = regexp.MustCompile(`\$\{[^}]+\}`)
 // untouched. An unset VAR without a default expands to the empty string.
 func expandEnvRefs(s string) string {
 	return envRefPattern.ReplaceAllStringFunc(s, func(ref string) string {
-		key := ref[2 : len(ref)-1] // strip ${ and }
-		name, def, hasDef := strings.Cut(key, ":-")
+		m := envRefPattern.FindStringSubmatch(ref)
+		name, def := m[1], strings.TrimPrefix(m[2], ":-")
 		if v, ok := os.LookupEnv(name); ok && v != "" {
 			return v
 		}
-		if hasDef {
-			return def
-		}
-		return ""
+		return def
 	})
 }

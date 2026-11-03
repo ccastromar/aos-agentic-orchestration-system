@@ -347,13 +347,10 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			mu.Lock()
 			if err != nil {
 				logx.Error("Verifier", "tool %s failed: %v", n.Step.Tool, err)
-				if auditErr := v.logLifecycleAudit(execState, "tool.failed", "error", map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "error": err.Error()}); auditErr != nil {
+				if auditErr := v.logLifecycleAudit(execState, "tool.failed", auditFailureResult(err), map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "error": err.Error()}); auditErr != nil {
 					v.failAuditExecution(execState, id, auditErr)
 				}
-				storeResult(id, Result{
-					Status: "error",
-					Err:    fmt.Sprintf("tool error: %v", err),
-				})
+				v.failTool(execState, id, n.Step.ID, n.Step.Tool, err)
 				n.Status = "failed"
 			} else {
 				if out != nil {

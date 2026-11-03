@@ -1,0 +1,11 @@
+intents:
+  - type: devops.deploy_approved
+    description: "Deploy a version of a service under a change ticket, after an SRE approves"
+    pipeline: pipeline_deploy_approved
+    required_params:
+      - serviceName
+      - version
+      - ticketId
+    examples:
+      - "Deploy billing 1.5.0 under change ticket CHG-12, with SRE approval"
+    allow_dangerous: true

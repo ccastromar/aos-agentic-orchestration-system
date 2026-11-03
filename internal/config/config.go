@@ -40,10 +40,17 @@ type PipelineStep struct {
 	WithParams map[string]string `yaml:"with_params" json:"with_params,omitempty"`
 	Analyst    bool              `yaml:"analyst" json:"analyst,omitempty"`
 	HumanGate  string            `yaml:"human_approval,omitempty" json:"human_approval,omitempty"`
-	When       string            `yaml:"when,omitempty" json:"when,omitempty"`
-	Retries    int               `yaml:"retries,omitempty" json:"retries,omitempty"`
-	TimeoutMs  int               `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
-	BackoffMs  int               `yaml:"backoff_ms,omitempty" json:"backoff_ms,omitempty"`
+	// NoApprovalReason lets a dangerous tool step run with no human approval before it; without
+	// it, such a pipeline does not load (validatePipelineSafety).
+	NoApprovalReason string `yaml:"no_approval_reason,omitempty" json:"no_approval_reason,omitempty"`
+	When             string `yaml:"when,omitempty" json:"when,omitempty"`
+	Retries          int    `yaml:"retries,omitempty" json:"retries,omitempty"`
+	TimeoutMs        int    `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
+	BackoffMs        int    `yaml:"backoff_ms,omitempty" json:"backoff_ms,omitempty"`
+	// CallbackSecretEnv (await_callback steps) names the environment variable holding the secret
+	// the provider signs its callback with. When set, an unsigned or badly signed callback is
+	// refused, and so is every callback while the variable is empty.
+	CallbackSecretEnv string `yaml:"callback_secret_env,omitempty" json:"callback_secret_env,omitempty"`
 }
 
 // AgentDefinition names an external agent runtime adapter. Workflow-specific
@@ -150,6 +157,9 @@ func LoadFromDir(base string) (*Config, error) {
 		return nil, err
 	}
 	if err := loadIntentsDir(filepath.Join(base, "intents"), cfg); err != nil {
+		return nil, err
+	}
+	if err := validatePipelineSafety(cfg); err != nil {
 		return nil, err
 	}
 

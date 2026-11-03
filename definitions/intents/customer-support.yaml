@@ -10,4 +10,4 @@ intents:
   - type: customer-support.return_product
     description: "Return a product"
     pipeline: pipeline_customer_support_return_product
-    required_params: ["productId", "description", "date", "purchaseId"]
+    required_params: ["productId", "description", "purchaseId"]

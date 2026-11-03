@@ -15,29 +15,28 @@ func RegisterHandlers(mux *http.ServeMux) {
 }
 
 type ShipmentResponse struct {
-	Service   string `json:"service"`
-	Status    string `json:"status"`
-	Uptime    string `json:"uptime"`
-	Version   string `json:"version"`
-	Instances int    `json:"instances"`
+	ShipmentID   string `json:"shipmentId"`
+	Status       string `json:"status"`
+	Carrier      string `json:"carrier"`
+	LastLocation string `json:"lastLocation"`
+	EstimatedAt  string `json:"estimatedDelivery"`
 }
 
 func handleShipment(w http.ResponseWriter, r *http.Request) {
-	service := r.URL.Query().Get("service")
-	if service == "" {
-		service = "unknown"
+	shipmentId := r.URL.Query().Get("shipmentId")
+	if shipmentId == "" {
+		shipmentId = "unknown-shipment"
 	}
 
-	response := map[string]any{
-		"service":   service,
-		"status":    "running",
-		"instances": 3,
-		"uptime":    "32h",
-		"version":   "1.4.2",
+	resp := ShipmentResponse{
+		ShipmentID:   shipmentId,
+		Status:       "in_transit",
+		Carrier:      "Acme Freight",
+		LastLocation: "Zaragoza hub",
+		EstimatedAt:  time.Now().AddDate(0, 0, 2).Format("2006-01-02"),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	jsonResponse(w, resp)
 }
 
 type CustomerResponse struct {

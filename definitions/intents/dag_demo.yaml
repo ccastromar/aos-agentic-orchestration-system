@@ -5,9 +5,6 @@ intents:
     allow_dangerous: true
     required_params:
       - amount
-      - source
-      - target
-      - userId
       - accountId
       - fromAccount
       - toAccount

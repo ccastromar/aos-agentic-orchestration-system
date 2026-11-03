@@ -12,11 +12,11 @@ func RegisterHandlers(mux *http.ServeMux) {
 }
 
 type VacationsResponse struct {
-	Employee string `json:"employee"`
-	Status   string `json:"status"`
-	Uptime   string `json:"uptime"`
-	Version  string `json:"version"`
-	Days     int    `json:"days"`
+	EmployeeID    string `json:"employeeId"`
+	AnnualDays    int    `json:"annualDays"`
+	UsedDays      int    `json:"usedDays"`
+	AvailableDays int    `json:"availableDays"`
+	PendingDays   int    `json:"pendingApprovalDays"`
 }
 
 func handleVacations(w http.ResponseWriter, r *http.Request) {
@@ -25,12 +25,12 @@ func handleVacations(w http.ResponseWriter, r *http.Request) {
 		employee = "unknown"
 	}
 
-	response := map[string]any{
-		"employee": employee,
-		"status":   "running",
-		"days":     3,
-		"uptime":   "32h",
-		"version":  "1.4.2",
+	response := VacationsResponse{
+		EmployeeID:    employee,
+		AnnualDays:    23,
+		UsedDays:      17,
+		AvailableDays: 3,
+		PendingDays:   3,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

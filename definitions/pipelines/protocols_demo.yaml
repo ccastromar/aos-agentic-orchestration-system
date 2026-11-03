@@ -16,4 +16,5 @@ pipelines:
         tool: compliance.a2a_review
         depends_on: [risk_score]
         with_params:
-          message: "Review customer {{ .customerId }}"
+          # Compliance decides on the risk the previous step measured, not on the customer id alone.
+          message: "Review customer {{ .customerId }}: risk band {{ index . \"risk.grpc_score.result.band\" }}, score {{ index . \"risk.grpc_score.result.score\" }}"

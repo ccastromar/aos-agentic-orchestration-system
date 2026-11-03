@@ -3,17 +3,24 @@ package a2a
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
 
+type review struct {
+	started  time.Time
+	rejected bool
+}
+
 var (
 	mu    sync.Mutex
-	tasks = map[string]time.Time{}
+	tasks = map[string]review{}
 )
 
 // RegisterHandlers exposes a tiny A2A agent over the JSON-RPC binding: one endpoint for
 // message/send (answers a working task) and tasks/get (the task completes after 250 ms).
+// A review whose message reports "risk band high" is rejected; any other is approved.
 func RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/mock/a2a", handle)
 }
@@ -44,19 +51,26 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		}
 		id := "a2a-task-" + time.Now().Format("150405.000000000")
 		mu.Lock()
-		tasks[id] = time.Now()
+		tasks[id] = review{started: time.Now(), rejected: strings.Contains(messageText(req.Params.Message), "risk band high")}
 		mu.Unlock()
 		writeResult(w, req.ID, task(id, "working", nil))
 	case "tasks/get":
 		mu.Lock()
-		started, ok := tasks[req.Params.ID]
+		rv, ok := tasks[req.Params.ID]
 		mu.Unlock()
 		if !ok {
 			writeError(w, req.ID, -32001, "task not found")
 			return
 		}
-		if time.Since(started) < 250*time.Millisecond {
+		if time.Since(rv.started) < 250*time.Millisecond {
 			writeResult(w, req.ID, task(req.Params.ID, "working", nil))
+			return
+		}
+		if rv.rejected {
+			writeResult(w, req.ID, task(req.Params.ID, "rejected", []any{map[string]any{
+				"artifactId": "review",
+				"parts":      []any{map[string]any{"kind": "text", "text": "Compliance review rejected: high risk"}},
+			}}))
 			return
 		}
 		writeResult(w, req.ID, task(req.Params.ID, "completed", []any{map[string]any{
@@ -66,6 +80,20 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, req.ID, -32601, "method not found")
 	}
+}
+
+// messageText joins the text parts of an A2A message.
+func messageText(message map[string]any) string {
+	parts, _ := message["parts"].([]any)
+	var b strings.Builder
+	for _, p := range parts {
+		if m, ok := p.(map[string]any); ok {
+			if s, ok := m["text"].(string); ok {
+				b.WriteString(s)
+			}
+		}
+	}
+	return b.String()
 }
 
 func task(id, state string, artifacts []any) map[string]any {

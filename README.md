@@ -95,6 +95,22 @@ By default, the app loads definitions from the definitions/ directory:
 
 You can add your own domain by adding new YAML files in those folders. Example domains are already provided (banking, crm, helpdesk, logistics, human-resources, etc.).
 
+A step's `with_params` are rendered against the run's variables and take precedence over a
+request parameter of the same name: the pipeline decides what each step receives.
+
+### Approval before dangerous tools
+
+AOS does not load a pipeline that calls a `mode: dangerous` tool with no human approval before it:
+an earlier `human_approval` step in a linear pipeline, or one it depends on (directly or not) in a
+DAG. An approval placed after the action, or on a parallel branch, does not count. A step that
+deliberately runs without one states why, and the reason is logged at startup and kept in every
+run's pipeline snapshot:
+
+```yaml
+- tool: banking.payments_bizum_send
+  no_approval_reason: "The intent caps a Bizum at max_amount 100, enforced by the guardrail."
+```
+
 ## Environment variables
 
 Important environment variables and defaults (see internal/config/env.go):
@@ -279,7 +295,11 @@ the demo. The step-by-step script is `prudence-governance/docs/functional/06-dem
   - Performs mapping directly without the intent step
 - GET /task?id=... — Fetch task status/result
 - POST /task/approve?id=...&gate=... and POST /task/reject?id=...&gate=... — Decide a human step
-  (`oversight`, or the requester unless the governance model makes them incompatible)
+  (`oversight`, or the requester unless the governance model makes them incompatible). The
+  contract's default model does not, so a deployment that wants four eyes loads an organization
+  model with `[ai.use, oversight]` (e.g. Prudence's `contract/governance/templates/banking.yaml`)
+  in `AOS_GOVERNANCE_MODEL`. Development logins and API keys get `oversight` from a role named
+  `oversight`.
 - POST /task/reply?id=... — Answer a clarification (the requester only)
 - GET /api/v1/tasks — Your tasks (everyone's with `oversight` or `audit`)
 - GET /api/v1/events/stream — Server-sent events for the console
@@ -482,7 +502,12 @@ It also exposes an asynchronous A2A agent at `/mock/a2a` (JSON-RPC: `message/sen
 and `tasks/get`), and a gRPC risk service (`risk.RiskService/Score`, `Struct` in and out) on
 `AOS_MOCK_GRPC_PORT` (default 9002; `off` disables it). The task is `working` briefly and then completes with a
 compliance artifact; the AOS A2A step polls it until completion or its
-configured timeout.
+configured timeout. A review whose message reports `risk band high` ends `rejected` instead.
+
+An A2A task the agent rejects is its answer, not a fault: AOS does not retry the step, and the
+run ends with status `rejected` and data `{step, tool, reason}`, where `reason` is the text of
+the agent's status message and artifacts. `failed` and `canceled` tasks still end the run as
+`error`. Either outcome is kept in the task's state, so `/task` reports it on every read.
 
 Asynchronous providers can use `type: await_callback`. AOS exposes
 `POST /api/v1/callbacks/{token}`; the token and callback URL are available as
@@ -491,6 +516,15 @@ persisted before AOS returns acceptance, deduplicated while pending, and replaye
 from state after restart before the pipeline resumes. Set
 `AOS_CALLBACK_BASE_URL` to the externally reachable AOS base URL. See
 `definitions/pipelines/callback_demo.yaml`.
+
+The token only says which wait a callback is for, so anyone who learns it could otherwise answer
+in the provider's place. Give the step `callback_secret_env: <VAR>` and AOS accepts only callbacks
+the provider signed with the secret in `<VAR>`: header `X-AOS-Callback-Timestamp` (Unix seconds,
+within 5 minutes of AOS's clock) and `X-AOS-Callback-Signature`, `sha256=` plus the hex
+HMAC-SHA256 of `timestamp + "." + body` (the format AOS uses towards Ernest). A refused callback
+answers 401 and leaves the wait open; while `<VAR>` is empty every callback for that step is
+refused. The custody pipelines declare `CUSTODY_CALLBACK_SECRET`, and the mock custodian signs
+with `AOS_MOCK_CALLBACK_SECRET`.
 
 Set `timeout_ms` on an `await_callback` step to persist a deadline. The verifier
 expires overdue waits (including after restart), invalidates their callback

@@ -17,9 +17,50 @@ type openAPISpec struct {
 	Servers []struct {
 		URL string `json:"url" yaml:"url"`
 	} `json:"servers" yaml:"servers"`
-	Paths map[string]map[string]struct {
-		OperationID string `json:"operationId" yaml:"operationId"`
-	} `json:"paths" yaml:"paths"`
+	Paths      map[string]map[string]openAPIOperation `json:"paths" yaml:"paths"`
+	Components struct {
+		Schemas map[string]openAPISchema `json:"schemas" yaml:"schemas"`
+	} `json:"components" yaml:"components"`
+}
+
+type openAPIOperation struct {
+	OperationID string `json:"operationId" yaml:"operationId"`
+	RequestBody *struct {
+		Content map[string]struct {
+			Schema openAPISchema `json:"schema" yaml:"schema"`
+		} `json:"content" yaml:"content"`
+	} `json:"requestBody" yaml:"requestBody"`
+}
+
+// openAPISchema keeps what a JSON request body needs: its top-level property names, inline or
+// behind a local $ref.
+type openAPISchema struct {
+	Ref        string                   `json:"$ref" yaml:"$ref"`
+	Properties map[string]openAPISchema `json:"properties" yaml:"properties"`
+}
+
+// requestBodyTemplate maps each top-level property of the operation's JSON body to the run
+// variable of the same name, so a POST sends what the step was given. Nil when there is no body.
+func requestBodyTemplate(spec openAPISpec, op openAPIOperation) map[string]string {
+	if op.RequestBody == nil {
+		return nil
+	}
+	media, ok := op.RequestBody.Content["application/json"]
+	if !ok {
+		return nil
+	}
+	schema := media.Schema
+	if name, ok := strings.CutPrefix(schema.Ref, "#/components/schemas/"); ok {
+		schema = spec.Components.Schemas[name]
+	}
+	if len(schema.Properties) == 0 {
+		return nil
+	}
+	body := make(map[string]string, len(schema.Properties))
+	for prop := range schema.Properties {
+		body[prop] = "{{ ." + prop + " }}"
+	}
+	return body
 }
 
 func loadPluginsDir(dir string, cfg *Config) error {
@@ -40,6 +81,9 @@ func loadPluginsDir(dir string, cfg *Config) error {
 		if err != nil {
 			return err
 		}
+		// Same ${VAR:-default} references as tool definitions, so a plugin's base_url can follow
+		// the deployment.
+		data = []byte(expandEnvRefs(string(data)))
 		var raw struct {
 			Plugins []Plugin `yaml:"plugins"`
 		}
@@ -125,6 +169,7 @@ func loadOpenAPIPlugin(baseDir string, plugin Plugin, cfg *Config) error {
 			if tool.Method != "GET" {
 				tool.Mode = "write"
 			}
+			tool.Body = requestBodyTemplate(spec, op)
 
 			for k, v := range plugin.Headers {
 				tool.Headers[k] = v

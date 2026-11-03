@@ -2,17 +2,21 @@ package agent
 
 import (
 	"context"
+	"crypto/hmac"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/auth"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
@@ -407,8 +411,10 @@ func (a *APIAgent) handleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "state unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	// The raw body is kept: a signed callback is verified over exactly these bytes.
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	var data map[string]any
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&data); err != nil {
+	if err != nil || json.Unmarshal(raw, &data) != nil {
 		http.Error(w, "invalid callback body", 400)
 		return
 	}
@@ -419,6 +425,12 @@ func (a *APIAgent) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, st := range states {
 		if st.CallbackToken == token && st.Gate == "await_callback" && (st.AwaitDeadline == nil || st.AwaitDeadline.After(time.Now().UTC())) {
+			// Refused callbacks leave the wait untouched: the provider can still send a good one.
+			if err := a.verifyCallbackSignature(r, st, raw); err != nil {
+				logx.L(st.ID, "API", "callback refused: %v", err)
+				http.Error(w, "callback signature refused", http.StatusUnauthorized)
+				return
+			}
 			duplicate := st.CallbackData != nil
 			if !duplicate {
 				receivedAt := time.Now().UTC()
@@ -441,6 +453,62 @@ func (a *APIAgent) handleCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Error(w, "callback not found or already consumed", http.StatusNotFound)
+}
+
+// callbackClockSkew bounds how old (or how far ahead) a signed callback's timestamp may be.
+const callbackClockSkew = 5 * time.Minute
+
+// verifyCallbackSignature checks the provider's HMAC when the waiting step declares
+// callback_secret_env: X-AOS-Callback-Timestamp (Unix seconds) and X-AOS-Callback-Signature,
+// "sha256=" + hex HMAC-SHA256 of timestamp + "." + body (the format AOS uses towards Ernest).
+// The token only says which wait a callback is for; the signature says who sent it.
+func (a *APIAgent) verifyCallbackSignature(r *http.Request, st *state.ExecutionState, body []byte) error {
+	step := a.awaitStep(st)
+	if step == nil || step.CallbackSecretEnv == "" {
+		return nil
+	}
+	secret := os.Getenv(step.CallbackSecretEnv)
+	if secret == "" {
+		return fmt.Errorf("%s is not set, so no callback for step %s can be verified", step.CallbackSecretEnv, st.AwaitStep)
+	}
+	timestamp := r.Header.Get("X-AOS-Callback-Timestamp")
+	seconds, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return fmt.Errorf("missing or invalid X-AOS-Callback-Timestamp")
+	}
+	if skew := time.Since(time.Unix(seconds, 0)); skew > callbackClockSkew || skew < -callbackClockSkew {
+		return fmt.Errorf("callback timestamp is %s away from now", skew.Round(time.Second))
+	}
+	want := audit.ProviderSignature(secret, timestamp, body)
+	if !hmac.Equal([]byte(want), []byte(r.Header.Get("X-AOS-Callback-Signature"))) {
+		return fmt.Errorf("callback signature does not match")
+	}
+	return nil
+}
+
+// awaitStep is the await_callback step a task is waiting at, or nil.
+func (a *APIAgent) awaitStep(st *state.ExecutionState) *config.PipelineStep {
+	if a.cfg == nil {
+		return nil
+	}
+	pipe, ok := a.cfg.Pipelines[st.Pipeline]
+	if !ok {
+		return nil
+	}
+	for i := range pipe.Steps {
+		if pipe.Steps[i].Type == "await_callback" && stepIDOf(pipe.Steps[i], i) == st.AwaitStep {
+			return &pipe.Steps[i]
+		}
+	}
+	return nil
+}
+
+// stepIDOf names an await_callback step the way the verifier does when it starts waiting.
+func stepIDOf(step config.PipelineStep, i int) string {
+	if step.ID != "" {
+		return step.ID
+	}
+	return fmt.Sprintf("callback_%d", i)
 }
 
 func (a *APIAgent) handleIntents(w http.ResponseWriter, r *http.Request) {
@@ -811,15 +879,20 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "state unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if st != nil {
-			identity, _ := auth.IdentityFromContext(r.Context())
-			if identity == nil || identity.UserID == "" ||
-				(st.UserID != identity.UserID && !holdsAny(identity, []string{"oversight", "audit"})) {
-				http.Error(w, "task not found", http.StatusNotFound)
-				return
-			}
-			owned = st
+		// Both submission routes save the task before returning its id, so a task without state
+		// does not exist (or has expired). Answering "pending" would make callers wait forever,
+		// and an in-memory result without state has no owner to check it against.
+		if st == nil {
+			http.Error(w, "task not found", http.StatusNotFound)
+			return
 		}
+		identity, _ := auth.IdentityFromContext(r.Context())
+		if identity == nil || identity.UserID == "" ||
+			(st.UserID != identity.UserID && !holdsAny(identity, []string{"oversight", "audit"})) {
+			http.Error(w, "task not found", http.StatusNotFound)
+			return
+		}
+		owned = st
 	}
 
 	if res, ok := getResult(id); ok {
@@ -855,6 +928,8 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 					finalData = st.StepResults
 				case "governance_blocked":
 					finalData = st.StepResults["_governance"]
+				case "rejected":
+					finalData = st.StepResults["_rejection"]
 				}
 			} else if st.Gate != "" {
 				status = "await_" + st.Gate
@@ -877,15 +952,27 @@ func (a *APIAgent) handleTask(w http.ResponseWriter, r *http.Request) {
 				finalData = map[string]any{"info": "Task completed (no step results saved)"}
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(withGovernanceRefs(map[string]any{
+			body := map[string]any{
 				"id":              id,
 				"status":          status,
 				"data":            finalData,
 				"error":           errStr,
 				"completed_steps": st.CompletedSteps,
 				"pipeline":        st.Pipeline,
-			}, st))
+			}
+			// A task waiting for a person says where and what: /task/approve and /task/reject need
+			// the gate, the person deciding needs the parameters, and a clarification needs the
+			// parameters it is missing.
+			switch status {
+			case "await_human":
+				body["gate"] = st.Gate
+				body["params"] = taskView(st).Params // without callback credentials, as in the listing
+			case "await_clarification":
+				body["gate"] = st.Gate
+				body["missing_params"] = st.MissingParams
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(withGovernanceRefs(body, st))
 			return
 		}
 	}
@@ -948,12 +1035,17 @@ func (a *APIAgent) handleHumanDecision(w http.ResponseWriter, r *http.Request, d
 		a.eventBus.PublishEvent(id, "UI", "human_decision", decision, gate)
 	}
 
+	decidedBy := ""
+	if identity, _ := auth.IdentityFromContext(r.Context()); identity != nil {
+		decidedBy = identity.UserID
+	}
 	a.bus.Send("verifier", bus.Message{
 		Type: "human_decision",
 		Payload: map[string]any{
-			"id":       id,
-			"gate":     gate,
-			"decision": decision,
+			"id":         id,
+			"gate":       gate,
+			"decision":   decision,
+			"decided_by": decidedBy,
 		},
 	})
 

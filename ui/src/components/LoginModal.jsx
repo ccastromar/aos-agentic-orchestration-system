@@ -3,7 +3,8 @@ import { LogIn, Loader2, UserRound } from 'lucide-react';
 import { Alert, Button, Field, Input, Modal, Select } from '@chestertown/design';
 import { login } from '../utils/api';
 
-const ROLES = ['admin', 'user', 'finance', 'sales', 'support', 'hr', 'operations', 'sre', 'guest'];
+// `oversight` grants only the oversight function (deciding other people's human steps), not a domain.
+const ROLES = ['admin', 'user', 'finance', 'sales', 'support', 'hr', 'operations', 'sre', 'guest', 'oversight'];
 
 const LoginModal = ({ onLoggedIn, onCancel }) => {
   const [username, setUsername] = useState('');

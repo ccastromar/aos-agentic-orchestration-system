@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 )
 
 type operationRequest struct {
@@ -47,7 +51,18 @@ func handleSubmit(w http.ResponseWriter, r *http.Request) {
 			"txHash": "mock-tx-" + strings.TrimPrefix(id, "custody-"),
 		}
 		body, _ := json.Marshal(payload)
-		resp, err := http.Post(req.CallbackURL, "application/json", strings.NewReader(string(body)))
+		cb, err := http.NewRequest(http.MethodPost, req.CallbackURL, strings.NewReader(string(body)))
+		if err != nil {
+			return
+		}
+		cb.Header.Set("Content-Type", "application/json")
+		// Signed like a real custodian would, when the mock shares a secret with AOS.
+		if secret := os.Getenv("AOS_MOCK_CALLBACK_SECRET"); secret != "" {
+			timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+			cb.Header.Set("X-AOS-Callback-Timestamp", timestamp)
+			cb.Header.Set("X-AOS-Callback-Signature", audit.ProviderSignature(secret, timestamp, body))
+		}
+		resp, err := http.DefaultClient.Do(cb)
 		if err == nil && resp != nil {
 			_ = resp.Body.Close()
 		}

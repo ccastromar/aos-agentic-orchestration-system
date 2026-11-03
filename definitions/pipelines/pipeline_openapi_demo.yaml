@@ -6,11 +6,11 @@ pipelines:
       - id: "step1"
         tool: "testapi.getUser" # Generated from Swagger
         with_params:
-          userId: "$.userId"
+          userId: "{{ .userId }}"
       
       - id: "step2"
         tool: "testapi.createPost" # Generated from Swagger
         depends_on: ["step1"]
         with_params:
-          title: "$.title"
-          userId: "$.userId"
+          title: "{{ .title }}"
+          userId: "{{ .userId }}"

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -330,6 +331,46 @@ func (v *Verifier) failAuditExecution(st *state.ExecutionState, id string, err e
 	storeResult(id, Result{Status: "error", Err: message})
 }
 
+// failTool ends a run on a tool's failure and keeps that outcome in the task's state as well:
+// the in-memory result is gone after the first read, and without the state a later /task would
+// show the run as still pending. A remote agent's rejection ends it "rejected", with the step,
+// tool and reason as its data, instead of "error".
+func (v *Verifier) failTool(st *state.ExecutionState, id, stepID, toolName string, err error) {
+	var rejected *tools.RejectedError
+	status, message, data := "error", fmt.Sprintf("tool error: %v", err), map[string]any(nil)
+	if errors.As(err, &rejected) {
+		status, message = "rejected", ""
+		data = map[string]any{"step": stepID, "tool": toolName, "reason": rejected.Reason}
+	}
+	if v.stateManager != nil {
+		if fresh, loadErr := v.stateManager.Load(context.Background(), id); loadErr == nil && fresh != nil {
+			st = fresh
+		}
+		if st != nil {
+			st.Status = status
+			st.Error = message
+			if data != nil {
+				if st.StepResults == nil {
+					st.StepResults = map[string]any{}
+				}
+				st.StepResults["_rejection"] = data
+			}
+			_ = v.stateManager.Save(context.Background(), st)
+		}
+	}
+	storeResult(id, Result{Status: status, Err: message, Data: data})
+}
+
+// auditFailureResult is the audit result of a failed tool step: "rejected" for a remote
+// agent's refusal, "error" for anything else.
+func auditFailureResult(err error) string {
+	var rejected *tools.RejectedError
+	if errors.As(err, &rejected) {
+		return "rejected"
+	}
+	return "error"
+}
+
 func (v *Verifier) handleRunPipeline(msg bus.Message) {
 	id, ok := payload.GetString(msg.Payload, "id")
 	if !ok {
@@ -500,16 +541,39 @@ func (v *Verifier) handleHumanDecision(msg bus.Message) {
 		v.storeError(id, "no execution state found")
 		return
 	}
-	v.logLifecycleAudit(st, "human.decision", decision, map[string]any{"gate": st.Gate})
+	decidedBy, _ := payload.GetString(msg.Payload, "decided_by")
+	v.logLifecycleAudit(st, "human.decision", decision, map[string]any{"gate": st.Gate, "decided_by": decidedBy})
+	// The gate left "<gate>_decision" at "pending" when it paused: record what the person decided.
+	if st.Gate != "" {
+		if st.Params == nil {
+			st.Params = map[string]string{}
+		}
+		st.Params[st.Gate+"_decision"] = decision
+	}
 
+	// A rejection ends the run "rejected" and keeps it, as a remote reviewer's does (failTool):
+	// deleting the state made /task answer 404, so whoever asked never learnt it was turned down.
 	if decision != "approved" {
-		_ = v.stateManager.Delete(context.Background(), id)
-		v.storeError(id, "human rejected review at gate: "+st.Gate)
+		data := map[string]any{"gate": st.Gate, "decided_by": decidedBy, "reason": "human rejected review at gate: " + st.Gate}
+		st.Status = "rejected"
+		st.Gate = ""
+		st.CallbackToken = ""
+		if st.StepResults == nil {
+			st.StepResults = map[string]any{}
+		}
+		st.StepResults["_rejection"] = data
+		_ = v.stateManager.Save(context.Background(), st)
+		storeResult(id, Result{Status: "rejected", Data: data})
 		return
 	}
 
 	// Do NOT delete the state here! executeDAG/executeLinear need to load it from the store
 	// to properly restore the pipeline's progress instead of starting from scratch!
+	// Save first so the stored state they load carries the decision as well.
+	if err := v.stateManager.Save(context.Background(), st); err != nil {
+		v.storeError(id, "cannot persist execution state")
+		return
+	}
 	v.resumeFromState(st)
 }
 
@@ -530,24 +594,23 @@ func (v *Verifier) storeError(id, errMsg string) {
 	}
 }
 
-func buildCallParams(vars map[string]interface{}, defaults map[string]string) map[string]interface{} {
+// buildCallParams gives a step the context vars plus its rendered with_params. A step's
+// with_params win over a var of the same name: the pipeline decides what the step receives, so a
+// request param cannot replace, say, the ticket a previous step created.
+func buildCallParams(vars map[string]interface{}, withParams map[string]string) map[string]interface{} {
 	out := make(map[string]interface{})
 
-	// copy existing context vars first
 	for k, v := range vars {
 		out[k] = v
 	}
 
-	// add defaults only if missing, but render them first
 	stringVars := convertVarsToStringMap(vars)
-	for k, v := range defaults {
-		if _, exists := out[k]; !exists {
-			rendered, err := tools.RenderTemplateString(v, stringVars)
-			if err == nil {
-				out[k] = rendered
-			} else {
-				out[k] = v // fallback
-			}
+	for k, v := range withParams {
+		rendered, err := tools.RenderTemplateString(v, stringVars)
+		if err == nil {
+			out[k] = rendered
+		} else {
+			out[k] = v // fallback
 		}
 	}
 	return out

@@ -39,14 +39,16 @@ func EvalBoolExpression(raw string, ctx *PipelineContext) (bool, error) {
 	return b, nil
 }
 
+// StepShouldRun evaluates a step's `when`. A condition that cannot be evaluated skips an action
+// (not acting is the safe side) but keeps a human approval: skipping the approval would let the
+// action after it run unapproved on, say, an amount that is not a number.
 func StepShouldRun(step config.PipelineStep, ctx *PipelineContext) bool {
 	if step.When == "" {
 		return true
 	}
 	ok, err := EvalBoolExpression(step.When, ctx)
 	if err != nil {
-		// log.Printf("error evaluating when=%q: %v", step.When, err)
-		return false
+		return step.HumanGate != ""
 	}
 	return ok
 }

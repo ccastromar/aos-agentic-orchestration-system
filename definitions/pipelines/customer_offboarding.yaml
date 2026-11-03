@@ -1,0 +1,37 @@
+pipelines:
+  - name: pipeline_customer_offboarding
+    description: "Offboarding request: check the customer's balances, open a ticket and wait for a person to approve it"
+    mode: dag
+    steps:
+      # The three checks are independent, so they run in parallel.
+      - id: check_customer
+        tool: crm.get_profile
+        depends_on: []
+
+      - id: check_account
+        tool: banking.core_get_balance
+        depends_on: []
+
+      - id: check_card
+        tool: banking.core_get_credit_card_balance
+        depends_on: []
+
+      - id: create_ticket
+        tool: helpdesk.support_create_ticket
+        depends_on: ["check_customer", "check_account", "check_card"]
+        with_params:
+          subject: "Offboarding request from customer {{ .customerId }}"
+          description: "{{ index . \"crm.get_profile.name\" }} asks to leave. Reason: {{ .reason }}. Account {{ .accountId }} balance: {{ index . \"banking.core_get_balance.balance\" }} {{ index . \"banking.core_get_balance.currency\" }}. Card {{ .cardId }} outstanding: {{ index . \"banking.core_get_credit_card_balance.outstanding\" }} {{ index . \"banking.core_get_credit_card_balance.currency\" }}."
+          priority: "medium"
+
+      - id: offboarding_approval
+        human_approval: offboarding_review
+        depends_on: ["create_ticket"]
+
+      # No tool closes accounts yet, so the run ends by recording the approval on the ticket.
+      - id: record_approval
+        tool: helpdesk.support_add_note
+        depends_on: ["offboarding_approval"]
+        with_params:
+          ticketId: "{{ index . \"helpdesk.support_create_ticket.ticketId\" }}"
+          note: "Offboarding approved by a reviewer; the account still has to be closed."

@@ -4,7 +4,7 @@ tools:
   - name: customer_support.governed_case_lookup
     type: http
     method: GET
-    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/purchase?service={{ .service }}"
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/case?service={{ .service }}"
     mode: read
     timeout: 3000
 
@@ -17,11 +17,16 @@ tools:
     mode: read
     timeout: 3000
 
+  # Opens a return, so it writes: it is not a lookup.
   - name: customer_support.product_return
     type: http
-    method: GET
-    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/return?purchaseId={{ .purchaseId }}"
+    method: POST
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/customer-support/return"
     headers:
       Authorization: "Bearer {{ env \"API_KEY\" }}"
-    mode: read
+    mode: write
     timeout: 3000
+    body:
+      purchaseId: "{{ .purchaseId }}"
+      productId: "{{ .productId }}"
+      reason: "{{ .description }}"

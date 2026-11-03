@@ -6,9 +6,3 @@ intents:
     required_params:
       - customerId
       - serviceName
-      - ticketId
-      - reason
-      - lines
-      - subject
-      - description
-      - priority

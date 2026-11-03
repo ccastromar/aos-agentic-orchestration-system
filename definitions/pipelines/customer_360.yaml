@@ -1,0 +1,25 @@
+pipelines:
+  # Read-only: every lookup starts at once, and the summary waits for all of them.
+  - name: pipeline_customer_360
+    description: "One view of a customer: CRM profile, recent interactions, logistics account and risk score, fetched in parallel"
+    mode: dag
+    steps:
+      - id: crm_profile
+        tool: crm.get_profile
+        depends_on: []
+      - id: interactions
+        tool: crm.get_interactions
+        depends_on: []
+        with_params:
+          days: "30"
+      - id: logistics_account
+        tool: logistics.get_customer
+        depends_on: []
+      - id: risk_score
+        tool: risk.grpc_score
+        depends_on: []
+        with_params:
+          customerId: "{{ .customerId }}"
+      - id: summary
+        analyst: true
+        depends_on: ["crm_profile", "interactions", "logistics_account", "risk_score"]

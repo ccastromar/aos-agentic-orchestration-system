@@ -29,6 +29,10 @@ func TestE2EOpenAPI(t *testing.T) {
 	mux9001.HandleFunc("/api/v1/posts", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer mocktoken123", r.Header.Get("Authorization"))
 		assert.Equal(t, http.MethodPost, r.Method)
+		// The body comes from the spec's requestBody schema, filled from the run's params.
+		var body map[string]any
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, map[string]any{"title": "My Post", "userId": "123"}, body)
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "post_id": 999})
 	})
 	mux9001.HandleFunc("/api/v1/ping", func(w http.ResponseWriter, r *http.Request) {

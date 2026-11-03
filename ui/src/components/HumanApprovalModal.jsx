@@ -21,13 +21,15 @@ const HumanApprovalModal = ({ taskId, gate, message, onResolved }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit decision');
+        // AOS says why it refused (four eyes, wrong gate, no oversight): show it, a retry will not help.
+        const reason = (await response.text().catch(() => '')).trim();
+        throw new Error(`AOS refused the decision (${response.status})${reason ? `: ${reason}` : ''}`);
       }
 
       onResolved();
     } catch (err) {
       console.error(err);
-      setError('The decision could not be sent. Try again.');
+      setError(err.message?.startsWith('AOS refused') ? err.message : 'The decision could not be sent. Try again.');
       setIsLoading(false);
       setAction(null);
     }

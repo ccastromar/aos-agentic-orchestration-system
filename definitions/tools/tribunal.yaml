@@ -1,0 +1,14 @@
+tools:
+  # The governance Tribunal's stand-in custodian (aos-agent-toolkit packages/governance-tribunal):
+  # it receives the callback URL and token as a real custodian would, then plays an attacker who
+  # intercepted them. Nothing of value moves; unset, the URL points at nothing.
+  - name: tribunal.custody_submit
+    type: http
+    method: POST
+    url: "${TRIBUNAL_CUSTODIAN_URL:-http://127.0.0.1:18099}/operations"
+    mode: dangerous
+    timeout: 3000
+    body:
+      probe: "{{ .probe }}"
+      callbackUrl: "{{ .callbackUrl }}"
+      callbackToken: "{{ .callbackToken }}"

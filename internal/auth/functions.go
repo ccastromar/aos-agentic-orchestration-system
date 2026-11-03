@@ -4,12 +4,18 @@ import "strings"
 
 // LegacyFunctions gives identities that do not come from the identity provider (the development
 // login and mock, IAM API keys) the governance functions their AOS roles always implied: each
-// role is an ai.use domain, and admin also operates the platform. Tokens from the IdP get their
-// functions from the governance model instead (JWTConfig.Governance).
+// role is an ai.use domain, and admin also operates the platform. The `oversight` role is the
+// exception: it grants oversight alone (deciding other people's human steps), not an ai.use
+// domain, so a model with four eyes ([ai.use, oversight]) has someone who may approve. Tokens
+// from the IdP get their functions from the governance model instead (JWTConfig.Governance).
 func LegacyFunctions(roles []string) []string {
 	var functions []string
 	for _, r := range roles {
 		if r == "" {
+			continue
+		}
+		if r == "oversight" {
+			functions = append(functions, "oversight")
 			continue
 		}
 		functions = append(functions, "ai.use:"+r)

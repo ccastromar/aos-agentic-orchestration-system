@@ -23,17 +23,23 @@ pipelines:
     steps:
       - tool: banking.aml_risk_check
       - tool: banking.payments_bizum_send
+        no_approval_reason: "The intent caps a Bizum at max_amount 100, enforced by the guardrail; the AML check runs before it."
       - tool: banking.send_notification
+        with_params:
+          notification: "Bizum sent: {{ .amount }} EUR to {{ .toPhone }}"
       - analyst: true
 
   - name: pipeline_cash_transfer
     description: "Send a cash transfer (demo)"
     steps:
       - tool: banking.aml_risk_check
-      - tool: banking.payments_transfer
+      # The approval must come before the payment: once the money has left, approving decides nothing.
       - human_approval: manager_review
         when: ${amount > 1000}
+      - tool: banking.payments_transfer
       - tool: banking.send_notification
+        with_params:
+          notification: "Transfer sent: {{ .amount }} {{ .currency }} to account {{ .toAccount }}"
       - analyst: true
 
   - name: pipeline_send_bitcoin
@@ -43,4 +49,6 @@ pipelines:
       - human_approval: manager_review
       - tool: banking.payments_bitcoin_send
       - tool: banking.send_notification
+        with_params:
+          notification: "Bitcoin sent: {{ .amount }} BTC to {{ .toAddress }}"
       - analyst: true

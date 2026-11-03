@@ -13,9 +13,11 @@ import (
 )
 
 func executeLocalFileTool(ctx context.Context, t config.Tool, params map[string]string) (map[string]any, error) {
+	// No fallback to the working directory: that is AOS's own checkout, which these tools would
+	// then rewrite.
 	root := os.Getenv("AOS_WORKSPACE_ROOT")
 	if root == "" {
-		root, _ = os.Getwd()
+		return nil, fmt.Errorf("AOS_WORKSPACE_ROOT is not set; workspace tools need an explicit directory")
 	}
 	root, _ = filepath.Abs(root)
 	rel := params["path"]

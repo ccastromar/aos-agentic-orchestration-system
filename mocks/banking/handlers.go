@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
@@ -15,6 +16,8 @@ func RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/mock/payments/bitcoin", postBitcoinPayment)
 	mux.HandleFunc("/mock/aml/check", postAmlCheck)
 	mux.HandleFunc("/mock/notifications/send", postSendNotification)
+	mux.HandleFunc("/mock/flaky", postFlaky)
+	mux.HandleFunc("/mock/slow", postSlow)
 }
 
 func getBalance(w http.ResponseWriter, r *http.Request) {
@@ -44,19 +47,30 @@ func getCreditCard(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// getMovements returns two movements inside the requested from/to window (the last 30 days when
+// the window is missing or not a pair of dates).
 func getMovements(w http.ResponseWriter, r *http.Request) {
 	accountId := r.URL.Query().Get("accountId")
+	to, errTo := time.Parse("2006-01-02", r.URL.Query().Get("to"))
+	from, errFrom := time.Parse("2006-01-02", r.URL.Query().Get("from"))
+	if errTo != nil || errFrom != nil || from.After(to) {
+		to = time.Now()
+		from = to.AddDate(0, 0, -30)
+	}
+	mid := from.Add(to.Sub(from) / 2)
 	resp := map[string]any{
 		"accountId": accountId,
 		"currency":  "EUR",
+		"from":      from.Format("2006-01-02"),
+		"to":        to.Format("2006-01-02"),
 		"movements": []map[string]any{
 			{
-				"date":   "2025-01-10",
+				"date":   to.Format("2006-01-02"),
 				"amount": -25.00,
 				"desc":   "Bizum Laura",
 			},
 			{
-				"date":   "2025-01-05",
+				"date":   mid.Format("2006-01-02"),
 				"amount": 1500.00,
 				"desc":   "Deposit",
 			},

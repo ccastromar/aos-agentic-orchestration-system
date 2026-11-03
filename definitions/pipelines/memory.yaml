@@ -5,7 +5,7 @@ pipelines:
     steps:
       - tool: system.memory.add
         with_params:
-          fact: "{{.intent.fact}}"
+          fact: "{{ .fact }}"
 
   - name: pipeline_memory_list
     type: linear
@@ -19,7 +19,7 @@ pipelines:
     steps:
       - tool: system.memory.delete
         with_params:
-          fact_to_forget: "{{.intent.fact_to_forget}}"
+          fact_to_forget: "{{ .fact_to_forget }}"
 
   - name: pipeline_memory_clear
     type: linear

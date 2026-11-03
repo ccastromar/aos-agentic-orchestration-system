@@ -10,6 +10,7 @@ pipelines:
     description: "Restart a service"
     steps:
       - tool: devops.infra_restart_service
+        no_approval_reason: "Operator-initiated restart of one named service; incident.resolve_outage is the path with an SRE approval."
         with_params: {}
       - tool: devops.infra_get_status
         with_params: {}
@@ -19,6 +20,7 @@ pipelines:
     description: "Deploy a service"
     steps:
       - tool: devops.infra_deploy_service
+        no_approval_reason: "Operator-initiated deploy of an explicit version of one named service."
         with_params: {}
       - tool: devops.infra_get_status
         with_params: {}

@@ -44,7 +44,6 @@ intents:
       - fromPhone
       - toPhone
       - concept
-      - userId
     allow_dangerous: true
     requires_amount: true       # amount
     requires_phone: true        # toPhone
@@ -61,7 +60,6 @@ intents:
       - fromAccount
       - toAccount
       - concept
-      - userId
       - fromPhone
       - toPhone
     examples:
@@ -82,7 +80,6 @@ intents:
       - fromAddress
       - toAddress
       - concept
-      - userId
       - fromPhone
       - toPhone
     allow_dangerous: true

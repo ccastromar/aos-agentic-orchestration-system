@@ -23,14 +23,14 @@ func handleSpamCheck(w http.ResponseWriter, r *http.Request) {
 	if messageID == "" {
 		messageID = "unknown"
 	}
-	verdict := "legitimate"
+	verdict, action := "legitimate", "delivered to the inbox"
 	if stableBucket(messageID, 4) == 0 {
-		verdict = "spam"
+		verdict, action = "spam", "moved to the review folder"
 	}
 	writeJSON(w, map[string]any{
 		"messageId": messageID,
 		"verdict":   verdict,
-		"action":    "delivered to the review folder",
+		"action":    action,
 	})
 }
 

@@ -1,0 +1,7 @@
+intents:
+  - type: tribunal.callback_probe
+    description: "Governance Tribunal probe: tries to finish a signed callback wait with an intercepted token"
+    pipeline: pipeline_tribunal_callback_probe
+    required_params:
+      - probe
+    allow_dangerous: true

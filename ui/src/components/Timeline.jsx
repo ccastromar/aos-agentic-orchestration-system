@@ -3,13 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { Wrench, CheckCircle, AlertTriangle, Copy, ShieldAlert } from 'lucide-react';
 import DAGVisualizer from './DAGVisualizer';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getAuth, UNAUTHORIZED_EVENT } from '../utils/api';
+import { devLoginEnabled, ssoEnabled } from '../utils/oidc';
 import { ernestEvidenceUrl, prudenceSystemUrl } from '../utils/chestertown';
 import { Button } from '@chestertown/design';
 
+// The pipeline context shown in the approval modal, without the bookkeeping keys of each step.
+const approvalContext = (ctxData) => {
+  const filtered = Object.entries(ctxData)
+    .filter(([k]) => !k.includes('._') && !k.includes('.statusCode') && !k.includes('.message') && !k.includes('.ok') && !k.includes('.success') && !k.includes('.status'))
+    .map(([k,v]) => {
+      const shortKey = k.split('.').pop();
+      return `- ${shortKey}: ${JSON.stringify(v)}`;
+    });
+  return "Pipeline Context: \n" + filtered.join("\n");
+};
+
 const Timeline = ({ taskId, onApprovalNeeded }) => {
   const [events, setEvents] = useState([]);
-  // loading = nothing heard from the server yet; pending = the task is still running.
+  // loading = nothing heard from the server yet; pending = the task is still running;
+  // unavailable = AOS refused the task (absent, or not visible to this identity).
   const [status, setStatus] = useState('loading');
   const [finalData, setFinalData] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -97,10 +110,20 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
     // "Working..." indicator for the first polling interval, which looked like a re-run.
     let statusPollingInterval = null;
     let stopped = false;
+    let decisionAsked = false;
     const pollStatus = async () => {
       if (stopped) return;
       try {
         const tskRes = await apiFetch(`/task?id=${taskId}`);
+        // AOS answers 404 for a task this identity cannot see (anonymous included), so it does
+        // not reveal that the task exists. Stop here instead of polling behind "Loading task…".
+        if ([401, 403, 404].includes(tskRes.status)) {
+          stopped = true;
+          clearInterval(statusPollingInterval);
+          eventController.abort();
+          setStatus('unavailable');
+          return;
+        }
         if (tskRes.ok) {
           const data = await tskRes.json();
           if (data.status !== 'pending' && data.status !== 'await_human' && data.status !== 'await_clarification') {
@@ -112,7 +135,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             // The Analyst stores the one-shot final result with status
             // "completed". Stop polling immediately or the next request
             // falls back to the older persisted state and hides callback data.
-            if (['ok', 'success', 'completed', 'error', 'governance_blocked'].includes(data.status)) {
+            if (['ok', 'success', 'completed', 'error', 'governance_blocked', 'rejected'].includes(data.status)) {
               stopped = true;
               clearInterval(statusPollingInterval);
               setTimeout(() => eventController.abort(), 1000);
@@ -134,6 +157,29 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           } else if (data.status === 'await_human' || data.status === 'await_clarification') {
             setStatus(data.status);
             setFinalData(null); // Clear final data if we are awaiting human input
+            // A task opened after it stopped (a link, History) never sees the live await_* event,
+            // so open the decision from the stored task too, once. Without the real gate AOS answers
+            // 409. /task carries it; older AOS builds do not, and then the task listing does.
+            if (!decisionAsked) {
+              let listed = null;
+              if (!data.gate) {
+                const listRes = await apiFetch('/api/v1/tasks');
+                listed = listRes.ok ? (await listRes.json()).find(t => t.id === taskId) : null;
+              }
+              const gate = data.gate || listed?.gate;
+              const params = data.params || listed?.params;
+              const missingParams = data.missing_params || listed?.missing_params;
+              if (data.status === 'await_clarification') {
+                decisionAsked = true;
+                const missing = Array.isArray(missingParams) && missingParams.length
+                  ? `Missing parameters: ${missingParams.join(', ')}`
+                  : 'Please provide the missing parameters.';
+                onApprovalNeeded(taskId, 'clarification', missing);
+              } else if (gate) {
+                decisionAsked = true;
+                onApprovalNeeded(taskId, gate, params ? approvalContext(params) : 'Please review and approve this action.');
+              }
+            }
           } else {
             setStatus('pending'); // still running
           }
@@ -156,7 +202,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
   const needsApproval = governanceBlocked && finalData.decision === 'APPROVAL_REQUIRED';
   const headerColor = governanceBlocked
     ? (needsApproval ? '#f59e0b' : '#f87171')
-    : status === 'error' ? '#f87171' : 'var(--secondary)';
+    : status === 'error' || status === 'rejected' ? '#f87171' : 'var(--secondary)';
 
   const copyFinalResult = async () => {
     try {
@@ -180,14 +226,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
         let ctxString = "Please review and approve this action.";
         if (lastEvent.Data) {
           try {
-            const ctxData = JSON.parse(lastEvent.Data);
-            const filtered = Object.entries(ctxData)
-              .filter(([k]) => !k.includes('._') && !k.includes('.statusCode') && !k.includes('.message') && !k.includes('.ok') && !k.includes('.success') && !k.includes('.status'))
-              .map(([k,v]) => {
-                const shortKey = k.split('.').pop();
-                return `- ${shortKey}: ${JSON.stringify(v)}`;
-              });
-            ctxString = "Pipeline Context: \n" + filtered.join("\n");
+            ctxString = approvalContext(JSON.parse(lastEvent.Data));
           } catch {
             ctxString = lastEvent.Data;
           }
@@ -258,7 +297,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{taskId.substring(0,8)}</span>
         </h2>
 
-        {status !== 'pending' && status !== 'loading' && (
+        {status !== 'pending' && status !== 'loading' && status !== 'unavailable' && (
           <span className={`status-badge status-${status}`}>
             {status.toUpperCase()}
           </span>
@@ -291,6 +330,30 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             </div>
           </motion.div>
         )}
+        {status === 'unavailable' && (
+          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={20} /> Task not available
+            </h3>
+            {getAuth() ? (
+              <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                This task does not exist, or your account cannot see it. Its owner, or an overseer
+                signed in as themselves, can open it.
+              </p>
+            ) : (
+              <>
+                <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                  This task does not exist, or you need to sign in to see it.
+                </p>
+                {(ssoEnabled || devLoginEnabled) && (
+                  <Button onClick={() => window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))}>
+                    Sign in
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {finalData && (
@@ -306,6 +369,8 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
                 ? <><ShieldAlert size={20} /> {needsApproval ? 'Blocked by Prudence: approval required' : 'Denied by Prudence'}</>
                 : status === 'error'
                   ? <><AlertTriangle size={20} /> Execution Failed</>
+                  : status === 'rejected'
+                  ? <><AlertTriangle size={20} /> Rejected{finalData?.decided_by ? ` by ${finalData.decided_by}` : ''}</>
                   : <><CheckCircle size={20} /> Final Result</>}
             </h3>
             <Button size="sm" onClick={copyFinalResult} aria-label="Copy the final result">

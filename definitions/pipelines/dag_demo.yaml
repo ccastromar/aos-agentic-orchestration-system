@@ -24,6 +24,8 @@ pipelines:
       - id: notify
         tool: banking.send_notification
         depends_on: ["execute_transfer"]
+        with_params:
+          notification: "Transfer sent: {{ .amount }} {{ .currency }} to account {{ .toAccount }}"
         
       - id: summary
         analyst: true

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/metrics"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/telemetry"
@@ -408,12 +409,9 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 
 		if err != nil {
 			logx.Error("Verifier", "tool %s failed: %v", toolName, err)
-			v.logLifecycleAudit(execState, "tool.failed", "error", map[string]any{"step": step.ID, "tool": toolName, "error": err.Error()})
-			storeResult(id, Result{
-				Status: "error",
-				Err:    fmt.Sprintf("tool error: %v", err),
-			})
+			v.logLifecycleAudit(execState, "tool.failed", auditFailureResult(err), map[string]any{"step": step.ID, "tool": toolName, "error": err.Error()})
 			clearPreparedCallbackWait(v, execState, id, err)
+			v.failTool(execState, id, step.ID, toolName, err)
 			return
 		}
 
@@ -572,6 +570,13 @@ func executeToolWithResiliency(ctx context.Context, t config.Tool, params map[st
 			return out, nil
 		}
 		span.AddEvent("attempt failed", trace.WithAttributes(attribute.Int("aos.attempt", i+1)))
+
+		// A rejection is the remote agent's answer, not a fault: asking again changes nothing.
+		var rejected *tools.RejectedError
+		if errors.As(lastErr, &rejected) {
+			outcome = "rejected"
+			return nil, lastErr
+		}
 
 		logx.Warn("Verifier", "tool %s failed (attempt %d/%d): %v", t.Name, i+1, retries+1, lastErr)
 

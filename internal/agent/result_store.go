@@ -41,6 +41,7 @@ var runOutcome = map[string]string{
 	"completed":          "completed",
 	"ok":                 "completed",
 	"governance_blocked": "blocked",
+	"rejected":           "rejected",
 	"error":              "error",
 	"timeout":            "timeout",
 }

@@ -2,13 +2,16 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync"
 
 	"fmt"
 	"time"
 
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/audit"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/bus"
+	"github.com/ccastromar/aos-agentic-orchestration-system/internal/config"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/llm"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/logx"
 	"github.com/ccastromar/aos-agentic-orchestration-system/internal/payload"
@@ -251,8 +254,36 @@ func (a *Analyst) persistCompletion(ctx context.Context, id, sessionID, intent, 
 	st.StepResults["_pipeline"] = map[string]any{"raw": raw, "summary": summary, "status": "success"}
 	st.Status = "completed"
 	st.Error = ""
+	// A finished run waits for nothing: the state last saved at a human gate or a callback still
+	// named it, and its completed steps stopped there.
+	st.Gate = ""
+	st.AwaitStep = ""
+	st.AwaitDeadline = nil
+	st.CallbackToken = ""
+	if steps := snapshotSteps(st.PipelineSnapshot); len(steps) > 0 {
+		st.CompletedSteps = linearStepIDs(steps)
+	}
 	if err := a.stateManager.Save(ctx, st); err != nil {
 		logx.Error("Analyst", "cannot persist completed task %s: %v", id, err)
 	}
 	return pipeline
+}
+
+// snapshotSteps returns the steps the run executed from its pipeline snapshot, up to its Analyst
+// step, which is this completion and not a step of its own. Nil when there is no snapshot.
+func snapshotSteps(raw json.RawMessage) []config.PipelineStep {
+	if len(raw) == 0 {
+		return nil
+	}
+	var snapshot audit.PipelineSnapshot
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil
+	}
+	steps := snapshot.Pipeline.Steps
+	for i, step := range steps {
+		if step.Analyst {
+			return steps[:i]
+		}
+	}
+	return steps
 }

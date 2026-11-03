@@ -5,8 +5,15 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
+
+// deployed remembers the last version deployed per service, so status reflects a deploy.
+var deployed = struct {
+	sync.Mutex
+	versions map[string]string
+}{versions: map[string]string{}}
 
 func RegisterHandlers(mux *http.ServeMux) {
 
@@ -35,12 +42,19 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		service = "unknown"
 	}
 
+	deployed.Lock()
+	version, ok := deployed.versions[service]
+	deployed.Unlock()
+	if !ok {
+		version = "1.4.2"
+	}
+
 	response := map[string]any{
 		"service":   service,
 		"status":    "running",
 		"instances": 3,
 		"uptime":    "32h",
-		"version":   "1.4.2",
+		"version":   version,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -119,6 +133,10 @@ func handleDeploy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	time.Sleep(time.Duration(600+rand.Intn(400)) * time.Millisecond)
+
+	deployed.Lock()
+	deployed.versions[service] = version
+	deployed.Unlock()
 
 	resp := DeployResponse{
 		Service: service,

@@ -1,0 +1,9 @@
+intents:
+  - type: crm.customer_360
+    description: "One view of a customer: CRM profile, interactions of the last 30 days, logistics account and risk score"
+    pipeline: pipeline_customer_360
+    required_params:
+      - customerId
+    examples:
+      - "Give me the full picture of customer CUST-42"
+    allow_dangerous: false

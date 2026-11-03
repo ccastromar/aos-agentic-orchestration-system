@@ -1,0 +1,21 @@
+intents:
+  - type: banking.transfer_reviewed
+    description: "Send a transfer for a customer after a risk score and a compliance review; a manager approves amounts above 1000"
+    pipeline: pipeline_transfer_reviewed
+    required_params:
+      - amount
+      - currency
+      - customerId
+      - fromAccount
+      - toAccount
+      - concept
+      - fromPhone
+      - toPhone
+    examples:
+      - "Transfer 300 EUR from account 123 to 456 for customer CUST-7, after compliance review"
+    allow_dangerous: true
+    requires_amount: true
+    requires_currency: true
+    requires_account: true
+    max_amount: 3000
+    shadow_mode: false

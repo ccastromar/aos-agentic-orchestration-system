@@ -21,6 +21,7 @@ func TestExpandEnvRefs(t *testing.T) {
 		{"unset var no default", "${AOS_TEST_UNSET}/mock/x", "/mock/x"},
 		{"go template untouched", "${AOS_TEST_UNSET:-http://localhost:9000}/mock/x?id={{ .id }}", "http://localhost:9000/mock/x?id={{ .id }}"},
 		{"plain string untouched", "http://localhost:9000/mock/x", "http://localhost:9000/mock/x"},
+		{"step condition untouched", "when: ${amount > 1000}", "when: ${amount > 1000}"},
 	}
 
 	for _, tc := range cases {

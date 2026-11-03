@@ -2,6 +2,7 @@ package helpdesk
 
 import (
 	"encoding/json"
+	"math/rand"
 	"net/http"
 )
 
@@ -112,7 +113,7 @@ const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 func RandString(n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = letters[i%len(letters)]
+		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
 }

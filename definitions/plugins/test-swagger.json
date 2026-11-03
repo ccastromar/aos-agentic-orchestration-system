@@ -19,7 +19,25 @@
     "/posts": {
       "post": {
         "operationId": "createPost",
-        "description": "Create a new post"
+        "description": "Create a new post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/NewPost" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "NewPost": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "userId": { "type": "string" }
+        }
       }
     }
   }

@@ -1,0 +1,22 @@
+pipelines:
+  - name: pipeline_transfer_reviewed
+    description: "Transfer behind two controls: compliance reviews the customer's measured risk, and a manager approves large amounts"
+    mode: linear
+    steps:
+      - tool: banking.aml_risk_check
+      - id: risk_score
+        tool: risk.grpc_score
+        with_params:
+          customerId: "{{ .customerId }}"
+      # Compliance sees the risk the previous step measured and stops the run when it rejects.
+      - id: compliance_review
+        tool: compliance.a2a_review
+        with_params:
+          message: "Review transfer of {{ .amount }} {{ .currency }} for customer {{ .customerId }}: risk band {{ index . \"risk.grpc_score.result.band\" }}, score {{ index . \"risk.grpc_score.result.score\" }}"
+      - human_approval: manager_review
+        when: ${amount > 1000}
+      - tool: banking.payments_transfer
+      - tool: banking.send_notification
+        with_params:
+          notification: "Transfer sent: {{ .amount }} {{ .currency }} to account {{ .toAccount }}"
+      - analyst: true

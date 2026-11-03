@@ -3,6 +3,8 @@ package crm
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
@@ -40,34 +42,37 @@ func handleCustomerInteractions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	days := r.URL.Query().Get("days")
-	if days == "" {
-		days = "30"
+	days, err := strconv.Atoi(r.URL.Query().Get("days"))
+	if err != nil || days <= 0 {
+		days = 30
+	}
+
+	// Interactions at a fixed age; only those inside the requested window are returned.
+	history := []struct {
+		daysAgo              int
+		kind, agent, summary string
+	}{
+		{3, "email", "Sofia", "Request for latest order status."},
+		{10, "call", "Miguel", "Question about the next invoice and available payment methods."},
+		{25, "ticket", "A Team", "Issue with a return, resolved satisfactorily."},
+		{60, "email", "Sofia", "Change of billing address."},
+	}
+	items := []map[string]any{}
+	for _, h := range history {
+		if h.daysAgo <= days {
+			items = append(items, map[string]any{
+				"date":    time.Now().AddDate(0, 0, -h.daysAgo).Format("2006-01-02"),
+				"type":    h.kind,
+				"agent":   h.agent,
+				"summary": h.summary,
+			})
+		}
 	}
 
 	resp := map[string]any{
 		"customerId": customerId,
 		"windowDays": days,
-		"items": []map[string]any{
-			{
-				"date":    "2025-11-15",
-				"type":    "email",
-				"agent":   "Sofia",
-				"summary": "Request for latest order status.",
-			},
-			{
-				"date":    "2025-11-08",
-				"type":    "call",
-				"agent":   "Miguel",
-				"summary": "Question about the next invoice and available payment methods.",
-			},
-			{
-				"date":    "2025-10-30",
-				"type":    "ticket",
-				"agent":   "A Team",
-				"summary": "Issue with a return, resolved satisfactorily.",
-			},
-		},
+		"items":      items,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

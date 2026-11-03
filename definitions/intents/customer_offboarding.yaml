@@ -1,0 +1,13 @@
+intents:
+  - type: customer-support.request_offboarding
+    description: "Handle a customer's request to leave: check what they owe, open a ticket and wait for a person to approve it"
+    pipeline: pipeline_customer_offboarding
+    required_params:
+      - customerId
+      - accountId
+      - cardId
+      - reason
+    examples:
+      - "Customer CUST-7 wants to close their account, reason: moving abroad"
+      - "El cliente CUST-7 quiere darse de baja porque se muda"
+    allow_dangerous: false

@@ -1,0 +1,11 @@
+tools:
+  # Generic operational notice, for pipelines whose message is not about a payment.
+  - name: notifications.send
+    type: http
+    method: POST
+    url: "${AOS_MOCK_BASE_URL:-http://localhost:9000}/mock/notifications/send"
+    mode: write
+    timeout: 3000
+    body:
+      user: "operations"
+      message: "Custody operation {{ .status }}"

@@ -2,6 +2,10 @@ defaults:
   unknown_intent: deny
 
 permissions:
+  # Governance Tribunal probes (aos-agent-toolkit packages/governance-tribunal)
+  tribunal.callback_probe:
+    - admin
+    - tribunal
   # Protocol steps demo (MCP, gRPC, A2A)
   protocols.customer_review:
     - admin
@@ -24,6 +28,10 @@ permissions:
     - admin
     - user
   banking.transfer:
+    - admin
+    - finance
+    - user
+  banking.transfer_reviewed:
     - admin
     - finance
     - user
@@ -62,6 +70,10 @@ permissions:
   crm.get_customer_interactions:
     - admin
     - sales
+  crm.customer_360:
+    - admin
+    - sales
+    - support
   crm.update_lead_status:
     - admin
     - sales
@@ -95,6 +107,9 @@ permissions:
     - admin
     - support
     - user
+  customer-support.request_offboarding:
+    - admin
+    - support
   support.create_ticket:
     - admin
     - support
@@ -121,6 +136,9 @@ permissions:
     - admin
     - sre
   devops.deploy_service:
+    - admin
+    - sre
+  devops.deploy_approved:
     - admin
     - sre
   devops.tail_logs:

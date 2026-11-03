@@ -2,5 +2,8 @@ plugins:
   - name: testapi
     type: openapi
     file: "test-swagger.json"
+    # Defaults to the spec's own server (what test/e2e/openapi_test.go serves); point it at the
+    # mocks (…/mock/openapi) where nothing listens on :9001.
+    base_url: "${AOS_OPENAPI_TESTAPI_URL:-http://localhost:9001/api/v1}"
     headers:
       Authorization: "Bearer mocktoken123"
