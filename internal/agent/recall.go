@@ -53,6 +53,9 @@ func buildRecallResult(ctx context.Context, sm *state.StateManager, userID, sess
 		// _pipeline holds the Analyst wrap-up; the rest are per-tool results
 		toolResults := make(map[string]any, len(st.StepResults))
 		for k, v := range st.StepResults {
+			if k == stepOutputsKey {
+				continue
+			}
 			if k == "_pipeline" {
 				if wrap, ok := v.(map[string]any); ok {
 					if summary, ok := wrap["summary"].(string); ok && summary != "" {

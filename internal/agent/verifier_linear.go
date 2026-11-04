@@ -71,13 +71,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 	for k, val := range params {
 		ctx.Vars[k] = val
 	}
-	for k, val := range stepResults {
-		if resMap, ok := val.(map[string]any); ok {
-			for mk, mv := range resMap {
-				ctx.Vars[k+"."+mk] = mv
-			}
-		}
-	}
+	restoreResultVars(stepResults, ctx.Vars)
 
 	startAt := 0
 	if execState != nil {
@@ -111,6 +105,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				"executed": false,
 				"reason":   "when=false",
 			}
+			recordStepOutput(stepResults, ctx.Vars, step.ID, stepResults[resultKey].(map[string]any))
 			if err := v.logLifecycleAudit(execState, "step.decision", "skipped", map[string]any{"step": step.ID, "tool": step.Tool, "agent": step.Agent, "when": step.When, "decision": "skip"}); err != nil {
 				v.failAuditExecution(execState, id, err)
 				return
@@ -127,7 +122,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 					"intent":     intentType,
 					"pipeline":   pipe.Name,
 					"llm_model":  pipe.LLMModel,
-					"rawResult":  cloneMap(stepResults),
+					"rawResult":  publicResults(stepResults),
 					"language":   language,
 				},
 			})
@@ -217,6 +212,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 			for key, value := range out {
 				ctx.Vars[resultKey+"."+key] = value
 			}
+			recordStepOutput(stepResults, ctx.Vars, step.ID, out)
 			continue
 		}
 		if step.Type == "await_callback" {
@@ -275,6 +271,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				}
 			}
 			stepResults[toolName] = map[string]any{"status": "saved"}
+			recordStepOutput(stepResults, ctx.Vars, step.ID, stepResults[toolName].(map[string]any))
 			safeOutput := auditSafeToolResult(stepResults[toolName].(map[string]any))
 			if err := v.logLifecycleAudit(execState, "tool.completed", "success", map[string]any{"step": step.ID, "tool": toolName, "result": safeOutput, "output_digest": audit.Digest(safeOutput)}); err != nil {
 				v.failAuditExecution(execState, id, err)
@@ -311,6 +308,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				return
 			}
 			stepResults[toolName] = out
+			recordStepOutput(stepResults, ctx.Vars, step.ID, out)
 			if err := v.logLifecycleAudit(execState, "tool.completed", "success", map[string]any{"step": step.ID, "tool": toolName, "result": auditSafeToolResult(out), "output_digest": audit.Digest(auditSafeToolResult(out))}); err != nil {
 				v.failAuditExecution(execState, id, err)
 				return
@@ -399,6 +397,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 			for k, val := range out {
 				ctx.Vars[toolName+"."+k] = val
 			}
+			recordStepOutput(stepResults, ctx.Vars, step.ID, out)
 			v.eventBus.PublishEvent(id, "Verifier", "tool "+toolName, "ok", "")
 			continue
 		}
@@ -429,6 +428,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 		for k, val := range out {
 			ctx.Vars[toolName+"."+k] = val
 		}
+		recordStepOutput(stepResults, ctx.Vars, step.ID, out)
 	}
 
 	stepResults["_pipeline"] = map[string]any{
@@ -451,7 +451,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 				"session_id": sessionID,
 				"intent":     intentType,
 				"pipeline":   pipe.Name,
-				"rawResult":  cloneMap(stepResults),
+				"rawResult":  publicResults(stepResults),
 			},
 		})
 		return
@@ -464,7 +464,7 @@ func executeLinear(v *Verifier, pipe config.Pipeline, id, sessionID, intentType,
 			"intent":     intentType,
 			"pipeline":   pipe.Name,
 			"llm_model":  pipe.LLMModel,
-			"rawResult":  cloneMap(stepResults),
+			"rawResult":  publicResults(stepResults),
 			"language":   language,
 		},
 	})

@@ -35,6 +35,9 @@ is already public.
 - The web console is part of AOS again.
 - Traces, metrics and logs follow Chestertown's conventions; logs carry no user content.
 - Security hardening.
+- Each step's output is also kept under its step id, as `{{ index . "steps.<id>.<key>" }}`, so
+  two steps that call the same tool no longer overwrite each other's output. The tool-named
+  keys still work.
 
 ### Removed
 

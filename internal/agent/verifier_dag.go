@@ -36,13 +36,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 	for k, val := range params {
 		ctx.Vars[k] = val
 	}
-	for k, val := range stepResults {
-		if resMap, ok := val.(map[string]any); ok {
-			for mk, mv := range resMap {
-				ctx.Vars[k+"."+mk] = mv
-			}
-		}
-	}
+	restoreResultVars(stepResults, ctx.Vars)
 
 	var mu sync.Mutex
 
@@ -130,6 +124,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 						"executed": false,
 						"reason":   "when=false",
 					}
+					recordStepOutput(stepResults, ctx.Vars, n.Step.ID, stepResults[resultKey].(map[string]any))
 					if err := v.logLifecycleAudit(execState, "step.decision", "skipped", map[string]any{"step": n.Step.ID, "tool": n.Step.Tool, "agent": n.Step.Agent, "when": n.Step.When, "decision": "skip"}); err != nil {
 						v.failAuditExecution(execState, id, err)
 						n.Status = "failed"
@@ -188,6 +183,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 						for key, value := range out {
 							ctx.Vars[resultKey+"."+key] = value
 						}
+						recordStepOutput(stepResults, ctx.Vars, n.Step.ID, out)
 						n.Status = "success"
 					}
 				}
@@ -279,7 +275,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 						"intent":     intentType,
 						"pipeline":   pipe.Name,
 						"llm_model":  pipe.LLMModel,
-						"rawResult":  cloneMap(stepResults),
+						"rawResult":  publicResults(stepResults),
 						"language":   language,
 					},
 				})
@@ -307,6 +303,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					}
 				}
 				stepResults[n.Step.Tool] = map[string]any{"status": "saved"}
+				recordStepOutput(stepResults, ctx.Vars, n.Step.ID, stepResults[n.Step.Tool].(map[string]any))
 				if v.eventBus != nil {
 					v.eventBus.PublishEvent(id, "Verifier", "tool "+n.Step.Tool, "ok", "")
 				}
@@ -368,6 +365,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 					for k, val := range out {
 						ctx.Vars[n.Step.Tool+"."+k] = val
 					}
+					recordStepOutput(stepResults, ctx.Vars, n.Step.ID, out)
 					n.Status = "success"
 				}
 			}
@@ -413,7 +411,7 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 			"intent":     intentType,
 			"pipeline":   pipe.Name,
 			"llm_model":  pipe.LLMModel,
-			"rawResult":  cloneMap(stepResults),
+			"rawResult":  publicResults(stepResults),
 			"language":   language,
 		},
 	})
