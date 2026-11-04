@@ -81,9 +81,11 @@ See also:
 
 - Go 1.26+ (see go.mod)
 - Optional: Redis (for persistent state). Otherwise, in-memory state is used.
-- One LLM backend:
-  - Ollama running locally (recommended for local dev), or
-  - Google Gemini API credentials (if selecting Gemini engine)
+- For natural-language requests, one LLM backend:
+  - Ollama running locally, or
+  - Google Gemini API credentials (if selecting Gemini engine), or
+  - none: `./run.sh demo` uses the deterministic mock model (see below), and structured
+    requests (`/ask_structured`) never need a model.
 
 ## Configuration (YAML specs)
 
@@ -339,7 +341,7 @@ Asynchronous, natural-language-like (planner selects intent/pipeline):
 curl -s -X POST http://localhost:8080/ask \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer ABCD' \
-  -d '{"lang":"en","message":"Check logistics status for order 123"}'
+  -d '{"lang":"en","message":"query the shipment status for id 212111222 and customer 123"}'
 ```
 
 Structured (operation + params directly):
@@ -347,7 +349,7 @@ Structured (operation + params directly):
 curl -s -X POST http://localhost:8080/ask_structured \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer ABCD' \
-  -d '{"operation":"crm.get_customer","params":{"customerId":"CUST-42"}}'
+  -d '{"operation":"crm.get_customer_profile","params":{"customerId":"CUST-42"}}'
 ```
 
 Fetch result:

@@ -70,6 +70,32 @@ scenarios:
       text: '${text}'
       targetLanguage: '${lang}'
 
+  # README examples. Without them the keyword matcher sends these to the helpdesk ticket intent,
+  # which also talks about a status and a number.
+  - name: readme-shipment-status
+    match: '(shipment|env[ií]o)\w*.*?(status|estado)(?:.*?\bid\s+(?P<shipment>[\w-]+))?(?:.*?\b(?:customer|cliente)\s+(?P<customer>[\w-]+))?'
+    intent: logistics.get_shipment_status
+    params:
+      shipmentId: '${shipment}'
+      customerId: '${customer}'
+    defaults:
+      shipmentId: '212111222'
+      customerId: '123'
+
+  - name: readme-vacation-balance
+    match: '(vacation|vacaciones)\w*(?:.*?\b(?:employee|empleado)\s+(?P<employee>[\w-]+))?'
+    intent: human-resources.vacation
+    params:
+      employeeId: '${employee}'
+    defaults:
+      employeeId: '123'
+
+  - name: readme-service-status
+    match: '\b(?:get|check|consulta)\b.*?\b(?P<service>[\w-]*(?:pod|service|servicio)[\w-]*)\s+status'
+    intent: devops.get_service_status
+    params:
+      serviceName: '${service}'
+
   # Prudence framework demo (LangGraph response drafter): the node asks for a customer reply.
   - name: prudence-response-drafter
     match: 'draft (a )?(short )?(customer )?(reply|response)'
