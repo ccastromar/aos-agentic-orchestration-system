@@ -7,8 +7,9 @@ The format follows the spirit of Keep a Changelog, and AOS uses semantic version
 
 ## [Unreleased]
 
-AOS 0.4.0 ships in Chestertown 0.1.0, with Prudence (govern) and Ernest (prove). The version is
-higher than Chestertown's because v0.3.0 is already public.
+AOS 0.4.0 ships in Chestertown 0.1.0 as the reference implementation of Run, with Prudence
+(Decide and Oversee) and Ernest (Prove). The version is higher than Chestertown's because v0.3.0
+is already public.
 
 ### Added
 
@@ -20,6 +21,13 @@ higher than Chestertown's because v0.3.0 is already public.
   already reason.
 - `AOS_GOVERNANCE` and `AOS_EVIDENCE` state each deployment's setup, and `/health/ready` reports
   it. Both are required outside development, and AOS will not start without them.
+- Approval before dangerous tools: a pipeline that runs a `mode: dangerous` tool with no human
+  approval before it does not load, unless the step states `no_approval_reason`.
+  `-validate-definitions` runs the same checks before a deploy.
+- Signed callbacks: an `await_callback` step with `callback_secret_env` accepts only callbacks
+  the provider signed with that secret.
+- A remote agent that rejects an A2A task ends the run `rejected`, with its reason, and is not
+  retried.
 
 ### Changed
 
