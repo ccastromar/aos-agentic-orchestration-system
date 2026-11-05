@@ -211,58 +211,6 @@ h1,h2,h3,h4,h5,h6 { font-family:var(--font-sans); color:var(--text); letter-spac
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 15px var(--primary-glow);
   }
 
-  /* Status Badges */
-  .status-badge {
-    display: inline-block;
-    padding: 0.35rem 1rem;
-    border-radius: var(--radius-full);
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-  }
-
-  .status-pending { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
-  .status-ok { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); border-color: color-mix(in srgb, var(--secondary) 30%, transparent); }
-  .status-error { background: color-mix(in srgb, #ef4444 15%, transparent); color: #f87171; border-color: color-mix(in srgb, #ef4444 30%, transparent); }
-
-  /* Timeline */
-  .timeline {
-    position: relative;
-    padding-left: 2.5rem;
-  }
-
-  .timeline::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 8px;
-    width: 2px;
-    background: linear-gradient(to bottom, var(--primary-glow), var(--accent-glow));
-    border-radius: 2px;
-  }
-
-  .timeline-event {
-    position: relative;
-    padding-bottom: 2.5rem;
-  }
-
-  .timeline-dot {
-    position: absolute;
-    left: -2.5rem;
-    top: 0.5rem;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--bg-base);
-    border: 4px solid var(--primary);
-    box-shadow: 0 0 15px var(--primary-glow);
-    z-index: 2;
-    transition: all 0.3s ease;
-  }
-
   /* Layout */
   .app-container {
     max-width: 1300px;
@@ -384,134 +332,13 @@ h1,h2,h3,h4,h5,h6 { font-family:var(--font-sans); color:var(--text); letter-spac
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 
-  /* Timeline Event Content */
+  /* Run view */
   .timeline-container {
     padding: 2.5rem;
     flex: 1;
     overflow-y: auto;
   }
 
-  .event-content {
-    background: color-mix(in srgb, var(--bg-surface) 60%, transparent);
-    border-top: 1px solid var(--border-highlight);
-    border-left: 1px solid var(--border-light);
-    border-right: 1px solid transparent;
-    border-bottom: 1px solid transparent;
-    padding: 1.25rem;
-    border-radius: var(--radius-md);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    transition: all var(--transition-normal);
-  }
-
-  .event-content:hover {
-    background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
-    transform: translateX(4px);
-  }
-
-  .event-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .event-agent {
-    color: var(--primary);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .event-time {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-  }
-
-  .event-kind {
-    display: inline-block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.6rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-sm);
-    margin-bottom: 0.75rem;
-    color: var(--text-secondary);
-  }
-
-  body.theme-light .event-kind {
-    background: rgba(0,0,0,0.05);
-  }
-
-  .event-message {
-    color: var(--text-primary);
-    font-size: 1rem;
-    line-height: 1.6;
-  }
-
-  .event-duration {
-    margin-top: 1rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-  }
-
-  .event-duration::before {
-    content: '⏱';
-    margin-right: 0.5rem;
-    opacity: 0.7;
-  }
-
-  /* Tool Execution Cards */
-  .tool-card {
-    display: flex;
-    gap: 1.5rem;
-    padding-bottom: 2rem;
-    position: relative;
-  }
-
-  .tool-icon {
-    position: absolute;
-    left: -2.8rem;
-    top: 0.2rem;
-    background: linear-gradient(135deg, var(--secondary), color-mix(in srgb, var(--secondary) 80%, black));
-    color: white;
-    border-radius: 50%;
-    padding: 5px;
-    border: 4px solid var(--bg-base);
-    box-shadow: 0 0 15px var(--secondary-glow);
-    z-index: 2;
-  }
-
-  .tool-content {
-    background: color-mix(in srgb, var(--secondary-glow) 30%, transparent);
-    border-left: 3px solid var(--secondary);
-    padding: 1rem 1.25rem;
-    border-radius: 0 var(--radius-md) var(--radius-md) 0;
-    width: 100%;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  }
-
-  .tool-name {
-    font-size: 0.9rem;
-    color: var(--secondary);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-
-  .tool-result {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    line-height: 1.5;
-    word-break: break-word;
-  }
-
-  @keyframes pulse {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 var(--primary-glow); }
-    70% { transform: scale(1); box-shadow: 0 0 0 15px transparent; }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 transparent; }
-  }
 }
 
 @layer utilities {
@@ -534,3 +361,63 @@ h1,h2,h3,h4,h5,h6 { font-family:var(--font-sans); color:var(--text); letter-spac
   .mb-2 { margin-bottom: 0.5rem; }
   .mb-4 { margin-bottom: 1rem; }
 }
+
+/* Chat as a thread of requests: no bubbles, a rule on the left says who speaks. */
+.aos-thread { list-style:none; display:flex; flex-direction:column; gap:var(--sp-4); }
+.aos-msg { border-left:2px solid var(--border-strong); padding-left:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2); min-width:0; }
+.aos-msg--user { border-left-color:var(--accent); }
+.aos-msg--error { border-left-color:var(--danger); }
+.aos-msg--error .aos-msg-text { color:var(--danger-text); }
+.aos-msg-meta { font-size:var(--fs-xs); color:var(--text-muted); }
+.aos-msg-text { font-size:var(--fs-sm); white-space:pre-wrap; overflow-wrap:anywhere; }
+.aos-task-card { display:flex; align-items:center; flex-wrap:wrap; gap:var(--sp-2) var(--sp-3); width:100%; padding:var(--sp-2) var(--sp-3); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font:inherit; font-size:var(--fs-sm); text-align:left; cursor:pointer; }
+.aos-task-card:hover { border-color:var(--border-strong); }
+.aos-task-card:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.aos-task-card--active { border-color:var(--accent); }
+.aos-task-card-open { margin-left:auto; display:inline-flex; align-items:center; gap:var(--sp-1); color:var(--accent-text); }
+
+/* A run: header, then its steps (or its graph). */
+.aos-run-head { display:flex; align-items:center; flex-wrap:wrap; gap:var(--sp-3); margin-bottom:var(--sp-6); }
+.aos-run-title { font-size:var(--fs-lg); margin:0; display:flex; align-items:center; gap:var(--sp-2); }
+.aos-run-view { margin-left:auto; }
+.aos-steps { list-style:none; display:flex; flex-direction:column; }
+.aos-step { display:flex; gap:var(--sp-3); position:relative; padding-bottom:var(--sp-4); }
+.aos-step:not(:last-child)::before { content:''; position:absolute; left:11px; top:26px; bottom:2px; width:1px; background:var(--border); }
+.aos-step-icon { flex:none; width:24px; height:24px; border-radius:var(--radius-full); display:flex; align-items:center; justify-content:center; background:var(--surface-muted); color:var(--text-muted); }
+.aos-step--ok .aos-step-icon { background:var(--ok-bg); color:var(--ok-text); }
+.aos-step--danger .aos-step-icon { background:var(--danger-bg); color:var(--danger-text); }
+.aos-step--warn .aos-step-icon { background:var(--warn-bg); color:var(--warn-text); }
+.aos-step--info .aos-step-icon { background:var(--info-bg); color:var(--info-text); }
+.aos-step--pending .aos-step-icon { background:transparent; border:1px dashed var(--border-strong); }
+.aos-step--pending .aos-step-title { color:var(--text-muted); }
+.aos-step--running .aos-step-icon { background:transparent; border:1px solid var(--border-strong); animation:aos-breathe 1.6s ease-in-out infinite; }
+.aos-step-body { min-width:0; flex:1; padding-top:2px; }
+.aos-step-title { display:flex; align-items:baseline; gap:var(--sp-3); font-size:var(--fs-sm); font-weight:var(--fw-medium); }
+.aos-step-time { margin-left:auto; font-size:var(--fs-xs); font-weight:var(--fw-normal); color:var(--text-muted); font-variant-numeric:tabular-nums; }
+.aos-step-detail { font-size:var(--fs-sm); color:var(--text-muted); overflow-wrap:anywhere; white-space:pre-wrap; }
+@keyframes aos-breathe { 50% { opacity:.4; } }
+@media (prefers-reduced-motion: reduce) { .aos-step--running .aos-step-icon { animation:none; } }
+
+.aos-result-title { margin:0; display:flex; align-items:center; gap:var(--sp-2); }
+.aos-tone-ok { color:var(--ok-text); }
+.aos-tone-warn { color:var(--warn-text); }
+.aos-tone-danger { color:var(--danger-text); }
+.aos-verdict { margin-bottom:var(--sp-4); padding:var(--sp-3) var(--sp-4); border-radius:var(--radius); border:1px solid var(--border); font-size:var(--fs-sm); line-height:1.5; }
+.aos-verdict--warn { background:var(--warn-bg); border-color:var(--warn); }
+.aos-verdict--danger { background:var(--danger-bg); border-color:var(--danger); }
+.aos-result-json { background:var(--bg); padding:var(--sp-4); border-radius:var(--radius); border:1px solid var(--border); overflow-x:auto; font-family:var(--font-mono); font-size:var(--fs-sm); color:var(--text); white-space:pre-wrap; }
+
+/* The graph view: react-flow nodes coloured by the same tones as the steps. */
+.aos-dag { position:relative; height:350px; width:100%; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:var(--surface); }
+.aos-dag .react-flow__node.dag-node { background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:10px; font-size:12px; box-shadow:none; }
+.aos-dag .react-flow__node.status-success { background:var(--ok-bg); color:var(--ok-text); border-color:var(--ok); }
+.aos-dag .react-flow__node.status-error { background:var(--danger-bg); color:var(--danger-text); border-color:var(--danger); }
+.aos-dag .react-flow__node.status-paused { background:var(--warn-bg); color:var(--warn-text); border-color:var(--warn); }
+.aos-dag .react-flow__node.status-pending { border-style:dashed; color:var(--text-muted); }
+.aos-dag .node-tooltip { background:var(--surface); border-color:var(--border-strong); color:var(--text-muted); box-shadow:var(--shadow-sm); backdrop-filter:none; }
+.aos-dag .node-tooltip pre { color:var(--text); font-family:var(--font-mono); }
+.aos-dag .react-flow__controls-button { background:var(--surface); border-color:var(--border); color:var(--text); fill:var(--text); }
+.aos-mono { font-family:var(--font-mono); font-size:.92em; }
+.aos-muted { color:var(--text-muted); font-weight:var(--fw-normal); }
+.aos-dag .react-flow__attribution { background:transparent; }
+.aos-dag .react-flow__attribution a { color:var(--text-muted); }

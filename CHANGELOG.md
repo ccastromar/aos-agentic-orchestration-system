@@ -32,7 +32,9 @@ is already public.
 ### Changed
 
 - Authorization by governance function, shared with Prudence and Ernest.
-- The web console is part of AOS again.
+- The web console is part of AOS again. Its chat is a thread of requests, each task a card with
+  its status, and a run reads as a list of steps that starts with Prudence's decision; a
+  pipeline that branches opens on its graph.
 - Traces, metrics and logs follow Chestertown's conventions; logs carry no user content.
 - Security hardening.
 - Each step's output is also kept under its step id, as `{{ index . "steps.<id>.<key>" }}`, so

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
-import { Wrench, CheckCircle, AlertTriangle, Copy, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { CheckCircle, AlertTriangle, Copy, ShieldAlert, ListOrdered, Network } from 'lucide-react';
 import DAGVisualizer from './DAGVisualizer';
+import StepList from './StepList';
 import { apiFetch, getAuth, UNAUTHORIZED_EVENT } from '../utils/api';
 import { devLoginEnabled, ssoEnabled } from '../utils/oidc';
 import { ernestEvidenceUrl, prudenceSystemUrl } from '../utils/chestertown';
-import { Button } from '@chestertown/design';
+import { taskStatus } from '../utils/taskStatus';
+import { dagBranches, stepsFromDag, stepsFromEvents } from '../utils/runSteps';
+import { Badge, Button } from '@chestertown/design';
 
 // The pipeline context shown in the approval modal, without the bookkeeping keys of each step.
 const approvalContext = (ctxData) => {
@@ -19,7 +21,7 @@ const approvalContext = (ctxData) => {
   return "Pipeline Context: \n" + filtered.join("\n");
 };
 
-const Timeline = ({ taskId, onApprovalNeeded }) => {
+const Timeline = ({ taskId, onApprovalNeeded, onStatusChange }) => {
   const [events, setEvents] = useState([]);
   // loading = nothing heard from the server yet; pending = the task is still running;
   // unavailable = AOS refused the task (absent, or not visible to this identity).
@@ -200,9 +202,30 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
   // A governance verdict is a policy outcome, not a technical failure: show it differently.
   const governanceBlocked = status === 'governance_blocked' && finalData && finalData.decision;
   const needsApproval = governanceBlocked && finalData.decision === 'APPROVAL_REQUIRED';
-  const headerColor = governanceBlocked
-    ? (needsApproval ? '#f59e0b' : '#f87171')
-    : status === 'error' || status === 'rejected' ? '#f87171' : 'var(--secondary)';
+  const headerTone = governanceBlocked
+    ? (needsApproval ? 'warn' : 'danger')
+    : status === 'error' || status === 'rejected' ? 'danger' : 'ok';
+
+  // Tell the chat how this task stands, so its card says the same as this header.
+  useEffect(() => {
+    if (onStatusChange) onStatusChange(taskId, status);
+  }, [taskId, status, onStatusChange]);
+
+  // A declared DAG gives every step up front; a linear run is told step by step by its events.
+  const dagSteps = useMemo(() => {
+    const structure = events.find(e => e.Kind === 'dag_structure');
+    if (!structure) return null;
+    try {
+      return JSON.parse(structure.Message);
+    } catch {
+      return null;
+    }
+  }, [events]);
+  const steps = useMemo(() => dagSteps ? stepsFromDag(dagSteps, events) : stepsFromEvents(events), [dagSteps, events]);
+  // The list reads best for a sequence; a pipeline that really branches opens on its graph.
+  const [graphChoice, setGraphChoice] = useState(null);
+  useEffect(() => setGraphChoice(null), [taskId]);
+  const showGraph = Boolean(dagSteps) && (graphChoice ?? dagBranches(dagSteps));
 
   const copyFinalResult = async () => {
     try {
@@ -238,97 +261,30 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
     }
   }, [events, taskId, onApprovalNeeded]);
 
-  const renderEvent = (evt, idx) => {
-    // Special rendering for Tool execution
-    if (evt.Kind.startsWith('tool ')) {
-      return (
-        <motion.div
-          key={`${evt.Time}-${idx}`}
-          initial={{ opacity: 0, x: 20, y: 10 }}
-          animate={{ opacity: 1, x: 0, y: 0 }}
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.3, type: "spring" }}
-          layout
-          className="timeline-event tool-card"
-        >
-          <div className="tool-icon">
-            <Wrench size={16} />
-          </div>
-          <div className="tool-content">
-            <div className="tool-name">{evt.Kind}</div>
-            <div className="tool-result">{evt.Message}</div>
-          </div>
-        </motion.div>
-      );
-    }
-
-    // Default rendering
-    return (
-      <motion.div
-        key={`${evt.Time}-${idx}`}
-        initial={{ opacity: 0, x: -20, y: 10 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        whileHover={{ x: 5 }}
-        transition={{ duration: 0.3, type: "spring" }}
-        layout
-        className="timeline-event"
-      >
-        <div className="timeline-dot" />
-        <div className="event-content">
-          <div className="event-header">
-            <span className="event-agent">{evt.Agent}</span>
-            <span className="event-time">{format(new Date(evt.Time), 'HH:mm:ss.SSS')}</span>
-          </div>
-          <span className="event-kind">{evt.Kind}</span>
-          <div className="event-message">{evt.Message}</div>
-          {evt.Duration && (
-            <div className="event-duration">{evt.Duration}</div>
-          )}
-        </div>
-      </motion.div>
-    );
-  };
-
   return (
     <div style={{ paddingBottom: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          Pipeline Execution
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{taskId.substring(0,8)}</span>
+      <div className="aos-run-head">
+        <h2 className="aos-run-title">
+          Run <span className="aos-mono aos-muted">{taskId.substring(0, 8)}</span>
         </h2>
-
-        {status !== 'pending' && status !== 'loading' && status !== 'unavailable' && (
-          <span className={`status-badge status-${status}`}>
-            {status.toUpperCase()}
-          </span>
+        {status !== 'loading' && status !== 'unavailable' && (
+          <Badge tone={taskStatus(status).tone} dot>{taskStatus(status).label}</Badge>
+        )}
+        {dagSteps && (
+          <Button size="sm" variant="ghost" className="aos-run-view" onClick={() => setGraphChoice(!showGraph)}>
+            {showGraph ? <><ListOrdered size={14} aria-hidden="true" /> View steps</> : <><Network size={14} aria-hidden="true" /> View graph</>}
+          </Button>
         )}
       </div>
 
-      <div className="timeline">
-        {events.find(e => e.Kind === 'dag_structure') ? (
-          <div style={{ marginBottom: '2rem' }}>
-            <DAGVisualizer
-              pipelineSteps={JSON.parse(events.find(e => e.Kind === 'dag_structure').Message)}
-              taskEvents={events.map(e => ({ action: e.Kind, status: e.Message, component: e.Agent, duration: e.Duration }))}
-            />
-          </div>
-        ) : (
-          <AnimatePresence>
-            {events.map((evt, idx) => renderEvent(evt, idx))}
-          </AnimatePresence>
-        )}
-        {(status === 'pending' || status === 'loading') && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="timeline-event"
-            style={{ paddingBottom: 0 }}
-          >
-            <div className="timeline-dot" style={{ animation: 'pulse 1.5s infinite' }} />
-            <div className="event-content" style={{ color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0' }}>
-              {status === 'loading' ? 'Loading task…' : 'Working...'}
-            </div>
-          </motion.div>
+      <div className="aos-run">
+        {showGraph ? (
+          <DAGVisualizer pipelineSteps={dagSteps} taskEvents={events} />
+        ) : status !== 'unavailable' && (
+          <StepList
+            steps={steps}
+            running={status === 'loading' ? 'Loading task…' : status === 'pending' ? 'Running…' : null}
+          />
         )}
         {status === 'unavailable' && (
           <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
@@ -364,7 +320,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
           style={{ marginTop: '2rem' }}
         >
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-            <h3 style={{ margin: 0, color: headerColor, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 className={`aos-result-title aos-tone-${headerTone}`}>
               {governanceBlocked
                 ? <><ShieldAlert size={20} /> {needsApproval ? 'Blocked by Prudence: approval required' : 'Denied by Prudence'}</>
                 : status === 'error'
@@ -390,7 +346,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
             </div>
           )}
           {governanceBlocked && (
-            <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: `1px solid ${headerColor}`, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+            <div className={`aos-verdict aos-verdict--${headerTone}`}>
               <div><strong>Decision:</strong> {finalData.decision}{finalData.reason ? ` · ${finalData.reason}` : ''}</div>
               {finalData.approver && <div><strong>Approver:</strong> {finalData.approver}</div>}
               <div>
@@ -420,16 +376,7 @@ const Timeline = ({ taskId, onApprovalNeeded }) => {
               </div>
             </div>
           )}
-          <pre style={{
-            background: 'color-mix(in srgb, var(--bg-base) 80%, transparent)',
-            padding: '1.25rem',
-            borderRadius: 'var(--radius-md)',
-            overflowX: 'auto',
-            fontSize: '0.85rem',
-            color: 'var(--text-secondary)',
-            whiteSpace: 'pre-wrap',
-            border: '1px solid var(--border-light)'
-          }}>
+          <pre className="aos-result-json" tabIndex={0}>
             {JSON.stringify(finalData, null, 2)}
           </pre>
         </motion.div>

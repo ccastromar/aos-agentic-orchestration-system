@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Loader2, ArrowRight } from 'lucide-react';
+import { format } from 'date-fns';
 import { apiFetch, getAuth, savePendingPrompt, takePendingPrompt } from '../utils/api';
 import { devLoginEnabled, ssoEnabled } from '../utils/oidc';
-import { Button, Input, Select } from '@chestertown/design';
+import { taskStatus } from '../utils/taskStatus';
+import { Badge, Button, Input, Select } from '@chestertown/design';
 
-const ChatPanel = ({ onTaskCreated }) => {
+// The chat is a thread of requests and what AOS did with each, not a conversation: AOS runs
+// predefined pipelines, and each dispatched task shows as a card with its current status.
+const ChatPanel = ({ onTaskCreated, activeTaskId, taskStatuses = {} }) => {
   // One prompt per Prudence risk-tier case of the live demo. The deterministic mock models
   // pin these phrases (mocks/ollama/scenarios.yaml); the support phrase must stay verbatim
   // because the deployed aos-mock-agent recognises only that exact text.
@@ -61,7 +64,7 @@ const ChatPanel = ({ onTaskCreated }) => {
     setHistoryIndex(-1);
 
     setInput('');
-    setMessages(prev => [...prev, { id: Date.now(), text: userMsg, sender: 'user' }]);
+    setMessages(prev => [...prev, { id: Date.now(), text: userMsg, sender: 'user', at: new Date() }]);
 
     if (userMsg.toLowerCase() === '/help') {
       try {
@@ -75,7 +78,8 @@ const ChatPanel = ({ onTaskCreated }) => {
           setMessages(prev => [...prev, {
             id: Date.now() + 1,
             text: `Here are some things you can ask me:\n${examplesText}`,
-            sender: 'system'
+            sender: 'system',
+            at: new Date()
           }]);
         }
       } catch (err) {
@@ -106,12 +110,13 @@ const ChatPanel = ({ onTaskCreated }) => {
 
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: `Task dispatched! Watch the timeline to see agents thinking.`,
+        text: 'Task dispatched.',
         taskId: data.id,
-        sender: 'system'
+        sender: 'system',
+        at: new Date()
       }]);
     } catch (err) {
-      setMessages(prev => [...prev, { id: Date.now(), text: `Error: ${err.message}`, sender: 'system', isError: true }]);
+      setMessages(prev => [...prev, { id: Date.now(), text: err.message, sender: 'system', isError: true, at: new Date() }]);
     } finally {
       setIsLoading(false);
     }
@@ -158,64 +163,33 @@ const ChatPanel = ({ onTaskCreated }) => {
           ))}
         </div>
       </div>
-      <div className="chat-messages">
-        <AnimatePresence initial={false}>
-          {messages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, scale: 0.8, y: 20, originX: msg.sender === 'user' ? 1 : 0 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                layout
-                style={{
-                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  background: msg.sender === 'user' ? 'linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, white))' : msg.isError ? 'color-mix(in srgb, #ef4444 15%, transparent)' : 'color-mix(in srgb, var(--bg-surface) 60%, transparent)',
-                  border: msg.sender === 'user' ? 'none' : `1px solid ${msg.isError ? 'color-mix(in srgb, #ef4444 40%, transparent)' : 'var(--border-light)'}`,
-                  padding: '0.85rem 1.25rem',
-                  borderRadius: msg.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                  maxWidth: '85%',
-                  fontSize: '0.95rem',
-                  boxShadow: msg.sender === 'user' ? '0 4px 15px var(--primary-glow)' : '0 4px 15px rgba(0,0,0,0.1)',
-                  whiteSpace: 'pre-wrap',
-                  backdropFilter: 'blur(12px)',
-                  color: msg.isError ? '#FCA5A5' : 'var(--text-primary)'
-                }}>
-                {msg.text}
-                {msg.taskId && (
-                  <div
-                    onClick={() => onTaskCreated(msg.taskId)}
-                    style={{
-                      marginTop: '0.75rem',
-                      padding: '0.5rem 0.75rem',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      border: '1px solid var(--border-light)',
-                      transition: 'all var(--transition-fast)'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 10%, transparent)';
-                      e.currentTarget.style.borderColor = 'var(--primary)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.borderColor = 'var(--border-light)';
-                    }}
-                  >
-                    <span style={{ fontWeight: '600', color: 'var(--primary)' }}>Task ID:</span>
-                    <span style={{ fontFamily: 'monospace' }}>{msg.taskId.substring(0,8)}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.8 }}>View Timeline ➔</span>
-                  </div>
-                )}
-              </motion.div>
-          ))}
-        </AnimatePresence>
-        <div ref={messagesEndRef} />
-      </div>
+      <ol className="chat-messages aos-thread" aria-label="Requests and replies" aria-live="polite">
+        {messages.map((msg) => {
+          const status = msg.taskId ? taskStatus(taskStatuses[msg.taskId] || 'pending') : null;
+          return (
+            <li key={msg.id} className={`aos-msg aos-msg--${msg.isError ? 'error' : msg.sender}`}>
+              <div className="aos-msg-meta">
+                {msg.sender === 'user' ? 'You' : 'AOS'}
+                {msg.at && <> · {format(msg.at, 'HH:mm')}</>}
+              </div>
+              {msg.text && <div className="aos-msg-text">{msg.text}</div>}
+              {msg.taskId && (
+                <button
+                  type="button"
+                  className={`aos-task-card${msg.taskId === activeTaskId ? ' aos-task-card--active' : ''}`}
+                  onClick={() => onTaskCreated(msg.taskId)}
+                  aria-label={`Open run ${msg.taskId.substring(0, 8)}: ${status.label}`}
+                >
+                  <span className="aos-mono">{msg.taskId.substring(0, 8)}</span>
+                  <Badge tone={status.tone} dot>{status.label}</Badge>
+                  <span className="aos-task-card-open">View run <ArrowRight size={14} aria-hidden="true" /></span>
+                </button>
+              )}
+            </li>
+          );
+        })}
+        <li ref={messagesEndRef} aria-hidden="true" />
+      </ol>
 
       <form onSubmit={handleSubmit} className="chat-input-form">
         {showMockRole && (

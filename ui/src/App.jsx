@@ -30,6 +30,8 @@ const TAB_ITEMS = [
 
 function App() {
   const [activeTaskId, setActiveTaskId] = useState(null);
+  // Last status the run view saw for each task, shown on the chat's task cards.
+  const [taskStatuses, setTaskStatuses] = useState({});
   const [pendingApproval, setPendingApproval] = useState(null);
   const [view, setView] = useState('chat'); // 'chat' | 'settings' | 'history'
   const [auth, setAuth] = useState(() => getAuth());
@@ -135,6 +137,10 @@ function App() {
     setActiveTaskId(taskId);
     setPendingApproval(null);
   };
+
+  const handleTaskStatus = useCallback((taskId, status) => {
+    setTaskStatuses(prev => (prev[taskId] === status ? prev : { ...prev, [taskId]: status }));
+  }, []);
 
   const handleApprovalNeeded = useCallback((id, gate, message) => {
     setPendingApproval(prev => {
@@ -244,14 +250,15 @@ function App() {
             transition={{ duration: 0.3 }}
           >
             <section className="glass-panel chat-panel">
-              <ChatPanel key={auth?.userId || "demo-user"} onTaskCreated={handleTaskCreated} />
+              <ChatPanel key={auth?.userId || "demo-user"} onTaskCreated={handleTaskCreated} activeTaskId={activeTaskId} taskStatuses={taskStatuses} />
             </section>
 
             <section className="glass-panel timeline-container">
               {activeTaskId ? (
                 <Timeline 
                   taskId={activeTaskId} 
-                  onApprovalNeeded={handleApprovalNeeded} 
+                  onApprovalNeeded={handleApprovalNeeded}
+                  onStatusChange={handleTaskStatus}
                 />
               ) : (
                 <motion.div 

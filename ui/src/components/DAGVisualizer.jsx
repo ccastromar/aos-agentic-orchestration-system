@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
+import { dagStepStatus } from '../utils/runSteps';
 
 const nodeWidth = 172;
 const nodeHeight = 36;
@@ -72,48 +73,14 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
       const id = step.id || step.tool || 'analyst';
       const label = step.tool || step.human_approval || (step.analyst ? 'LLM Analyst' : 'Unknown Step');
       
-      // Determine status from taskEvents
-      let status = 'pending';
-      let backgroundColor = 'color-mix(in srgb, var(--bg-surface) 60%, transparent)';
-      let borderColor = 'var(--border-light)';
-      
-      // Check events to see if tool executed
-      const toolOkEvent = taskEvents.find(e => e.action === `tool ${step.tool}` && e.status === 'ok');
-      const toolErrorEvent = taskEvents.find(e => e.action === `tool ${step.tool}` && e.status === 'error');
-      const awaitHumanEvent = taskEvents.find(e => e.action === `await_human` && e.status === step.human_approval);
-      const isApproved = taskEvents.find(e => e.action === `human_decision` && e.status === 'approved' && e.duration === step.human_approval);
-      
-      // For analyst steps
-      const analystSummaryEvent = taskEvents.find(e => e.component === 'Analyst' && e.action === 'summary');
+      // Same status as the step list (utils/runSteps); colours come from the tone classes.
+      const status = dagStepStatus(step, taskEvents);
 
-      if (toolErrorEvent) {
-        status = 'error';
-        backgroundColor = 'color-mix(in srgb, #ef4444 20%, transparent)';
-        borderColor = 'color-mix(in srgb, #ef4444 60%, transparent)';
-      } else if (toolOkEvent || (step.analyst && analystSummaryEvent) || isApproved) {
-        status = 'success';
-        backgroundColor = 'color-mix(in srgb, var(--secondary) 20%, transparent)';
-        borderColor = 'color-mix(in srgb, var(--secondary) 60%, transparent)';
-      } else if (awaitHumanEvent && !isApproved) {
-        status = 'paused';
-        backgroundColor = 'color-mix(in srgb, var(--accent) 20%, transparent)';
-        borderColor = 'color-mix(in srgb, var(--accent) 60%, transparent)';
-      }
-      
       nodes.push({
         id,
         type: 'custom',
         data: { label: label, with_params: step.with_params },
         className: `dag-node status-${status} ${step.human_approval ? 'is-gate' : ''}`,
-        style: {
-          background: backgroundColor,
-          color: 'var(--text-primary)',
-          border: `1px solid ${borderColor}`,
-          borderRadius: 'var(--radius-sm)',
-          padding: '10px',
-          fontSize: '12px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-        }
       });
       
       // Link nodes sequentially if linear pipeline
@@ -126,7 +93,7 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
             source: prevId,
             target: id,
             animated: status === 'pending',
-            style: { stroke: 'var(--primary)', strokeWidth: 2 }
+            style: { stroke: 'var(--border-strong)', strokeWidth: 1.5 }
           });
         } else if (step.depends_on && Array.isArray(step.depends_on)) {
           step.depends_on.forEach((dep) => {
@@ -135,7 +102,7 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
               source: dep,
               target: id,
               animated: status === 'pending',
-              style: { stroke: 'var(--primary)', strokeWidth: 2 }
+              style: { stroke: 'var(--border-strong)', strokeWidth: 1.5 }
             });
         });
       }
@@ -145,7 +112,7 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
   }, [pipelineSteps, taskEvents, mode]);
   
   return (
-    <div style={{ position: 'relative', height: '350px', width: '100%', border: '1px solid var(--border-light)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-glass)' }}>
+    <div className="aos-dag">
       <ReactFlow 
         nodes={initialNodes} 
         edges={initialEdges}
@@ -153,7 +120,7 @@ export default function DAGVisualizer({ pipelineSteps = [], taskEvents = [], mod
         edgeTypes={edgeTypes}
         fitView
       >
-        <Background color="rgba(255,255,255,0.1)" gap={16} />
+        <Background color="var(--border)" gap={16} />
         <Controls />
       </ReactFlow>
     </div>
