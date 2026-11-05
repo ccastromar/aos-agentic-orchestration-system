@@ -13,6 +13,16 @@ test('DAG flow with human approval', async ({ page }) => {
     });
   });
 
+  // The task stays running: without this a live AOS answers 404 for the fake task, and the
+  // timeline closes its event stream before the human gate arrives.
+  await page.route(url => url.pathname === '/task', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'pending' })
+    });
+  });
+
   // Mock pipelines config
   await page.route('**/config/pipelines', async (route) => {
     await route.fulfill({
