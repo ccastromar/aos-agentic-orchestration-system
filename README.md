@@ -2,7 +2,7 @@
 
 AOS runs declared, deterministic pipelines. The LLM only picks a pipeline and fills its inputs; it never plans steps or grants permissions.
 
-> **Project status: MVP — the reference governed runtime of the [Chestertown](https://ccmlab.cc/architecture) reference architecture.**
+> **Project status: MVP. AOS implements Run in [Chestertown](https://ccmlab.cc/architecture), an open architecture for governing AI agents: Decide · Run · Prove · Oversee.**
 > AOS runs, [Prudence](https://github.com/ccastromar/prudence-governance) decides and
 > [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. AOS is a reference, not a
 > requirement: any runtime that follows the contracts can take its place. The three run together as a deployed MVP aligned with the EU AI Act: before a
