@@ -1,13 +1,13 @@
-# Dependency updates (Dependabot): weekly, minor and patch updates grouped into one pull request
-# per ecosystem so the queue stays reviewable; majors arrive one by one. Security updates are
-# separate and immediate once Dependabot alerts are enabled in the repository settings.
+# Dependabot: version updates are off (open-pull-requests-limit: 0), so no weekly pull requests.
+# Security alerts stay on in the repository settings. The entries are kept so security updates,
+# if they are enabled there, know each ecosystem and directory.
 version: 2
 updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -17,7 +17,7 @@ updates:
     directory: "/ui"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -26,7 +26,7 @@ updates:
     directory: "/test/interop"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -37,7 +37,7 @@ updates:
       - "/ui"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -46,7 +46,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types: [minor, patch]

@@ -37,7 +37,7 @@ Security-sensitive areas include:
 ## Automated checks
 
 Every push and pull request runs CodeQL static analysis and a secret scan of the whole history
-(`.github/workflows/security.yml`); Dependabot proposes dependency updates weekly; release images
+(`.github/workflows/security.yml`); Dependabot alerts report vulnerable dependencies (version-update pull requests are off); release images
 are scanned with Trivy and not published if a critical vulnerability with a fix is found.
 
 ## Verifying release images

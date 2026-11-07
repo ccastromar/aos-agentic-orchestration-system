@@ -2,6 +2,12 @@
 
 AOS runs declared, deterministic pipelines. The LLM only picks a pipeline and fills its inputs; it never plans steps or grants permissions.
 
+> **See it run:** a 1:21 recording of one request going through Prudence, AOS and Ernest is on
+> [ccmlab.cc](https://ccmlab.cc/#film), with one recording per risk tier.
+>
+> **Maintenance:** a reference implementation, maintained by one person on a best-effort basis.
+> Issues and pull requests are welcome, but there is no support and no promised response time.
+
 > **Project status: MVP. AOS implements Run in [Chestertown](https://ccmlab.cc/architecture), an open architecture for governing AI agents: Decide · Run · Prove · Oversee.**
 > AOS runs, [Prudence](https://github.com/ccastromar/prudence-governance) decides and
 > [Ernest](https://github.com/ccastromar/ai-blockchain-provenance) proves. AOS is a reference, not a

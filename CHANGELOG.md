@@ -7,6 +7,8 @@ The format follows the spirit of Keep a Changelog, and AOS uses semantic version
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
 AOS 0.4.0 ships in Chestertown 0.1.0 as the reference implementation of Run, with Prudence
 (Decide and Oversee) and Ernest (Prove). The version is higher than Chestertown's because v0.3.0
 is already public.
