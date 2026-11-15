@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -41,7 +42,7 @@ func TestPipelineExpandsEnvironmentReferences(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	data := []byte("pipelines:\n  - name: demo\n    ai_system: ${AOS_TEST_SYSTEM}\n    steps: []\n")
+	data := []byte("pipelines:\n  - name: demo\n    ai_system: ${AOS_TEST_SYSTEM}\n    governed: true\n    steps: []\n")
 	if err := os.WriteFile(filepath.Join(dir, "pipelines", "demo.yaml"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -61,19 +62,29 @@ func TestGovernedPipelineFlagIsLoaded(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	data := []byte("pipelines:\n  - name: governed\n    ai_system: sys-1\n    governed: true\n    steps: []\n  - name: plain\n    steps: []\n")
-	if err := os.WriteFile(filepath.Join(dir, "pipelines", "demo.yaml"), data, 0o644); err != nil {
-		t.Fatal(err)
+	write := func(yaml string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "pipelines", "demo.yaml"), []byte(yaml), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
+	write("pipelines:\n  - name: governed\n    ai_system: sys-1\n    governed: true\n    steps: []\n" +
+		"  - name: plain\n    governed: false\n    ungoverned_reason: lookup, no AI\n    skip_summary: true\n    steps: []\n")
 	cfg, err := LoadFromDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Pipelines["governed"].Governed {
+	if !cfg.Pipelines["governed"].IsGoverned() {
 		t.Fatal("governed: true was not loaded")
 	}
-	if cfg.Pipelines["plain"].Governed {
-		t.Fatal("a pipeline without the flag must not be governed")
+	if !cfg.Pipelines["plain"].IsExempt() {
+		t.Fatal("governed: false was not loaded")
+	}
+
+	// The flag is required: a pipeline that does not say whether it is governed does not load.
+	write("pipelines:\n  - name: silent\n    steps: []\n")
+	if _, err := LoadFromDir(dir); err == nil || !strings.Contains(err.Error(), "does not say whether it is governed") {
+		t.Fatalf("a pipeline without governed must not load, got %v", err)
 	}
 }
 
@@ -102,7 +113,7 @@ func TestGovernanceDemoPipelinesAreGoverned(t *testing.T) {
 			t.Errorf("%s: pipeline missing from definitions", name)
 			continue
 		}
-		if !pipe.Governed {
+		if !pipe.IsGoverned() {
 			t.Errorf("%s: must declare governed: true", name)
 		}
 		if pipe.AiSystem != "id-from-"+env {

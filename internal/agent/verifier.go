@@ -285,12 +285,17 @@ func (v *Verifier) ensurePipelineManifest(id, sessionID, intent string, pipe con
 	if err := v.stateManager.Save(context.Background(), st); err != nil {
 		return nil, fmt.Errorf("persist pipeline manifest: %w", err)
 	}
-	if err := v.logLifecycleAudit(st, "pipeline.started", "success", map[string]any{
+	details := map[string]any{
 		"pipeline_version":  version,
 		"pipeline_snapshot": snapshot,
 		"input_digest":      st.InputDigest,
 		"inputs":            cleanInputs,
-	}); err != nil {
+	}
+	// A pipeline exempt from Prudence says why in its own run record.
+	if reason := strings.TrimSpace(pipe.UngovernedReason); reason != "" && pipe.IsExempt() {
+		details["ungoverned_reason"] = reason
+	}
+	if err := v.logLifecycleAudit(st, "pipeline.started", "success", details); err != nil {
 		return nil, err
 	}
 	return st, nil

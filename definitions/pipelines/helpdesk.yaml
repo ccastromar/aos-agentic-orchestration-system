@@ -1,24 +1,32 @@
 pipelines:
   - name: pipeline_support_create
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Create a support ticket"
     steps:
       - tool: helpdesk.support_create_ticket
-      - analyst: true
 
   - name: pipeline_support_status
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Query the status of a ticket"
     steps:
       - tool: helpdesk.support_get_ticket
-      - analyst: true
 
   - name: pipeline_support_add_note
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Add a note to a ticket"
     steps:
       - tool: helpdesk.support_add_note
-      - analyst: true
 
   - name: pipeline_support_close
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Close a ticket"
     steps:
       - tool: helpdesk.support_close_ticket
-      - analyst: true

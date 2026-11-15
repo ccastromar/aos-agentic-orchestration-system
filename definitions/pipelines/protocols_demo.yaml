@@ -1,5 +1,6 @@
 pipelines:
   - name: pipeline_protocols_demo
+    governed: true
     mode: linear
     description: "Demonstrates MCP, gRPC and A2A protocol steps"
     steps:

@@ -1,7 +1,11 @@
 pipelines:
   # The gated counterpart of pipeline_deploy_service: the change ticket records what was running,
   # an SRE approves, and the ticket records what runs afterwards.
+
   - name: pipeline_deploy_approved
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Deploy a service version under a change ticket, after an SRE approves"
     mode: linear
     steps:
@@ -17,4 +21,3 @@ pipelines:
         tool: helpdesk.support_add_note
         with_params:
           note: "Deployed {{ .serviceName }}; now running {{ index . \"devops.infra_get_status.version\" }} ({{ index . \"devops.infra_deploy_service.status\" }})"
-      - analyst: true

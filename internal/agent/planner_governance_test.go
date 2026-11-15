@@ -84,10 +84,12 @@ func takeResult(t *testing.T, id string) Result {
 	return res
 }
 
+func governed(b bool) *bool { return &b }
+
 func TestGovernanceAllowRunsWithoutStoringAResult(t *testing.T) {
 	f := newGovernanceFixture(t, `{"decision":"ALLOW"}`)
 
-	require.True(t, f.allows(t, "gov-allow", config.Pipeline{Name: "p", AiSystem: "sys-1", Governed: true}))
+	require.True(t, f.allows(t, "gov-allow", config.Pipeline{Name: "p", AiSystem: "sys-1", Governed: governed(true)}))
 	_, stored := getResult("gov-allow")
 	require.False(t, stored, "an allowed task continues; it must not end with a result")
 	require.Equal(t, int32(1), f.calls.Load())
@@ -98,7 +100,7 @@ func TestGovernanceUsesTheConfiguredServiceSubject(t *testing.T) {
 	f := newGovernanceFixture(t, `{"decision":"ALLOW"}`)
 	t.Setenv("PRUDENCE_PDP_SUBJECT", "service-account-aos-pdp")
 
-	require.True(t, f.allows(t, "gov-subject", config.Pipeline{Name: "p", AiSystem: "sys-1"}))
+	require.True(t, f.allows(t, "gov-subject", config.Pipeline{Name: "p", AiSystem: "sys-1", Governed: governed(true)}))
 	require.Equal(t, "service-account-aos-pdp", f.subject.Load())
 }
 
@@ -116,7 +118,7 @@ func TestGovernanceVerdictsEndTheTaskAsGovernanceBlocked(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newGovernanceFixture(t, tc.body)
 			id := "gov-blocked-" + tc.decision
-			pipe := config.Pipeline{Name: "pipeline_x", AiSystem: "sys-x", Governed: true}
+			pipe := config.Pipeline{Name: "pipeline_x", AiSystem: "sys-x", Governed: governed(true)}
 
 			require.False(t, f.allows(t, id, pipe))
 
@@ -145,21 +147,41 @@ func TestGovernedPipelineFailsClosedWhenNotConfigured(t *testing.T) {
 	t.Run("missing ai_system (e.g. unset env var)", func(t *testing.T) {
 		f := newGovernanceFixture(t, `{"decision":"ALLOW"}`)
 
-		require.False(t, f.allows(t, "gov-no-system", config.Pipeline{Name: "pipeline_x", AiSystem: "  ", Governed: true}))
+		require.False(t, f.allows(t, "gov-no-system", config.Pipeline{Name: "pipeline_x", AiSystem: "  ", Governed: governed(true)}))
 		res := takeResult(t, "gov-no-system")
 		require.Equal(t, "error", res.Status)
 		require.Contains(t, res.Err, "fail-closed")
 		require.Zero(t, f.calls.Load(), "nothing to ask the PDP about; it must not be called")
 	})
-	t.Run("missing PRUDENCE_PDP_URL", func(t *testing.T) {
-		f := newGovernanceFixture(t, `{"decision":"ALLOW"}`)
+	t.Run("no Prudence in this deployment (AOS_GOVERNANCE=none)", func(t *testing.T) {
+		f := newGovernanceFixture(t, `{"decision":"DENY"}`)
 		t.Setenv("PRUDENCE_PDP_URL", "")
 
-		require.False(t, f.allows(t, "gov-no-pdp", config.Pipeline{Name: "pipeline_x", AiSystem: "sys-x", Governed: true}))
-		res := takeResult(t, "gov-no-pdp")
-		require.Equal(t, "error", res.Status)
-		require.Contains(t, res.Err, "fail-closed")
+		// A governed pipeline is an AI system; a deployment without Prudence runs it unasked.
+		require.True(t, f.allows(t, "gov-no-pdp", config.Pipeline{Name: "pipeline_x", AiSystem: "sys-x", Governed: governed(true)}))
+		require.Zero(t, f.calls.Load())
 	})
+}
+
+func TestUnderPrudencePipelineWithoutSystemFailsClosed(t *testing.T) {
+	f := newGovernanceFixture(t, `{"decision":"ALLOW"}`)
+
+	require.False(t, f.allows(t, "gov-prudence-no-system", config.Pipeline{Name: "pipeline_plain"}))
+	res := takeResult(t, "gov-prudence-no-system")
+	require.Equal(t, "error", res.Status)
+	require.Contains(t, res.Err, "fail-closed")
+	require.Contains(t, res.Err, "ungoverned_reason", "the error should say how to exempt a pipeline that is not AI")
+	require.Zero(t, f.calls.Load(), "nothing to ask the PDP about; it must not be called")
+}
+
+func TestUnderPrudenceExemptPipelineRunsWithoutAsking(t *testing.T) {
+	f := newGovernanceFixture(t, `{"decision":"DENY"}`)
+
+	pipe := config.Pipeline{Name: "pipeline_lookup", Governed: governed(false), UngovernedReason: "deterministic lookup, no AI", SkipSummary: true}
+	require.True(t, f.allows(t, "gov-exempt", pipe))
+	_, stored := getResult("gov-exempt")
+	require.False(t, stored, "an exempt task continues; it must not end with a result")
+	require.Zero(t, f.calls.Load(), "an exempt pipeline is not sent to Prudence")
 }
 
 func TestUngovernedPipelineWithoutSystemStillRuns(t *testing.T) {
@@ -180,7 +202,7 @@ func TestGovernanceTransportFailureIsAnErrorNotAVerdict(t *testing.T) {
 			f := newGovernanceFixture(t, body)
 			id := "gov-transport-" + name
 
-			require.False(t, f.allows(t, id, config.Pipeline{Name: "pipeline_x", AiSystem: "sys-x", Governed: true}))
+			require.False(t, f.allows(t, id, config.Pipeline{Name: "pipeline_x", AiSystem: "sys-x", Governed: governed(true)}))
 			res := takeResult(t, id)
 			require.Equal(t, "error", res.Status)
 			require.Contains(t, res.Err, "governance:")

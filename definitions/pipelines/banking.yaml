@@ -1,24 +1,32 @@
 pipelines:
   - name: pipeline_get_balance
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Account balance query"
     steps:
       - tool: banking.core_get_balance
-      - analyst: true
 
   - name: pipeline_get_movements
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Transaction list"
     steps:
       - tool: banking.core_get_movements
-      - analyst: true
 
   - name: pipeline_check_credit_card
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Check available credit on the card"
     steps:
       - tool: banking.core_get_credit_card_balance
-      - analyst: true
-
 
   - name: pipeline_send_bizum
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Send a Bizum (demo)"
     steps:
       - tool: banking.aml_risk_check
@@ -27,9 +35,11 @@ pipelines:
       - tool: banking.send_notification
         with_params:
           notification: "Bizum sent: {{ .amount }} EUR to {{ .toPhone }}"
-      - analyst: true
 
   - name: pipeline_cash_transfer
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Send a cash transfer (demo)"
     steps:
       - tool: banking.aml_risk_check
@@ -40,9 +50,11 @@ pipelines:
       - tool: banking.send_notification
         with_params:
           notification: "Transfer sent: {{ .amount }} {{ .currency }} to account {{ .toAccount }}"
-      - analyst: true
 
   - name: pipeline_send_bitcoin
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Send bitcoins"
     steps:
       - tool: banking.aml_risk_check
@@ -51,4 +63,3 @@ pipelines:
       - tool: banking.send_notification
         with_params:
           notification: "Bitcoin sent: {{ .amount }} BTC to {{ .toAddress }}"
-      - analyst: true

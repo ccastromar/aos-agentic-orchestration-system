@@ -514,8 +514,35 @@ func (p *Planner) governanceAllows(taskCtx context.Context, id, sessionID, userI
 // governanceGate is governanceAllows that also returns the decision id, for the execution report.
 func (p *Planner) governanceGate(taskCtx context.Context, id, sessionID, userID, intentType, pipeName string, pipe config.Pipeline, params map[string]string) (string, bool) {
 	pdpURL := os.Getenv("PRUDENCE_PDP_URL")
-	if pipe.Governed && (strings.TrimSpace(pipe.AiSystem) == "" || pdpURL == "") {
-		message := "governance: pipeline " + pipeName + " requires a Prudence verdict but ai_system or PRUDENCE_PDP_URL is not configured (fail-closed)"
+	// With a PDP configured (AOS_GOVERNANCE=prudence) every pipeline answers to Prudence: one
+	// without an AI system has nothing Prudence could have approved, so it does not run.
+	// A pipeline that declared itself not an AI system (governed: false, with its reason; only a
+	// pipeline with no model, agent or model-written summary can, see
+	// config.validateGovernanceScope) never asks Prudence. Under Prudence governance the timeline
+	// says so; the reason is in the run's audit record (pipeline.started).
+	if !pipe.IsGoverned() {
+		if pdpURL != "" {
+			reason := strings.TrimSpace(pipe.UngovernedReason)
+			if reason == "" {
+				// Defense in depth: a definition built outside LoadFromDir that skipped validation.
+				message := "governance: pipeline " + pipeName + " is not governed and states no ungoverned_reason; under Prudence governance it does not run (fail-closed)"
+				logx.L(id, "Governance", "%s", message)
+				storeResult(id, Result{Status: "error", Err: message})
+				return "", false
+			}
+			logx.L(id, "Governance", "pipeline %s is not governed by Prudence: %s", pipeName, reason)
+			p.eventBus.PublishEvent(id, "Governance", "governance_exempted", "Not an AI system, Prudence not asked: "+reason, "")
+		}
+		return "", true
+	}
+	if pdpURL == "" {
+		// AOS_GOVERNANCE=none: this deployment has no Prudence; the AI pipeline runs.
+		return "", true
+	}
+	// With a PDP every AI pipeline answers to Prudence: one without an AI system has nothing
+	// Prudence could have approved, so it does not run.
+	if strings.TrimSpace(pipe.AiSystem) == "" {
+		message := "governance: pipeline " + pipeName + " is governed but has no ai_system; under Prudence governance it does not run (fail-closed)"
 		logx.L(id, "Governance", "%s", message)
 		storeResult(id, Result{Status: "error", Err: message})
 		return "", false

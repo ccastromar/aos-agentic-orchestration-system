@@ -1,5 +1,8 @@
 pipelines:
   - name: pipeline_custody_transfer_async
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     mode: linear
     description: "Envía una operación al custodio y continúa al recibir su callback"
     steps:
@@ -25,10 +28,9 @@ pipelines:
           auditHash: "{{ .audit_hash }}"
           operationId: '{{ index . "wait_custody_result.operationId" }}'
           custodyTxHash: '{{ index . "wait_custody_result.txHash" }}'
-      - id: summarize_custody_result
-        analyst: true
 
   - name: pipeline_custody_transfer_with_compliance
+    governed: true
     mode: linear
     description: "Solicita revisión A2A antes de enviar la operación al custodio"
     steps:

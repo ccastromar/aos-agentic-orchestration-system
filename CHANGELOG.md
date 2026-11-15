@@ -7,6 +7,31 @@ The format follows the spirit of Keep a Changelog, and AOS uses semantic version
 
 ## [Unreleased]
 
+### Changed
+
+- **`governed` is required on every pipeline** (breaking: a definition without it no longer
+  loads). `true`: an AI system; under `AOS_GOVERNANCE=prudence` Prudence decides at its entry, and
+  one with no `ai_system` fails closed instead of running ungoverned. `false`, with
+  `ungoverned_reason`: not an AI system (no agent, analyst, model-backed or A2A tool, or
+  model-written summary, which AOS checks at load); it runs without asking Prudence and the reason
+  goes into its audit record. Under `AOS_GOVERNANCE=none` a governed pipeline now runs (that
+  deployment has no Prudence) instead of failing closed.
+- The free-chat fallback is governed with no AI system, so under Prudence governance a request no
+  intent matches does not run.
+- A DAG pipeline honours `skip_summary` as a linear one does: the results are returned as they
+  are, with no model.
+- A finished run always ends `completed` in `/task` (breaking for callers that waited for `ok`).
+  It used to end `ok` when no model was configured or the summary failed, and `completed`
+  otherwise, so the same run reported two statuses depending on the path.
+- The deterministic pipelines in `definitions/` (banking, CRM, devops, helpdesk, logistics, HR,
+  custody, workspace, the DAG demos) drop their model-written summary
+  and analyst step and declare `governed: false`; the result is returned as is. The ones that use
+  a model or an agent (memory, RAG, code generation, the Claude Code agent, A2A agents, the
+  fallback) and the governance demo declare `governed: true`.
+- `pipeline_transfer_reviewed` names its AI system (`AOS_PRUDENCE_TRANSFER_SYSTEM_ID`): its remote
+  compliance agent makes it an AI system. Unset, it does not run under Prudence governance.
+- The README says what Prudence governs in AOS: one decision per pipeline run, at its entry.
+
 ## [0.4.0] - 2026-11-15
 
 AOS 0.4.0 ships in Chestertown 0.1.0 as the reference implementation of Run, with Prudence

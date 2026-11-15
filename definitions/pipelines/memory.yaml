@@ -1,5 +1,6 @@
 pipelines:
   - name: pipeline_memory_add
+    governed: true
     type: linear
     description: "Explicitly remembers a fact about the user"
     steps:
@@ -8,12 +9,14 @@ pipelines:
           fact: "{{ .fact }}"
 
   - name: pipeline_memory_list
+    governed: true
     type: linear
     description: "Lists all facts the system knows about the user"
     steps:
       - tool: system.memory.list
 
   - name: pipeline_memory_forget
+    governed: true
     type: linear
     description: "Forgets a specific fact about the user"
     steps:
@@ -22,6 +25,7 @@ pipelines:
           fact_to_forget: "{{ .fact_to_forget }}"
 
   - name: pipeline_memory_clear
+    governed: true
     type: linear
     description: "Clears all memories about the user"
     steps:

@@ -1,5 +1,6 @@
 pipelines:
   - name: pipeline_update_preference
+    governed: true
     mode: linear
     description: "Stores a user preference."
     steps:

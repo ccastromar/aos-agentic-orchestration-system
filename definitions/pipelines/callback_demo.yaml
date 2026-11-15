@@ -1,6 +1,9 @@
 pipelines:
   - name: pipeline_callback_demo
     mode: linear
+    skip_summary: true
+    governed: false
+    ungoverned_reason: "Not an AI system: submits an operation, waits for its signed callback and notifies, with no model."
     description: "Starts an async external operation and waits for its callback"
     steps:
       - id: submit_custody_operation

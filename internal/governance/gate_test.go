@@ -31,17 +31,19 @@ func pdpStub(t *testing.T, status int, body string) (*httptest.Server, *decision
 	return srv, &got, &calls
 }
 
-func TestEvaluateUngovernedIsImplicitAllowWithoutCallingThePDP(t *testing.T) {
-	srv, _, calls := pdpStub(t, http.StatusOK, `{"decision":"DENY"}`)
-
+func TestEvaluateWithoutPDPIsImplicitAllow(t *testing.T) {
 	dec, err := Evaluate(context.Background(), "", "alice", "p", "sys-1", "run")
 	require.NoError(t, err)
 	require.Equal(t, Allow, dec.Status)
+}
 
-	dec, err = Evaluate(context.Background(), srv.URL, "alice", "p", "", "run")
-	require.NoError(t, err)
-	require.Equal(t, Allow, dec.Status)
-	require.Zero(t, calls.Load(), "an ungoverned pipeline must not reach the PDP")
+func TestEvaluateWithPDPAndNoAISystemFailsClosedWithoutCallingThePDP(t *testing.T) {
+	srv, _, calls := pdpStub(t, http.StatusOK, `{"decision":"ALLOW","decisionId":"d-1"}`)
+
+	dec, err := Evaluate(context.Background(), srv.URL, "alice", "p", "", "run")
+	require.Error(t, err, "under Prudence governance a pipeline with no AI system must not run")
+	require.NotEqual(t, Allow, dec.Status)
+	require.Zero(t, calls.Load(), "there is nothing to ask Prudence about")
 }
 
 func TestEvaluateMapsEachVerdict(t *testing.T) {

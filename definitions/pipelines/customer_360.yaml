@@ -1,6 +1,10 @@
 pipelines:
   # Read-only: every lookup starts at once, and the summary waits for all of them.
+
   - name: pipeline_customer_360
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "One view of a customer: CRM profile, recent interactions, logistics account and risk score, fetched in parallel"
     mode: dag
     steps:
@@ -20,6 +24,3 @@ pipelines:
         depends_on: []
         with_params:
           customerId: "{{ .customerId }}"
-      - id: summary
-        analyst: true
-        depends_on: ["crm_profile", "interactions", "logistics_account", "risk_score"]

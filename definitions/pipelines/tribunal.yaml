@@ -1,8 +1,12 @@
 pipelines:
   # Probe for the governance Tribunal: a custody-like wait whose callback must be signed. The
   # Tribunal receives the token and tries to finish the wait without the custodian's secret.
+
   - name: pipeline_tribunal_callback_probe
     mode: linear
+    skip_summary: true
+    governed: false
+    ungoverned_reason: "Not an AI system: a Tribunal probe of the signed callback wait, with no model."
     description: "Tribunal probe: can an intercepted callback token finish a signed wait?"
     steps:
       - id: submit_probe

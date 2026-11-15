@@ -1,5 +1,8 @@
 pipelines:
   - name: pipeline_customer_offboarding
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Offboarding request: check the customer's balances, open a ticket and wait for a person to approve it"
     mode: dag
     steps:

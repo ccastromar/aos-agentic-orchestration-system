@@ -240,9 +240,8 @@ For presenting failures live, type a marker in the chat message: `#mock-fail:500
 
 ## Governance with Prudence (PEP)
 
-AOS is a **Policy Enforcement Point** for Prudence. A pipeline opts in by naming the AI system it
-runs as (registered in Prudence's registry); `${VAR}` references are expanded from the
-environment:
+AOS is a **Policy Enforcement Point** for Prudence. A pipeline names the AI system it runs as
+(registered in Prudence's registry); `${VAR}` references are expanded from the environment:
 
 ```yaml
 - name: pipeline_aos_credit_pre_screening
@@ -268,8 +267,35 @@ by its `sync.sh` and checked against their SHA-256 sums.
 A `governance_blocked` result carries the verdict (`decision`, `reason`, `approver`,
 `aiSystemId`, `pipeline`, `message`) and is persisted, so `/task` still shows it after the
 one-shot result is consumed; the UI renders it as a policy outcome, not as a failure.
-`governed: true` makes a pipeline **fail closed** when `ai_system` (e.g. an unset env var) or
-`PRUDENCE_PDP_URL` is missing; without the flag such a pipeline would run ungoverned.
+
+**What Prudence governs in AOS.** Every pipeline must say whether it is an AI system; AOS does
+not start while one does not, and lists them:
+
+| `governed` | Meaning | `AOS_GOVERNANCE=prudence` | `AOS_GOVERNANCE=none` |
+|---|---|---|---|
+| `true` | An AI system: a model or an agent produces part of what it does | Asked about at its entry; with no `ai_system` (none declared, or an unset env var) it does **not** run | Runs: this deployment has no Prudence |
+| `false`, with `ungoverned_reason` | Not an AI system: deterministic tool calls, the result returned as is | Runs without asking; the reason goes into the run's audit record (`pipeline.started`) and the timeline shows `governance_exempted` | Runs |
+
+```yaml
+- name: pipeline_get_balance
+  governed: false
+  ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+  skip_summary: true
+  steps:
+    - tool: banking.core_get_balance
+```
+
+- **`governed: false` is checked.** A pipeline that has an agent or analyst step, a model-backed
+  or A2A tool, or a closing summary written by the model (any pipeline without `skip_summary`)
+  uses AI and cannot claim it; neither can one that names an `ai_system`. AOS refuses to start and
+  says why. Most pipelines here are `false`: they call tools and return the data, which is also
+  what an agent calling AOS over MCP wants.
+- **One decision per pipeline run**, about the pipeline as a whole (action `run`). Its steps run
+  without asking again, so a pipeline is only as narrow as its steps: keep a governed pipeline to
+  the one thing its AI system was approved to do. Tool calls an agent framework makes are governed
+  per call by Prudence's framework adapters instead.
+- The free-chat fallback (`system.fallback`) is an AI pipeline with no `ai_system`: under Prudence
+  governance a request no intent matches does not run.
 
 | Variable | Purpose |
 |---|---|
@@ -292,6 +318,11 @@ Prudence system:
 `prudence-governance/scripts/aos-demo-env.sh` prints those variables from a running Prudence,
 and `scripts/aos-demo-rearm.sh` returns the four systems to their starting verdicts to replay
 the demo. The step-by-step script is `prudence-governance/docs/functional/06-demo-aos-en-vivo.md`.
+
+`pipeline_transfer_reviewed` (a transfer a remote compliance agent reviews over A2A) is governed
+too, as `AOS_PRUDENCE_TRANSFER_SYSTEM_ID`. It is not part of the demo or its seed: register and
+approve a system for it in Prudence to run it under Prudence governance (the Governance Tribunal's
+lab does, to check that compliance stops a risky payment). Prudence's OPA data grants the pipeline.
 
 ## Endpoints
 

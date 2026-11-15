@@ -3,10 +3,12 @@
 // run a given pipeline against a declared AI system. AOS enforces the verdict; the policy
 // lives in Prudence, not here.
 //
-// Opt-in and additive: the gate runs only when a pipeline declares `ai_system` AND a PDP
-// URL is configured (PRUDENCE_PDP_URL); a pipeline marked `governed` additionally fails
-// closed when either is missing (enforced by the planner). When it runs, it is fail-closed —
-// an unreachable PDP yields a transport error the caller must treat as a denial. DENY and
+// With a PDP configured (PRUDENCE_PDP_URL, i.e. AOS_GOVERNANCE=prudence) every pipeline is
+// asked about at its entry, and one that declares no `ai_system` does not run at all. Without
+// a PDP (AOS_GOVERNANCE=none) nothing is asked, except that a pipeline marked `governed` still
+// refuses to run (enforced by the planner). The gate is fail-closed: an unreachable PDP yields
+// a transport error the caller must treat as a denial. The decision covers the pipeline as a
+// whole; its steps run without asking again. DENY and
 // APPROVAL_REQUIRED both stop the task: approval happens in Prudence's review workflow,
 // never through a local AOS gate.
 //
@@ -61,12 +63,16 @@ type decisionResponse struct {
 	DecisionID string `json:"decisionId"`
 }
 
-// Evaluate consults the Prudence PDP at pdpURL. A pipeline that is not governed (pdpURL or
-// aiSystem empty) is an implicit Allow. A transport error is returned so the caller can
-// fail closed. A valid PDP response maps to a Decision.
+// Evaluate consults the Prudence PDP at pdpURL. Without a PDP (AOS_GOVERNANCE=none) nothing
+// is asked: an implicit Allow. With one, a pipeline with no AI system is an error, never an
+// Allow: there is nothing Prudence could have approved. A transport error is returned so the
+// caller can fail closed. A valid PDP response maps to a Decision.
 func Evaluate(ctx context.Context, pdpURL, subject, pipeline, aiSystem, action string) (Decision, error) {
-	if pdpURL == "" || aiSystem == "" {
-		return Decision{Status: Allow}, nil // not governed
+	if pdpURL == "" {
+		return Decision{Status: Allow}, nil // not governed: no Prudence in this deployment
+	}
+	if strings.TrimSpace(aiSystem) == "" {
+		return Decision{}, fmt.Errorf("governance: pipeline %s has no ai_system (fail-closed)", pipeline)
 	}
 	started := time.Now()
 	dec, err := evaluate(ctx, pdpURL, subject, pipeline, aiSystem, action)

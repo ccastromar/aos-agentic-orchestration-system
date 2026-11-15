@@ -1,5 +1,8 @@
 pipelines:
   - name: pipeline_openapi_demo
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Pipeline to test openapi dynamic tools"
     mode: dag
     steps:

@@ -1,5 +1,6 @@
 pipelines:
   - name: pipeline_agent_claude_code
+    governed: true
     mode: linear
     skip_summary: true
     description: "Delegates one bounded task to Claude Code and returns its streamed events and final result"

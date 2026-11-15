@@ -1,12 +1,17 @@
 pipelines:
   - name: pipeline_service_status
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Get service status"
     steps:
       - tool: devops.infra_get_status
         with_params: {}
-      - analyst: true
 
   - name: pipeline_restart_service
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Restart a service"
     steps:
       - tool: devops.infra_restart_service
@@ -14,9 +19,11 @@ pipelines:
         with_params: {}
       - tool: devops.infra_get_status
         with_params: {}
-      - analyst: true
 
   - name: pipeline_deploy_service
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Deploy a service"
     steps:
       - tool: devops.infra_deploy_service
@@ -24,11 +31,12 @@ pipelines:
         with_params: {}
       - tool: devops.infra_get_status
         with_params: {}
-      - analyst: true
 
   - name: pipeline_tail_logs
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Query logs of the service"
     steps:
       - tool: devops.infra_tail_logs
         with_params: {}
-      - analyst: true

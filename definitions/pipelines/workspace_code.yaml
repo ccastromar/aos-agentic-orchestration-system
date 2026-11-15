@@ -2,6 +2,8 @@ pipelines:
   - name: pipeline_workspace_create_code
     mode: linear
     skip_summary: true
+    governed: false
+    ungoverned_reason: "Not an AI system: writes the given content, runs the tests and returns the diff, with no model."
     description: "Lee el archivo objetivo, escribe código, ejecuta tests y devuelve el diff"
     steps:
       - id: write_code

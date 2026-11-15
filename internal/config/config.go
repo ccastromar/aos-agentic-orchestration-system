@@ -68,12 +68,27 @@ type Pipeline struct {
 	LLMModel    string `yaml:"llm_model,omitempty" json:"llm_model,omitempty"`
 	SkipSummary bool   `yaml:"skip_summary,omitempty"`
 	AiSystem    string `yaml:"ai_system,omitempty" json:"ai_system,omitempty"` // Prudence governance: AI system id for the entry gate
-	// Governed marks a pipeline that must never run without a Prudence verdict: a missing
-	// ai_system (e.g. an unset env var) or PRUDENCE_PDP_URL then fails closed instead of
-	// silently running ungoverned.
-	Governed bool `yaml:"governed,omitempty" json:"governed,omitempty"`
+	// Governed is required: every pipeline says whether it is an AI system. true: it answers to
+	// Prudence, which decides at its entry under AOS_GOVERNANCE=prudence (no ai_system there means
+	// it does not run). false: it is not an AI system (no model, agent or model-written summary),
+	// states why in UngovernedReason, and never asks Prudence. A pipeline without it, or with a
+	// false that uses AI, does not load (validateGovernanceScope).
+	Governed *bool `yaml:"governed,omitempty" json:"governed,omitempty"`
+	// UngovernedReason is why a governed: false pipeline is not an AI system, e.g. "deterministic
+	// lookup, no AI". It goes into the run's audit record.
+	UngovernedReason string `yaml:"ungoverned_reason,omitempty" json:"ungoverned_reason,omitempty"`
 
 	Steps []PipelineStep `yaml:"steps"`
+}
+
+// IsGoverned reports whether the pipeline declared itself an AI system that answers to Prudence.
+func (p Pipeline) IsGoverned() bool {
+	return p.Governed != nil && *p.Governed
+}
+
+// IsExempt reports whether the pipeline declared itself not an AI system (governed: false).
+func (p Pipeline) IsExempt() bool {
+	return p.Governed != nil && !*p.Governed
 }
 
 type Intent struct {
@@ -160,6 +175,9 @@ func LoadFromDir(base string) (*Config, error) {
 		return nil, err
 	}
 	if err := validatePipelineSafety(cfg); err != nil {
+		return nil, err
+	}
+	if err := validateGovernanceScope(cfg); err != nil {
 		return nil, err
 	}
 

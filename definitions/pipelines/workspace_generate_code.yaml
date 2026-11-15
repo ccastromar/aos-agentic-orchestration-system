@@ -1,5 +1,6 @@
 pipelines:
   - name: pipeline_workspace_generate_code
+    governed: true
     mode: linear
     skip_summary: true
     description: "Genera código con el LLM, lo guarda, ejecuta tests y muestra el diff"

@@ -1,5 +1,8 @@
 pipelines:
   - name: pipeline_resiliency_demo
+    governed: false
+    ungoverned_reason: "Not an AI system: deterministic tool calls; the result is returned as is, with no model."
+    skip_summary: true
     description: "Pipeline to test retries and timeouts"
     mode: dag
     steps:

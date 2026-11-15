@@ -1,5 +1,9 @@
 pipelines:
   - name: pipeline_transfer_reviewed
+    governed: true
+    # A remote compliance agent (A2A) decides part of it, so it is an AI system and answers to
+    # Prudence. Unset, the pipeline does not run under Prudence governance.
+    ai_system: "${AOS_PRUDENCE_TRANSFER_SYSTEM_ID}"
     description: "Transfer behind two controls: compliance reviews the customer's measured risk, and a manager approves large amounts"
     mode: linear
     steps:

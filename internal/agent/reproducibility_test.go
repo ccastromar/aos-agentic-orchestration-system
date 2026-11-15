@@ -54,3 +54,35 @@ func TestPipelineManifestPersistsSnapshotAndRejectsChangedDefinition(t *testing.
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "pipeline definition changed"))
 }
+
+func TestPipelineStartedRecordsWhyAPipelineIsNotGoverned(t *testing.T) {
+	ctx := context.Background()
+	start := func(t *testing.T, pipe config.Pipeline) audit.Event {
+		t.Helper()
+		sm := state.NewStateManager(state.NewMemoryStore())
+		cfg := &config.Config{
+			Pipelines: map[string]config.Pipeline{pipe.Name: pipe},
+			Tools:     map[string]config.Tool{"lookup": {Name: "lookup", Type: "http", Mode: "read"}},
+			Agents:    map[string]config.AgentDefinition{},
+		}
+		require.NoError(t, sm.Save(ctx, &state.ExecutionState{ID: "trace-x", UserID: "alice", Intent: "lookup", Pipeline: pipe.Name}))
+		v := NewVerifier(bus.New(), cfg, nil, bus.New(), sm)
+		logger := &captureAudit{}
+		v.SetAuditLogger(logger)
+		initial, err := sm.Load(ctx, "trace-x")
+		require.NoError(t, err)
+		_, err = v.ensurePipelineManifest("trace-x", "session-1", "lookup", pipe, map[string]any{}, initial)
+		require.NoError(t, err)
+		require.Len(t, logger.events, 1)
+		require.Equal(t, "pipeline.started", logger.events[0].Phase)
+		return logger.events[0]
+	}
+	steps := []config.PipelineStep{{ID: "read", Tool: "lookup"}}
+	exemptFlag, governedFlag := false, true
+
+	exempt := start(t, config.Pipeline{Name: "lookup", Governed: &exemptFlag, SkipSummary: true, UngovernedReason: "deterministic lookup, no AI", Steps: steps})
+	require.Equal(t, "deterministic lookup, no AI", exempt.Details["ungoverned_reason"])
+
+	governed := start(t, config.Pipeline{Name: "lookup", Governed: &governedFlag, AiSystem: "sys-1", Steps: steps})
+	require.NotContains(t, governed.Details, "ungoverned_reason")
+}

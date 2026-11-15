@@ -1,5 +1,6 @@
 pipelines:
   - name: pipeline_rag_test
+    governed: true
     description: "Pipeline to test RAG summary"
     mode: dag
     steps:
