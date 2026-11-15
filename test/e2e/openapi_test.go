@@ -82,5 +82,5 @@ func TestE2EOpenAPI(t *testing.T) {
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "ok", res["status"])
+	assert.Equal(t, "completed", res["status"])
 }

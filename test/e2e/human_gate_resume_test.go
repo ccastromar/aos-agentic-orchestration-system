@@ -86,7 +86,7 @@ func TestE2E_HumanGateResume(t *testing.T) {
 	var taskResFinal map[string]any
 	json.NewDecoder(resp3.Body).Decode(&taskResFinal)
 
-	assert.Equal(t, "ok", taskResFinal["status"], "Pipeline should complete with status ok")
+	assert.Equal(t, "completed", taskResFinal["status"], "Pipeline should complete with status completed")
 
 	// 7. Verify that tools BEFORE the gate were NOT executed again, but tools AFTER the gate were.
 	// Initial tools: check_risk, check_balance (2 calls)

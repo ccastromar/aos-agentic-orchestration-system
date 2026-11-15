@@ -403,6 +403,20 @@ func executeDAG(v *Verifier, pipe config.Pipeline, id, sessionID, intentType, la
 	logx.Debug("Verifier", "[%s] Final Vars: %#v", id, ctx.Vars)
 	logx.Debug("Verifier", "[%s] ToolOutputs: %#v", id, stepResults)
 
+	// As in a linear pipeline, skip_summary returns the results as they are, with no model.
+	if pipe.SkipSummary {
+		v.bus.Send("analyst", bus.Message{
+			Type: "complete",
+			Payload: map[string]any{
+				"id":         id,
+				"session_id": sessionID,
+				"intent":     intentType,
+				"pipeline":   pipe.Name,
+				"rawResult":  publicResults(stepResults),
+			},
+		})
+		return
+	}
 	v.bus.Send("analyst", bus.Message{
 		Type: "summarize",
 		Payload: map[string]any{

@@ -39,7 +39,7 @@ func markRunStart(id string) {
 // runOutcome is the outcome label of a final status, or "" for one that is not final.
 var runOutcome = map[string]string{
 	"completed":          "completed",
-	"ok":                 "completed",
+	"ok":                 "completed", // results stored before the final status was unified
 	"governance_blocked": "blocked",
 	"rejected":           "rejected",
 	"error":              "error",

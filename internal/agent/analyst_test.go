@@ -80,8 +80,8 @@ func TestAnalyst_HandleSummarize_LLMError_DegradesToRaw(t *testing.T) {
     res := results[id]
     resultsMu.Unlock()
 
-    if res.Status != "ok" {
-        t.Fatalf("expected status=ok on degrade path, got %s", res.Status)
+    if res.Status != "completed" {
+        t.Fatalf("expected status=completed on degrade path, got %s", res.Status)
     }
     data, ok := res.Data.(map[string]any)
     if !ok {

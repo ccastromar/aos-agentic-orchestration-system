@@ -89,5 +89,5 @@ func TestE2E_IncidentResponse(t *testing.T) {
 	var finalRes map[string]any
 	json.NewDecoder(resp4.Body).Decode(&finalRes)
 
-	assert.Equal(t, "ok", finalRes["status"])
+	assert.Equal(t, "completed", finalRes["status"])
 }

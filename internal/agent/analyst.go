@@ -151,11 +151,12 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 	var summary string
 	var err error
 	if a.getLLMClient() == nil && !strings.HasPrefix(intentType, "memory.") {
-		// No LLM available → degrade gracefully to raw only
+		// No LLM available → degrade gracefully to raw only. Same final status as any other
+		// completed run, with or without a summary: a caller need not know which path ran.
 		logx.Warn("Analyst", "LLM client is nil; skipping summarization and returning raw")
 		pipelineName = a.persistCompletion(taskCtx, id, sessionID, intentType, pipelineName, raw, "")
 		storeResult(id, Result{
-			Status: "ok",
+			Status: "completed",
 			Data: map[string]any{
 				"raw": raw,
 			},
@@ -179,7 +180,7 @@ func (a *Analyst) handleSummarize(msg bus.Message) {
 		logx.Error("Analyst", "error calling to the LLM: %v", err)
 		pipelineName = a.persistCompletion(taskCtx, id, sessionID, intentType, pipelineName, raw, "")
 		storeResult(id, Result{
-			Status: "ok",
+			Status: "completed",
 			Data: map[string]any{
 				"raw": raw,
 			},
