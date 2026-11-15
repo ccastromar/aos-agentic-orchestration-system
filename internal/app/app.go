@@ -345,9 +345,9 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	if a.env != nil {
-		logx.Info("App", "AOS v0.4.0 started (env=%s execution=%s governance=%s evidence=%s)", a.env.AppEnv, a.env.ExecutionMode, a.env.Governance, a.env.Evidence)
+		logx.Info("App", "AOS v0.5.0 started (env=%s execution=%s governance=%s evidence=%s)", a.env.AppEnv, a.env.ExecutionMode, a.env.Governance, a.env.Evidence)
 	} else {
-		logx.Info("App", "AOS v0.4.0 started")
+		logx.Info("App", "AOS v0.5.0 started")
 	}
 
 	return g.Wait()

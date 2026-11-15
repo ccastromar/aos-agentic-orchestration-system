@@ -46,9 +46,9 @@ Release tags publish images to GHCR, each signed with Sigstore cosign (keyless, 
 workflow itself) and carrying an SBOM and build provenance. Check an image before you run it:
 
 ```bash
-cosign verify ghcr.io/ccastromar/aos-agentic-orchestration-system:0.4.0 \
+cosign verify ghcr.io/ccastromar/aos-agentic-orchestration-system:0.5.0 \
   --certificate-identity-regexp '^https://github.com/ccastromar/aos-agentic-orchestration-system/\.github/workflows/images\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
-docker buildx imagetools inspect ghcr.io/ccastromar/aos-agentic-orchestration-system:0.4.0 --format '{{ json .SBOM }}'
-docker buildx imagetools inspect ghcr.io/ccastromar/aos-agentic-orchestration-system:0.4.0 --format '{{ json .Provenance }}'
+docker buildx imagetools inspect ghcr.io/ccastromar/aos-agentic-orchestration-system:0.5.0 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/ccastromar/aos-agentic-orchestration-system:0.5.0 --format '{{ json .Provenance }}'
 ```
