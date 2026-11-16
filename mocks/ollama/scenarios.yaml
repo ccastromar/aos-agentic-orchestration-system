@@ -96,6 +96,20 @@ scenarios:
     params:
       serviceName: '${service}'
 
+  # Without it the keyword matcher fills every address and phone with the concept.
+  - name: readme-send-bitcoin
+    match: '\b(?:send|env[ií]a)\s+(?P<amount>\d+(?:[.,]\d+)?)\s+(?:bitcoins?|btc)\s+(?:to|a)\s+(?:(?:the\s+)?address\s+|la\s+direcci[oó]n\s+)?(?P<to>\w+)(?:.*?\b(?:concept|concepto)\s+"?(?P<concept>[^"]+)"?)?'
+    intent: banking.send_bitcoin
+    params:
+      amount: '${amount}'
+      toAddress: '${to}'
+      concept: '${concept}'
+      fromAddress: 'bc1qdemowallet'
+      fromPhone: '600000001'
+      toPhone: '600000002'
+    defaults:
+      concept: transfer
+
   # Prudence framework demo (LangGraph response drafter): the node asks for a customer reply.
   - name: prudence-response-drafter
     match: 'draft (a )?(short )?(customer )?(reply|response)'
